@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum AccountType {
+  DEBIT
+  CREDIT
+  SAVINGS
+  VOUCHER
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role     @default(USER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  accounts      Account[]
+  transactions  Transaction[]
+  subscriptions Subscription[]
+  configUpdates AppConfig[]    @relation("ConfigUpdater")
+
+  @@index([email])
+}
+
+model AppConfig {
+  id                String   @id @default("singleton")
+  allowRegistration Boolean  @default(true)
+  updatedAt         DateTime @updatedAt
+  updatedById       String?
+  updatedBy         User?    @relation("ConfigUpdater", fields: [updatedById], references: [id])
+}
+
+model Account {
+  id               String      @id @default(cuid())
+  userId           String
+  name             String
+  type             AccountType
+  balance          Decimal     @default(0) @db.Decimal(14, 2)
+  currency         String      @default("MXN")
+  includeInBalance Boolean     @default(true)
+
+  // Solo para CREDIT
+  creditLimit Decimal? @db.Decimal(14, 2)
+  cutoffDay   Int? // día del mes (1-31)
+  paymentDay  Int? // día del mes (1-31)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user                 User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions         Transaction[]  @relation("AccountTransactions")
+  transferTransactions Transaction[]  @relation("TransferAccount")
+  subscriptions        Subscription[]
+
+  @@index([userId])
+  @@index([type])
+}
+
+model Transaction {
+  id          String          @id @default(cuid())
+  userId      String
+  type        TransactionType
+  amount      Decimal         @db.Decimal(14, 2)
+  date        DateTime
+  description String
+  category    String?
+
+  accountId         String
+  transferAccountId String?
+
+  isMsi           Boolean  @default(false)
+  msiParentId     String?
+  msiTotalAmount  Decimal? @db.Decimal(14, 2)
+  msiInstallments Int? // total de mensualidades
+
+  subscriptionId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account         Account       @relation("AccountTransactions", fields: [accountId], references: [id])
+  transferAccount Account?      @relation("TransferAccount", fields: [transferAccountId], references: [id])
+  subscription    Subscription? @relation(fields: [subscriptionId], references: [id])
+
+  @@index([userId])
+  @@index([accountId])
+  @@index([date])
+  @@index([msiParentId])
+  @@index([subscriptionId])
+}
+
+model Subscription {
+  id         String   @id @default(cuid())
+  userId     String
+  name       String
+  amount     Decimal  @db.Decimal(14, 2)
+  billingDay Int // día del mes
+  category   String?
+  isActive   Boolean  @default(true)
+  accountId  String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account      Account       @relation(fields: [accountId], references: [id])
+  transactions Transaction[]
+
+  @@index([userId])
+  @@index([isActive])
+}
