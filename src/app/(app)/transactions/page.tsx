@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getCategoryTree } from "@/lib/categories";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, ArrowLeftRight } from "lucide-react";
@@ -16,14 +17,18 @@ export default async function TransactionsPage({
     type?: string;
     accountId?: string;
     category?: string;
+    categoryId?: string;
     msi?: string;
   };
 }) {
   const user = await requireUser();
-  const accounts = await prisma.account.findMany({
-    where: { userId: user.id },
-    orderBy: { name: "asc" },
-  });
+  const [accounts, categories] = await Promise.all([
+    prisma.account.findMany({
+      where: { userId: user.id },
+      orderBy: { name: "asc" },
+    }),
+    getCategoryTree(user.id),
+  ]);
 
   // Construir filtros
   const where: any = { userId: user.id };
@@ -43,20 +48,37 @@ export default async function TransactionsPage({
       { transferAccountId: searchParams.accountId },
     ];
   }
-  if (searchParams.category) where.category = searchParams.category;
+  if (searchParams.categoryId) {
+    // Traer la categoría y todas sus subcategorías para filtrar
+    const cat = await prisma.category.findFirst({
+      where: { id: searchParams.categoryId, userId: user.id },
+      include: { children: true },
+    });
+    if (cat) {
+      const ids = [cat.id, ...cat.children.map((c) => c.id)];
+      where.categoryId = { in: ids };
+    }
+  }
   if (searchParams.msi === "true") where.isMsi = true;
   if (searchParams.msi === "false") where.isMsi = false;
 
-  const transactions = await prisma.transaction.findMany({
-    where,
-    include: {
-      account: true,
-      transferAccount: true,
-      subscription: { select: { name: true } },
-    },
-    orderBy: { date: "desc" },
-    take: 500,
-  });
+  const [transactions, activeSubs] = await Promise.all([
+    prisma.transaction.findMany({
+      where,
+      include: {
+        account: true,
+        transferAccount: true,
+        subscription: { select: { name: true } },
+        categoryRef: { include: { parent: true } },
+      },
+      orderBy: { date: "desc" },
+      take: 500,
+    }),
+    prisma.subscription.findMany({
+      where: { userId: user.id, isActive: true },
+      select: { id: true, name: true, amount: true },
+    }),
+  ]);
 
   return (
     <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
@@ -77,10 +99,8 @@ export default async function TransactionsPage({
           creditAccounts={accounts
             .filter((a) => a.type === "CREDIT")
             .map((a) => ({ id: a.id, name: a.name, creditLimit: a.creditLimit ? Number(a.creditLimit) : null }))}
-          subscriptions={await prisma.subscription.findMany({
-            where: { userId: user.id, isActive: true },
-            select: { id: true, name: true, amount: true },
-          }).then((subs) => subs.map((s) => ({ ...s, amount: Number(s.amount) })))}
+          subscriptions={activeSubs.map((s) => ({ ...s, amount: Number(s.amount) }))}
+          categories={categories}
         >
           <Button>
             <Plus className="h-4 w-4" />
@@ -89,7 +109,10 @@ export default async function TransactionsPage({
         </TransactionActions>
       </div>
 
-      <TransactionFilters accounts={accounts.map((a) => ({ id: a.id, name: a.name, type: a.type }))} />
+      <TransactionFilters
+        accounts={accounts.map((a) => ({ id: a.id, name: a.name, type: a.type }))}
+        categories={categories}
+      />
 
       {transactions.length === 0 ? (
         <Card className="border-dashed">
@@ -103,20 +126,26 @@ export default async function TransactionsPage({
         </Card>
       ) : (
         <TransactionsTable
-          transactions={transactions.map((t) => ({
-            id: t.id,
-            type: t.type,
-            amount: Number(t.amount),
-            date: t.date.toISOString(),
-            description: t.description,
-            category: t.category,
-            accountName: t.account.name,
-            transferAccountName: t.transferAccount?.name ?? null,
-            isMsi: t.isMsi,
-            msiParentId: t.msiParentId,
-            msiInstallments: t.msiInstallments,
-            subscriptionName: t.subscription?.name ?? null,
-          }))}
+          transactions={transactions.map((t) => {
+            const cat = t.categoryRef;
+            const rootCat = cat?.parent ?? cat;
+            return {
+              id: t.id,
+              type: t.type,
+              amount: Number(t.amount),
+              date: t.date.toISOString(),
+              description: t.description,
+              category: t.category,
+              categoryName: cat ? `${rootCat?.name ?? ""}${cat.parent ? ` › ${cat.name}` : ""}` : null,
+              categoryColor: cat?.color ?? null,
+              accountName: t.account.name,
+              transferAccountName: t.transferAccount?.name ?? null,
+              isMsi: t.isMsi,
+              msiParentId: t.msiParentId,
+              msiInstallments: t.msiInstallments,
+              subscriptionName: t.subscription?.name ?? null,
+            };
+          })}
         />
       )}
     </div>

@@ -13,9 +13,10 @@ export async function createMsiPurchase(params: {
   installments: number;
   description: string;
   category?: string;
+  categoryId?: string;
   startDate?: Date;
 }) {
-  const { userId, accountId, totalAmount, installments, description, category } = params;
+  const { userId, accountId, totalAmount, installments, description, category, categoryId } = params;
   const startDate = params.startDate ?? new Date();
   const installmentAmount = new Decimal(totalAmount).div(installments);
 
@@ -42,6 +43,7 @@ export async function createMsiPurchase(params: {
       date: startDate,
       description: `${description} (MSI ${installments}x)`,
       category: category ?? null,
+      categoryId: categoryId ?? null,
       accountId,
       isMsi: true,
       msiInstallments: installments,
@@ -63,6 +65,7 @@ export async function createMsiPurchase(params: {
         date: dueDate,
         description: `${description} - Mensualidad ${i + 1}/${installments}`,
         category: category ?? null,
+        categoryId: categoryId ?? null,
         accountId,
         isMsi: true,
         msiParentId: parent.id,

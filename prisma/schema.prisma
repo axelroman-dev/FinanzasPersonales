@@ -25,6 +25,12 @@ enum TransactionType {
   TRANSFER
 }
 
+enum CategoryKind {
+  INCOME
+  EXPENSE
+  BOTH
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -38,6 +44,7 @@ model User {
   accounts      Account[]
   transactions  Transaction[]
   subscriptions Subscription[]
+  categories    Category[]
   configUpdates AppConfig[]    @relation("ConfigUpdater")
 
   @@index([email])
@@ -85,6 +92,7 @@ model Transaction {
   date        DateTime
   description String
   category    String?
+  categoryId  String?
 
   accountId         String
   transferAccountId String?
@@ -103,12 +111,14 @@ model Transaction {
   account         Account       @relation("AccountTransactions", fields: [accountId], references: [id])
   transferAccount Account?      @relation("TransferAccount", fields: [transferAccountId], references: [id])
   subscription    Subscription? @relation(fields: [subscriptionId], references: [id])
+  categoryRef     Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([accountId])
   @@index([date])
   @@index([msiParentId])
   @@index([subscriptionId])
+  @@index([categoryId])
 }
 
 model Subscription {
@@ -129,4 +139,25 @@ model Subscription {
 
   @@index([userId])
   @@index([isActive])
+}
+
+model Category {
+  id        String       @id @default(cuid())
+  userId    String
+  name      String
+  parentId  String? // null = categoría raíz
+  kind      CategoryKind @default(BOTH)
+  color     String? // hex, ej. "#10b981"
+  icon      String? // nombre de icono lucide
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent      Category?    @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Category[]   @relation("CategoryTree")
+  transactions Transaction[]
+
+  @@unique([userId, name, parentId])
+  @@index([userId])
+  @@index([parentId])
 }

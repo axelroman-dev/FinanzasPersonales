@@ -8,6 +8,20 @@ import { cn } from "@/lib/utils";
 const Select = SelectPrimitive.Root;
 const SelectGroup = SelectPrimitive.Group;
 const SelectValue = SelectPrimitive.Value;
+const SelectLabel = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.Label>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Label>
+>(({ className, ...props }, ref) => (
+  <SelectPrimitive.Label
+    ref={ref}
+    className={cn(
+      "px-2 py-1.5 text-xs font-semibold text-muted-foreground",
+      className
+    )}
+    {...props}
+  />
+));
+SelectLabel.displayName = SelectPrimitive.Label.displayName;
 
 const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
@@ -94,4 +108,5 @@ export {
   SelectTrigger,
   SelectContent,
   SelectItem,
+  SelectLabel,
 };

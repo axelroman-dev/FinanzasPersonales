@@ -5,7 +5,9 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -14,13 +16,28 @@ import { X } from "lucide-react";
 
 type Account = { id: string; name: string; type: string };
 
-export function TransactionFilters({ accounts }: { accounts: Account[] }) {
+type CategoryNode = {
+  id: string;
+  name: string;
+  color: string | null;
+  kind: "INCOME" | "EXPENSE" | "BOTH";
+  parentId: string | null;
+  children: CategoryNode[];
+};
+
+export function TransactionFilters({
+  accounts,
+  categories,
+}: {
+  accounts: Account[];
+  categories?: CategoryNode[];
+}) {
   const router = useRouter();
   const params = useSearchParams();
 
   function update(key: string, value: string | null) {
     const next = new URLSearchParams(params.toString());
-    if (value && value !== "all") {
+    if (value && value !== "all" && value !== "none") {
       next.set(key, value);
     } else {
       next.delete(key);
@@ -37,7 +54,7 @@ export function TransactionFilters({ accounts }: { accounts: Account[] }) {
     params.get("to") ||
     params.get("type") ||
     params.get("accountId") ||
-    params.get("category") ||
+    params.get("categoryId") ||
     params.get("msi");
 
   return (
@@ -85,19 +102,38 @@ export function TransactionFilters({ accounts }: { accounts: Account[] }) {
             ))}
           </SelectContent>
         </Select>
-        <Select
-          defaultValue={params.get("msi") ?? "all"}
-          onValueChange={(v) => update("msi", v === "all" ? null : v)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="MSI" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="true">Solo MSI</SelectItem>
-            <SelectItem value="false">Sin MSI</SelectItem>
-          </SelectContent>
-        </Select>
+        {categories && categories.length > 0 && (
+          <Select
+            defaultValue={params.get("categoryId") ?? "all"}
+            onValueChange={(v) => update("categoryId", v === "all" ? null : v)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Categoría" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas las categorías</SelectItem>
+              {categories.map((cat) => (
+                <SelectGroup key={cat.id}>
+                  <SelectLabel className="flex items-center gap-2">
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{ backgroundColor: cat.color ?? "#71717a" }}
+                    />
+                    {cat.name}
+                  </SelectLabel>
+                  <SelectItem value={cat.id} className="pl-4">
+                    (Todas)
+                  </SelectItem>
+                  {cat.children.map((sub) => (
+                    <SelectItem key={sub.id} value={sub.id} className="pl-8">
+                      {sub.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         {hasFilters && (
           <Button variant="outline" onClick={clear}>
             <X className="h-4 w-4" />

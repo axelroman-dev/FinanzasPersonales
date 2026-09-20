@@ -14,6 +14,8 @@ type Tx = {
   date: string;
   description: string;
   category: string | null;
+  categoryName: string | null;
+  categoryColor: string | null;
   accountName: string;
   transferAccountName: string | null;
   isMsi: boolean;
@@ -63,8 +65,28 @@ export function TransactionsTable({ transactions }: { transactions: Tx[] }) {
                       <Icon className={`h-4 w-4 ${color}`} />
                       <div>
                         <p className="text-sm font-medium">{tx.description}</p>
-                        <div className="flex items-center gap-1 mt-0.5">
-                          {tx.category && (
+                        <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                          {tx.categoryName && (
+                            <span
+                              className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs"
+                              style={{
+                                backgroundColor: tx.categoryColor
+                                  ? `${tx.categoryColor}20`
+                                  : undefined,
+                                color: tx.categoryColor ?? undefined,
+                                borderColor: tx.categoryColor
+                                  ? `${tx.categoryColor}50`
+                                  : undefined,
+                              }}
+                            >
+                              <span
+                                className="h-1.5 w-1.5 rounded-full"
+                                style={{ backgroundColor: tx.categoryColor ?? "#71717a" }}
+                              />
+                              {tx.categoryName}
+                            </span>
+                          )}
+                          {tx.category && !tx.categoryName && (
                             <Badge variant="secondary" className="text-xs">
                               {tx.category}
                             </Badge>

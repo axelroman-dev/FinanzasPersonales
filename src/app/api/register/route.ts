@@ -3,6 +3,7 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { getRegistrationConfig } from "@/lib/admin";
+import { seedDefaultCategories } from "@/lib/categories";
 
 const schema = z.object({
   name: z.string().min(1).max(100),
@@ -41,7 +42,7 @@ export async function POST(req: Request) {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    await prisma.user.create({
+    const user = await prisma.user.create({
       data: {
         name,
         email,
@@ -50,6 +51,9 @@ export async function POST(req: Request) {
         isActive: true,
       },
     });
+
+    // Crear categorías predeterminadas
+    await seedDefaultCategories(user.id);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Trash2, Loader2 } from "lucide-react";
+import { Trash2, Loader2, Pencil } from "lucide-react";
 
 type AccountFormData = {
   id: string;
@@ -136,17 +136,44 @@ function AccountFormDialog({
 
   async function onDelete() {
     if (!account) return;
-    if (!confirm("¿Eliminar esta cuenta? Sus transacciones quedarán huérfanas.")) return;
-    startTransition(async () => {
-      const res = await fetch(`/api/accounts/${account.id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        onSaved();
-      } else {
-        setError("Error al eliminar");
-      }
+
+    // Primer intento: detección de uso
+    const probe = await fetch(`/api/accounts/${account.id}`, {
+      method: "DELETE",
     });
+
+    if (probe.status === 409) {
+      const data = await probe.json();
+      const total = (data.txCount ?? 0) + (data.subCount ?? 0);
+      const force = confirm(
+        `Esta cuenta tiene ${data.txCount ?? 0} movimiento(s) y ${data.subCount ?? 0} suscripción(es) vinculada(s).\n\n` +
+          `Si la eliminas con "force":\n` +
+          `• Los ${data.txCount ?? 0} movimiento(s) no-transfer se BORRARÁN\n` +
+          `• Las transferencias se desvincularán\n` +
+          `• Las ${data.subCount ?? 0} suscripción(es) se BORRARÁN\n\n` +
+          `¿Continuar?`
+      );
+      if (!force) return;
+      startTransition(async () => {
+        const res = await fetch(`/api/accounts/${account.id}?force=true`, {
+          method: "DELETE",
+        });
+        if (res.ok) {
+          onSaved();
+        } else {
+          setError("Error al eliminar");
+        }
+      });
+      return;
+    }
+
+    if (probe.ok) {
+      // Sin uso, se eliminó en el primer intento
+      onSaved();
+      return;
+    }
+
+    setError("Error al eliminar");
   }
 
   const isVoucher = type === "VOUCHER";
@@ -311,5 +338,19 @@ function AccountFormDialog({
         </div>
       </form>
     </DialogContent>
+  );
+}
+
+/**
+ * Botón compacto de edición para mostrar en cada card de cuenta.
+ * Reutiliza el formulario de edición.
+ */
+export function AccountEditButton({ account }: { account: AccountFormData }) {
+  return (
+    <AccountActions mode="edit" account={account}>
+      <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar cuenta">
+        <Pencil className="h-3.5 w-3.5" />
+      </Button>
+    </AccountActions>
   );
 }

@@ -6,7 +6,15 @@ import { requireUser } from "@/lib/auth";
 const updateSchema = z.object({
   type: z.enum(["INCOME", "EXPENSE", "TRANSFER"]).optional(),
   amount: z.number().positive().optional(),
-  date: z.string().transform((s) => new Date(s)).optional(),
+  date: z
+    .string()
+    .transform((s) => {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+        return new Date(s + "T00:00:00");
+      }
+      return new Date(s);
+    })
+    .optional(),
   description: z.string().min(1).optional(),
   category: z.string().nullable().optional(),
   accountId: z.string().optional(),

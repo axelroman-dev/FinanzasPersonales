@@ -4,7 +4,7 @@ import { formatCurrency } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { AccountActions } from "@/components/accounts/account-actions";
+import { AccountActions, AccountEditButton } from "@/components/accounts/account-actions";
 import { Button } from "@/components/ui/button";
 import { Plus, Wallet } from "lucide-react";
 
@@ -116,8 +116,7 @@ export default async function AccountsPage() {
                               No en balance
                             </Badge>
                           )}
-                          <AccountActions
-                            mode="edit"
+                          <AccountEditButton
                             account={{
                               id: acc.id,
                               name: acc.name,

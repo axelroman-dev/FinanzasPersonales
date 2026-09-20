@@ -7,6 +7,8 @@ import {
   Wallet,
   Receipt,
   ArrowLeftRight,
+  FolderTree,
+  PieChart,
   Shield,
   LogOut,
 } from "lucide-react";
@@ -26,6 +28,8 @@ const navItems = [
   { href: "/accounts", label: "Cuentas", icon: Wallet },
   { href: "/transactions", label: "Movimientos", icon: ArrowLeftRight },
   { href: "/subscriptions", label: "Suscripciones", icon: Receipt },
+  { href: "/categories", label: "Categorías", icon: FolderTree },
+  { href: "/reports", label: "Reportes", icon: PieChart },
 ];
 
 export function Sidebar({ user }: SidebarProps) {

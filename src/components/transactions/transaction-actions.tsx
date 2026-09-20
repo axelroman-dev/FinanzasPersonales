@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -15,22 +15,35 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Trash2 } from "lucide-react";
+import { Loader2, Trash2, Tag } from "lucide-react";
 
 type AccountOpt = { id: string; name: string; type: string };
 type CreditAccount = { id: string; name: string; creditLimit: number | null };
 type SubOpt = { id: string; name: string; amount: number };
+
+type CategoryNode = {
+  id: string;
+  name: string;
+  color: string | null;
+  icon: string | null;
+  kind: "INCOME" | "EXPENSE" | "BOTH";
+  parentId: string | null;
+  children: CategoryNode[];
+};
 
 export function TransactionActions({
   mode,
   accounts,
   creditAccounts,
   subscriptions,
+  categories,
   transaction,
   children,
 }: {
@@ -38,6 +51,7 @@ export function TransactionActions({
   accounts: AccountOpt[];
   creditAccounts: CreditAccount[];
   subscriptions?: SubOpt[];
+  categories?: CategoryNode[];
   transaction?: any;
   children?: React.ReactNode;
 }) {
@@ -50,6 +64,7 @@ export function TransactionActions({
         accounts={accounts}
         creditAccounts={creditAccounts}
         subscriptions={subscriptions}
+        categories={categories}
         transaction={transaction}
         onClose={() => setOpen(false)}
         onSaved={() => setOpen(false)}
@@ -63,6 +78,7 @@ function TxFormDialog({
   accounts,
   creditAccounts,
   subscriptions,
+  categories,
   transaction,
   onClose,
   onSaved,
@@ -71,6 +87,7 @@ function TxFormDialog({
   accounts: AccountOpt[];
   creditAccounts: CreditAccount[];
   subscriptions?: SubOpt[];
+  categories?: CategoryNode[];
   transaction?: any;
   onClose: () => void;
   onSaved: () => void;
@@ -91,7 +108,7 @@ function TxFormDialog({
       : new Date().toISOString().slice(0, 10)
   );
   const [description, setDescription] = useState(transaction?.description ?? "");
-  const [category, setCategory] = useState(transaction?.category ?? "");
+  const [categoryId, setCategoryId] = useState<string>(transaction?.categoryId ?? "");
   const [accountId, setAccountId] = useState(
     transaction?.accountId ?? accounts[0]?.id ?? ""
   );
@@ -112,6 +129,23 @@ function TxFormDialog({
 
   // Solo permitir MSI si es gasto en crédito
   const canMsi = type === "EXPENSE" && creditAccounts.some((c) => c.id === accountId);
+
+  // Categorías filtradas por tipo
+  const filteredCategories = useMemo(() => {
+    if (!categories) return [];
+    return categories.filter((c) => {
+      if (type === "INCOME") return c.kind === "INCOME" || c.kind === "BOTH";
+      if (type === "EXPENSE") return c.kind === "EXPENSE" || c.kind === "BOTH";
+      return false; // transferencias no tienen categoría
+    });
+  }, [categories, type]);
+
+  // Reset categoría si cambia el tipo y no aplica
+  useEffect(() => {
+    if (type === "TRANSFER") {
+      setCategoryId("");
+    }
+  }, [type]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -134,7 +168,7 @@ function TxFormDialog({
           amount: Number(amount),
           date,
           description,
-          category: category || null,
+          categoryId: type === "TRANSFER" ? null : (categoryId || null),
           accountId,
           transferAccountId: type === "TRANSFER" ? transferAccountId : null,
           subscriptionId: subscriptionId || null,
@@ -345,13 +379,44 @@ function TxFormDialog({
         )}
 
         <div className="space-y-2">
-          <Label htmlFor="category">Categoría (opcional)</Label>
-          <Input
-            id="category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            placeholder="Alimentos, Transporte, etc."
-          />
+          <Label className="flex items-center gap-1">
+            <Tag className="h-3 w-3" />
+            Categoría (opcional)
+          </Label>
+          <Select
+            value={categoryId || "none"}
+            onValueChange={(v) => setCategoryId(v === "none" ? "" : v)}
+            disabled={type === "TRANSFER"}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Sin categoría" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Sin categoría</SelectItem>
+              {filteredCategories.map((cat) => (
+                <SelectGroup key={cat.id}>
+                  <SelectLabel className="flex items-center gap-2">
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{ backgroundColor: cat.color ?? "#71717a" }}
+                    />
+                    {cat.name}
+                  </SelectLabel>
+                  {cat.children.map((sub) => (
+                    <SelectItem key={sub.id} value={sub.id} className="pl-8">
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="h-1.5 w-1.5 rounded-full"
+                          style={{ backgroundColor: sub.color ?? cat.color ?? "#71717a" }}
+                        />
+                        {sub.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {error && (

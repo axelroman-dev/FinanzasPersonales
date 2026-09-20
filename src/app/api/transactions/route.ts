@@ -7,9 +7,16 @@ import { createMsiPurchase } from "@/lib/msi";
 const baseSchema = {
   type: z.enum(["INCOME", "EXPENSE", "TRANSFER"]),
   amount: z.number().positive(),
-  date: z.string().transform((s) => new Date(s)),
+  // Acepta "YYYY-MM-DD" como local midnight (no UTC midnight)
+  date: z.string().transform((s) => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+      return new Date(s + "T00:00:00");
+    }
+    return new Date(s);
+  }),
   description: z.string().min(1),
   category: z.string().nullable().optional(),
+  categoryId: z.string().nullable().optional(),
   accountId: z.string(),
   transferAccountId: z.string().nullable().optional(),
   subscriptionId: z.string().nullable().optional(),
@@ -109,6 +116,19 @@ export async function POST(req: Request) {
       }
     }
 
+    // Verificar categoría si se proporciona
+    if (data.categoryId) {
+      const cat = await prisma.category.findFirst({
+        where: { id: data.categoryId, userId: user.id },
+      });
+      if (!cat) {
+        return NextResponse.json(
+          { error: "Categoría no encontrada" },
+          { status: 404 }
+        );
+      }
+    }
+
     // MSI: solo gastos en cuenta de crédito
     if (data.isMsi && data.msiInstallments) {
       if (data.type !== "EXPENSE" || account.type !== "CREDIT") {
@@ -125,6 +145,7 @@ export async function POST(req: Request) {
         installments: data.msiInstallments,
         description: data.description,
         category: data.category ?? undefined,
+        categoryId: data.categoryId ?? undefined,
         startDate: data.date,
       });
 
@@ -141,6 +162,7 @@ export async function POST(req: Request) {
           date: data.date,
           description: data.description,
           category: data.category ?? null,
+          categoryId: data.categoryId ?? null,
           accountId: data.accountId,
           transferAccountId: data.transferAccountId ?? null,
           subscriptionId: data.subscriptionId ?? null,

@@ -45,7 +45,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: Request,
+  req: Request,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -56,9 +56,61 @@ export async function DELETE(
     if (!existing) {
       return NextResponse.json({ error: "No encontrado" }, { status: 404 });
     }
+
+    // Contar uso: transacciones donde aparece como accountId o transferAccountId,
+    // y suscripciones vinculadas
+    const [txCount, subCount] = await Promise.all([
+      prisma.transaction.count({
+        where: {
+          OR: [
+            { accountId: params.id },
+            { transferAccountId: params.id },
+          ],
+        },
+      }),
+      prisma.subscription.count({
+        where: { accountId: params.id },
+      }),
+    ]);
+
+    const totalUsage = txCount + subCount;
+
+    if (totalUsage > 0) {
+      const url = new URL(req.url);
+      const force = url.searchParams.get("force") === "true";
+      if (!force) {
+        return NextResponse.json(
+          {
+            error: "Cuenta en uso",
+            txCount,
+            subCount,
+            message: `Esta cuenta tiene ${txCount} movimiento(s) y ${subCount} suscripción(es) vinculada(s). Usa ?force=true para desvincular y eliminar.`,
+          },
+          { status: 409 }
+        );
+      }
+      // Forzar: el campo `accountId` es required (no nullable), por lo que
+      // las transacciones donde esta cuenta aparece como origen deben borrarse.
+      // Las transferencias (donde aparece como destino) pueden desvincularse.
+      await prisma.transaction.deleteMany({
+        where: { accountId: params.id, type: { not: "TRANSFER" } },
+      });
+      await prisma.transaction.updateMany({
+        where: { transferAccountId: params.id },
+        data: { transferAccountId: null },
+      });
+      await prisma.subscription.deleteMany({
+        where: { accountId: params.id },
+      });
+    }
+
     await prisma.account.delete({ where: { id: params.id } });
-    return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: "Error al eliminar" }, { status: 500 });
+    return NextResponse.json({ ok: true, deletedTxs: txCount, deletedSubs: subCount });
+  } catch (error: any) {
+    console.error("Delete account error:", error);
+    return NextResponse.json(
+      { error: "Error al eliminar" },
+      { status: 500 }
+    );
   }
 }
