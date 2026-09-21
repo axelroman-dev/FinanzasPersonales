@@ -3,7 +3,11 @@ node_modules
 out
 build
 dist
+public/*
+!public/.gitkeep
 .env
+.env.local
+.env.prod
 .env*.local
 *.log
 .DS_Store

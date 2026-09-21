@@ -1,0 +1,32 @@
+# Docker Compose para DESARROLLO
+# Solo levanta PostgreSQL. La app Next.js corre con `npm run dev` localmente
+# y se conecta a esta DB.
+#
+# Uso:
+#   npm run db:up      # levantar DB
+#   npm run dev        # arrancar Next.js en modo desarrollo
+#   npm run db:down    # detener DB
+#   npm run db:reset   # reset completo (BORRA DATOS)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: finanzas-dev-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: finanzas
+      POSTGRES_PASSWORD: finanzas
+      POSTGRES_DB: finanzas
+    ports:
+      - "5433:5432"
+    volumes:
+      - finanzas_dev_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finanzas -d finanzas"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  finanzas_dev_pgdata:
+    driver: local

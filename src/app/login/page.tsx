@@ -1,6 +1,10 @@
 import { LoginForm } from "./login-form";
 import { getRegistrationConfig } from "@/lib/admin";
 
+// Forzar render dinámico: necesitamos consultar la DB en cada request
+// para saber si el registro está habilitado.
+export const dynamic = "force-dynamic";
+
 export default async function LoginPage({
   searchParams,
 }: {

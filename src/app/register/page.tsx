@@ -1,6 +1,9 @@
 import { RegisterForm } from "./register-form";
 import { getRegistrationConfig } from "@/lib/admin";
 
+// Forzar render dinámico: consultar DB en cada request
+export const dynamic = "force-dynamic";
+
 export default async function RegisterPage() {
   const allowRegistration = await getRegistrationConfig();
 

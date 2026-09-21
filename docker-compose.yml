@@ -1,22 +1,83 @@
+# Docker Compose para PRODUCCIÓN (homelab)
+# Levanta la app Next.js + PostgreSQL con la imagen Docker construida localmente.
+#
+# Uso:
+#   cp .env.prod.example .env
+#   nano .env  # editar secretos (NEXTAUTH_SECRET, DB_PASSWORD)
+#   docker compose up -d --build        # build + iniciar
+#   docker compose logs -f app           # ver logs
+#   docker compose down                  # detener (sin borrar datos)
+#   docker compose down -v               # detener y BORRAR volúmenes
+#
+# Comandos npm equivalentes:
+#   npm run prod:up      # build + iniciar
+#   npm run prod:build   # solo rebuild
+#   npm run prod:logs    # tail de logs
+#   npm run prod:reset   # detener + borrar + rebuild
+
 services:
-    postgres:
-        image: postgres:16-alpine
-        container_name: finanzas-postgres
-        restart: unless-stopped
-        environment:
-            POSTGRES_USER: finanzas
-            POSTGRES_PASSWORD: finanzas
-            POSTGRES_DB: finanzas
-        ports:
-            - "5433:5432"
-        volumes:
-            - finanzas_pgdata:/var/lib/postgresql/data
-        healthcheck:
-            test: ["CMD-SHELL", "pg_isready -U finanzas -d finanzas"]
-            interval: 5s
-            timeout: 5s
-            retries: 5
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: finanzas:latest
+    container_name: finanzas-app
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    # Cargar el archivo .env automáticamente
+    env_file:
+      - .env
+    environment:
+      # Base de datos (compone con DB_PASSWORD del .env)
+      DATABASE_URL: postgresql://finanzas:${DB_PASSWORD:?DB_PASSWORD requerido en .env}@db:5432/finanzas?schema=public
+      # NextAuth
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET requerido en .env}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      # Admin inicial (seed)
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@finanzas.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin123!}
+      ADMIN_NAME: ${ADMIN_NAME:-Administrador}
+      # Telemetry
+      NEXT_TELEMETRY_DISABLED: "1"
+      NODE_ENV: production
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - finanzas-net
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  db:
+    image: postgres:16-alpine
+    container_name: finanzas-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: finanzas
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-finanzas}
+      POSTGRES_DB: finanzas
+    volumes:
+      - finanzas_pgdata:/var/lib/postgresql/data
+    ports:
+      # Solo expuesto al host si querés conectarte con un cliente externo
+      - "${DB_PORT:-5433}:5432"
+    networks:
+      - finanzas-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finanzas -d finanzas"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+networks:
+  finanzas-net:
+    driver: bridge
 
 volumes:
-    finanzas_pgdata:
-        driver: local
+  finanzas_pgdata:
+    driver: local

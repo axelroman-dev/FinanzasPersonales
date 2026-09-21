@@ -10,6 +10,9 @@ const credentialsSchema = z.object({
 });
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  // Confiar en cualquier host (necesario cuando se corre detrás de Docker,
+  // proxy inverso, o con NEXTAUTH_URL apuntando a un dominio distinto al Host header)
+  trustHost: true,
   session: { strategy: "jwt" },
   pages: {
     signIn: "/login",
