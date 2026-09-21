@@ -4,7 +4,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatShortDate } from "@/lib/utils";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { UserActions } from "@/components/admin/user-actions";
 import { CreateUserDialog } from "@/components/admin/create-user-dialog";
 import { Plus } from "lucide-react";
@@ -23,7 +22,7 @@ export default async function AdminUsersPage() {
   return (
     <>
       <div className="flex items-center justify-between">
-        <AdminNav />
+        <h2 className="text-lg font-semibold">Usuarios</h2>
         <CreateUserDialog>
           <Button>
             <Plus className="h-4 w-4" />

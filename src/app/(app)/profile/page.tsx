@@ -1,6 +1,5 @@
 import { requireUser } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { ProfileForm } from "@/components/profile/profile-form";
 import { ChangePasswordForm } from "@/app/change-password/change-password-form";
 

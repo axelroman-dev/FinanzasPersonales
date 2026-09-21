@@ -3,7 +3,7 @@ import { getRegistrationConfig } from "@/lib/admin";
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RegistrationToggle } from "@/components/admin/registration-toggle";
-import { AdminNav } from "@/components/admin/admin-nav";
+import { GlobalImportExportPanel } from "@/components/settings/global-import-export-panel";
 import { formatDate } from "@/lib/utils";
 
 export default async function AdminSettingsPage() {
@@ -18,7 +18,6 @@ export default async function AdminSettingsPage() {
 
   return (
     <>
-      <AdminNav />
       <Card>
         <CardHeader>
           <CardTitle>Registro de usuarios</CardTitle>
@@ -34,6 +33,19 @@ export default async function AdminSettingsPage() {
               {config.updatedBy.name}
             </p>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Exportar e importar datos</CardTitle>
+          <CardDescription>
+            Descarga un backup completo del sistema, o restaura datos desde un
+            archivo JSON exportado previamente.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <GlobalImportExportPanel />
         </CardContent>
       </Card>
     </>
