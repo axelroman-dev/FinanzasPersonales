@@ -6,6 +6,7 @@ export type SessionUser = {
   email: string;
   name: string;
   role: "USER" | "ADMIN";
+  mustChangePassword: boolean;
 };
 
 export async function getCurrentUser(): Promise<SessionUser | null> {
@@ -17,6 +18,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
     email: u.email!,
     name: u.name!,
     role: u.role,
+    mustChangePassword: u.mustChangePassword ?? false,
   };
 }
 

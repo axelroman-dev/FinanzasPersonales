@@ -32,14 +32,17 @@ enum CategoryKind {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  name         String
-  role         Role     @default(USER)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  email               String   @unique
+  passwordHash        String
+  name                String
+  role                Role     @default(USER)
+  isActive            Boolean  @default(true)
+  // TRUE cuando el usuario fue creado por un admin con contraseña temporal.
+  // Debe cambiarla antes de poder navegar a otras páginas.
+  mustChangePassword  Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   accounts      Account[]
   transactions  Transaction[]

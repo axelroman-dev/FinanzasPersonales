@@ -2,9 +2,14 @@ import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { formatShortDate } from "@/lib/utils";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { UserActions } from "@/components/admin/user-actions";
+import { CreateUserDialog } from "@/components/admin/create-user-dialog";
+import { Plus } from "lucide-react";
+
+export const dynamic = "force-dynamic";
 
 export default async function AdminUsersPage() {
   const admin = await requireAdmin();
@@ -17,7 +22,16 @@ export default async function AdminUsersPage() {
 
   return (
     <>
-      <AdminNav />
+      <div className="flex items-center justify-between">
+        <AdminNav />
+        <CreateUserDialog>
+          <Button>
+            <Plus className="h-4 w-4" />
+            Nuevo usuario
+          </Button>
+        </CreateUserDialog>
+      </div>
+
       <Card>
         <CardContent className="p-0">
           <table className="w-full">
@@ -36,8 +50,21 @@ export default async function AdminUsersPage() {
               {users.map((u) => (
                 <tr key={u.id} className="border-b last:border-0">
                   <td className="px-4 py-3">
-                    <p className="font-medium">{u.name}</p>
-                    <p className="text-xs text-muted-foreground">{u.email}</p>
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <p className="font-medium">{u.name}</p>
+                        <p className="text-xs text-muted-foreground">{u.email}</p>
+                      </div>
+                      {u.mustChangePassword && (
+                        <Badge
+                          variant="warning"
+                          className="text-[10px]"
+                          title="Debe cambiar contraseña"
+                        >
+                          ⚠ Pendiente
+                        </Badge>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <Badge variant={u.role === "ADMIN" ? "default" : "secondary"}>
