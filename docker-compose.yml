@@ -1,30 +1,34 @@
 # Docker Compose para PRODUCCIÓN (homelab)
-# Levanta la app Next.js + PostgreSQL con la imagen Docker construida localmente.
+# Levanta la app Next.js (imagen privada de Docker Hub) + PostgreSQL.
+# Se conecta a la red externa "proxy" para que nginx/cloudflared del homelab
+# puedan llegar al contenedor por nombre (finanzas-app:3000), sin publicar
+# el puerto en el host.
 #
-# Uso:
+# La imagen se construye y publica sola en Docker Hub (repo privado
+# axelroman-dev/finanzas_personales) vía GitHub Actions con cada push a main.
+#
+# Uso en el servidor:
+#   docker network create proxy   # si todavía no existe
+#   docker login                  # con tu usuario/token de Docker Hub (repo privado)
 #   cp .env.prod.example .env
-#   nano .env  # editar secretos (NEXTAUTH_SECRET, DB_PASSWORD)
-#   docker compose up -d --build        # build + iniciar
-#   docker compose logs -f app           # ver logs
-#   docker compose down                  # detener (sin borrar datos)
-#   docker compose down -v               # detener y BORRAR volúmenes
+#   nano .env  # editar secretos (NEXTAUTH_SECRET, DB_PASSWORD) y NEXTAUTH_URL
+#   docker compose pull && docker compose up -d   # traer última imagen + iniciar
+#   docker compose logs -f app                     # ver logs
+#   docker compose down                            # detener (sin borrar datos)
+#   docker compose down -v                         # detener y BORRAR volúmenes
 #
 # Comandos npm equivalentes:
-#   npm run prod:up      # build + iniciar
-#   npm run prod:build   # solo rebuild
+#   npm run prod:up      # pull + iniciar
 #   npm run prod:logs    # tail de logs
-#   npm run prod:reset   # detener + borrar + rebuild
+#   npm run prod:reset   # detener + borrar + pull + iniciar
 
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: finanzas:latest
+    image: axelroman-dev/finanzas_personales:${IMAGE_TAG:-latest}
     container_name: finanzas-app
     restart: unless-stopped
-    ports:
-      - "${APP_PORT:-3000}:3000"
+    expose:
+      - "3000"
     # Cargar el archivo .env automáticamente
     env_file:
       - .env
@@ -46,6 +50,7 @@ services:
         condition: service_healthy
     networks:
       - finanzas-net
+      - proxy
     healthcheck:
       test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:3000"]
       interval: 30s
@@ -62,10 +67,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-finanzas}
       POSTGRES_DB: finanzas
     volumes:
-      - finanzas_pgdata:/var/lib/postgresql/data
-    ports:
-      # Solo expuesto al host si querés conectarte con un cliente externo
-      - "${DB_PORT:-5433}:5432"
+      - ${DATA_PATH:-/data}/finanzas/postgres:/var/lib/postgresql/data
     networks:
       - finanzas-net
     healthcheck:
@@ -77,7 +79,7 @@ services:
 networks:
   finanzas-net:
     driver: bridge
+  proxy:
+    external: true
 
-volumes:
-  finanzas_pgdata:
-    driver: local
+volumes: {}
