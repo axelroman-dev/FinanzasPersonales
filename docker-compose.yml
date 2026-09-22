@@ -1,8 +1,8 @@
-# Docker Compose para PRODUCCIÓN (homelab)
+# Docker Compose para PRODUCCIÓN
 # Levanta la app Next.js (imagen privada de Docker Hub) + PostgreSQL.
-# Se conecta a la red externa "proxy" para que nginx/cloudflared del homelab
-# puedan llegar al contenedor por nombre (finanzas-app:3000), sin publicar
-# el puerto en el host.
+# Se conecta a la red externa "proxy" para que un reverse proxy (nginx, Caddy,
+# Cloudflare Tunnel, etc.) pueda llegar al contenedor por nombre
+# (finanzas-app:3000), sin publicar el puerto en el host.
 #
 # La imagen se construye y publica sola en Docker Hub (repo privado
 # axelromandev/finanzas-personales) vía GitHub Actions con cada push a main.

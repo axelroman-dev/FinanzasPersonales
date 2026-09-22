@@ -87,7 +87,7 @@ npm run setup        # install + db + migrate + seed
 
 ## Variables de entorno
 
-Hay dos plantillas: `.env.local.example` (desarrollo local) y `.env.prod.example` (Docker/homelab). Las únicas variables requeridas son:
+Hay dos plantillas: `.env.local.example` (desarrollo local) y `.env.prod.example` (Docker/producción). Las únicas variables requeridas son:
 
 - `DATABASE_URL` — URL de conexión a PostgreSQL
 - `NEXTAUTH_SECRET` — Genera con `openssl rand -base64 32`
@@ -147,7 +147,7 @@ Los **vales de despensa** no cuentan en el balance.
 
 ## Despliegue
 
-### Opción A — Docker (recomendado para homelab)
+### Opción A — Docker (recomendado para self-hosting)
 
 El proyecto incluye dos archivos compose:
 
@@ -172,7 +172,7 @@ npm run prod:logs
 # equivalente a: docker compose logs -f app
 ```
 
-**Build manual y push a tu homelab**:
+**Build manual y push a tu servidor**:
 ```bash
 # Build local
 docker build -t finanzas:1.0 .
@@ -181,10 +181,10 @@ docker build -t finanzas:1.0 .
 docker save finanzas:1.0 | gzip > finanzas.tar.gz
 
 # Transferir (ejemplo con SCP)
-scp finanzas.tar.gz usuario@homelab:~/
+scp finanzas.tar.gz usuario@tu-servidor:~/
 
-# En el homelab
-ssh usuario@homelab
+# En el servidor
+ssh usuario@tu-servidor
 docker load < finanzas.tar.gz
 cd /path/al/proyecto
 cp .env.prod.example .env && nano .env
@@ -198,7 +198,7 @@ docker run -d --name finanzas \
   -p 3000:3000 \
   -e DATABASE_URL="postgresql://user:pass@db-host:5432/finanzas" \
   -e NEXTAUTH_SECRET="tu-secreto" \
-  -e NEXTAUTH_URL="http://tu-homelab:3000" \
+  -e NEXTAUTH_URL="http://tu-servidor:3000" \
   --restart unless-stopped \
   finanzas:1.0
 ```
@@ -206,7 +206,7 @@ docker run -d --name finanzas \
 **Imagen publicada en registry**:
 ```bash
 docker push tu-usuario/finanzas:1.0
-# En homelab
+# En el servidor
 docker compose pull && up -d
 ```
 
