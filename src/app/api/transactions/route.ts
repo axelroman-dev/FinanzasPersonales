@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { createMsiPurchase } from "@/lib/msi";
+import { applyBalanceDeltas, balanceEffects } from "@/lib/transaction-balance";
 
 const baseSchema = {
   type: z.enum(["INCOME", "EXPENSE", "TRANSFER"]),
@@ -170,35 +171,16 @@ export async function POST(req: Request) {
       });
 
       // Actualizar balances
-      if (data.type === "EXPENSE") {
-        if (account.type === "CREDIT") {
-          // Crédito: incrementar deuda
-          await tx.account.update({
-            where: { id: data.accountId },
-            data: { balance: { increment: data.amount } },
-          });
-        } else {
-          // Débito/ahorro/vale: decrementar disponible
-          await tx.account.update({
-            where: { id: data.accountId },
-            data: { balance: { decrement: data.amount } },
-          });
-        }
-      } else if (data.type === "INCOME") {
-        await tx.account.update({
-          where: { id: data.accountId },
-          data: { balance: { increment: data.amount } },
-        });
-      } else if (data.type === "TRANSFER") {
-        await tx.account.update({
-          where: { id: data.accountId },
-          data: { balance: { decrement: data.amount } },
-        });
-        await tx.account.update({
-          where: { id: data.transferAccountId! },
-          data: { balance: { increment: data.amount } },
-        });
-      }
+      await applyBalanceDeltas(
+        tx,
+        balanceEffects({
+          type: data.type,
+          amount: data.amount,
+          accountId: data.accountId,
+          accountType: account.type,
+          transferAccountId: data.transferAccountId,
+        })
+      );
 
       return created;
     });

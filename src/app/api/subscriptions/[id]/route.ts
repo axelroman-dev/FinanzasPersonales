@@ -29,6 +29,14 @@ export async function PATCH(
     if (!existing) {
       return NextResponse.json({ error: "No encontrado" }, { status: 404 });
     }
+    if (parsed.data.accountId) {
+      const account = await prisma.account.findFirst({
+        where: { id: parsed.data.accountId, userId: user.id },
+      });
+      if (!account) {
+        return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
+      }
+    }
     const sub = await prisma.subscription.update({
       where: { id: params.id },
       data: parsed.data,
