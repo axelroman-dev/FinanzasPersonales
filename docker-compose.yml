@@ -5,7 +5,8 @@
 # (finanzas-app:3000), sin publicar el puerto en el host.
 #
 # La imagen se construye y publica sola en Docker Hub (repo privado
-# axelromandev/finanzas-personales) vía GitHub Actions con cada push a main.
+# axelromandev/finanzas-personales) vía GitHub Actions en cada release.
+# Para fijar una versión: IMAGE_TAG=0.2.0 en el .env (por defecto: latest).
 #
 # Uso en el servidor:
 #   docker network create proxy   # si todavía no existe
@@ -15,12 +16,13 @@
 #   docker compose pull && docker compose up -d   # traer última imagen + iniciar
 #   docker compose logs -f app                     # ver logs
 #   docker compose down                            # detener (sin borrar datos)
-#   docker compose down -v                         # detener y BORRAR volúmenes
+#   Los datos de PostgreSQL viven en ${DATA_PATH}/finanzas/postgres del host;
+#   para borrarlos hay que eliminar esa carpeta.
 #
 # Comandos npm equivalentes:
 #   npm run prod:up      # pull + iniciar
 #   npm run prod:logs    # tail de logs
-#   npm run prod:reset   # detener + borrar + pull + iniciar
+#   npm run prod:reset   # detener + pull + iniciar
 
 services:
     app:
