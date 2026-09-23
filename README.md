@@ -12,6 +12,9 @@ App web para gestionar finanzas personales con **Next.js 14 + PostgreSQL**.
 - 🔄 **Movimientos**: gastos, ingresos, transferencias con filtros (fechas, tipo, cuenta, MSI)
 - 💳 **MSI** (Meses Sin Intereses): al registrar una compra MSI, se generan automáticamente las mensualidades
 - 📺 **Suscripciones**: total mensual + proyección del balance después de pagar
+- 🗂️ **Categorías** y subcategorías personalizables
+- 📈 **Reportes** con filtros por periodo
+- 📦 **Exportar / importar** datos (admin)
 
 ## Stack
 
@@ -57,7 +60,7 @@ ADMIN_EMAIL="admin@finanzas.local"
 ADMIN_PASSWORD="Admin123!"
 ```
 
-⚠️ **Cambia la contraseña del admin después del primer login.**
+⚠️ **Cambia la contraseña del admin después del primer login.** Al admin del seed no se le exige el cambio; a los usuarios que crea un admin desde el panel sí se les pide cambiar la contraseña en su primer login.
 
 ## Comandos útiles
 
@@ -69,11 +72,11 @@ npm run db:down      # Detener PostgreSQL
 npm run db:reset     # Reset completo (BORRA DATOS)
 
 # ── Producción (Docker) ──
-npm run prod:up      # Build + levantar (docker-compose.yml)
+npm run prod:up      # Descargar la imagen + levantar (docker-compose.yml)
 npm run prod:down    # Detener stack
-npm run prod:build   # Solo rebuild de la imagen
+npm run prod:pull    # Solo descargar la imagen
 npm run prod:logs    # Tail de logs del contenedor app
-npm run prod:reset   # Detener + borrar volúmenes + rebuild
+npm run prod:reset   # Detener + descargar la imagen + levantar
 
 # ── Prisma ──
 npm run prisma:generate  # Generar cliente Prisma
@@ -87,12 +90,17 @@ npm run setup        # install + db + migrate + seed
 
 ## Variables de entorno
 
-Hay dos plantillas: `.env.local.example` (desarrollo local) y `.env.prod.example` (Docker/producción). Las únicas variables requeridas son:
+Hay dos plantillas: `.env.local.example` (desarrollo local) y `.env.prod.example` (Docker/producción).
 
-- `DATABASE_URL` — URL de conexión a PostgreSQL
-- `NEXTAUTH_SECRET` — Genera con `openssl rand -base64 32`
-- `NEXTAUTH_URL` — URL base (ej. `http://localhost:3000`)
-- `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` — Solo se usan en el seed inicial
+| Variable | Dónde | Descripción |
+|---|---|---|
+| `DATABASE_URL` | Desarrollo | URL de conexión a PostgreSQL. En producción la arma `docker-compose.yml` a partir de `DB_PASSWORD` |
+| `DB_PASSWORD` | Producción | Password de PostgreSQL |
+| `NEXTAUTH_SECRET` | Ambos | Genera con `openssl rand -base64 32` |
+| `NEXTAUTH_URL` | Ambos | URL base (ej. `http://localhost:3000`) |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` | Ambos | Solo se usan en el seed inicial |
+| `DATA_PATH` | Producción | Carpeta del host donde se guardan los datos de PostgreSQL (por defecto `/data`) |
+| `IMAGE_TAG` | Producción | Versión de la imagen a usar (por defecto `latest`) |
 
 ## Estructura
 
@@ -101,11 +109,15 @@ src/
 ├── app/
 │   ├── login/                # Login
 │   ├── register/             # Registro (deshabilitable)
+│   ├── change-password/      # Cambio de contraseña obligatorio
 │   ├── (app)/                # Rutas protegidas (con sidebar)
 │   │   ├── page.tsx          # Dashboard
 │   │   ├── accounts/
 │   │   ├── transactions/
 │   │   ├── subscriptions/
+│   │   ├── categories/
+│   │   ├── reports/
+│   │   ├── profile/
 │   │   └── admin/            # Solo admins
 │   └── api/                  # API routes
 ├── components/
@@ -114,14 +126,23 @@ src/
 │   ├── accounts/
 │   ├── transactions/
 │   ├── subscriptions/
+│   ├── categories/
+│   ├── reports/
+│   ├── profile/
+│   ├── settings/             # Import / export
 │   ├── admin/
 │   └── shared/               # Sidebar, providers
-└── lib/
-    ├── db.ts                 # Cliente Prisma
-    ├── auth.ts               # Helpers de auth
-    ├── admin.ts              # Config global
-    ├── balance.ts            # Cálculo del balance real
-    └── msi.ts                # Lógica de MSI
+├── lib/
+│   ├── db.ts                 # Cliente Prisma
+│   ├── auth.ts               # Helpers de auth
+│   ├── admin.ts              # Config global
+│   ├── balance.ts            # Cálculo del balance real
+│   ├── msi.ts                # Lógica de MSI
+│   ├── categories.ts         # Categorías por defecto
+│   ├── export-import.ts      # Exportar / importar datos
+│   └── utils.ts
+├── auth.ts                   # Configuración de NextAuth
+└── middleware.ts             # Protección de rutas
 ```
 
 ## Fórmula del balance real
@@ -141,8 +162,9 @@ Los **vales de despensa** no cuentan en el balance.
 - Passwords hasheados con **bcrypt** (10 rounds)
 - Sesiones JWT firmadas
 - Middleware protege todas las rutas excepto `/login` y `/register`
+- Usuarios con `mustChangePassword` son redirigidos a `/change-password` hasta que la cambien
 - Todas las queries filtran por `userId` desde la sesión (nunca del cliente)
-- Verificación de `isActive` en cada request
+- Las cuentas desactivadas (`isActive = false`) no pueden iniciar sesión
 - Validación con **Zod** en todos los endpoints
 
 ## Flujo de trabajo
@@ -219,56 +241,40 @@ El proyecto incluye dos archivos compose:
 
 #### Producción
 
+`docker-compose.yml` usa la imagen publicada en Docker Hub (`axelromandev/finanzas-personales`, repo privado) y no publica puertos en el host: la app se expone a través de un reverse proxy (nginx, Caddy, Cloudflare Tunnel, etc.) conectado a la red externa `proxy`, que llega al contenedor como `finanzas-app:3000`.
+
 ```bash
-# 1. Preparar variables
+# 1. Preparar el servidor
+docker network create proxy   # si todavía no existe
+docker login                  # la imagen está en un repo privado
+
+# 2. Preparar variables
 cp .env.prod.example .env
-nano .env  # cambiar NEXTAUTH_SECRET y DB_PASSWORD
+nano .env  # cambiar NEXTAUTH_SECRET, DB_PASSWORD y NEXTAUTH_URL
 
-# 2. Build + levantar (primera vez tarda 3-5 min)
+# 3. Descargar la imagen + levantar
 npm run prod:up
-# equivalente a: docker compose up -d --build
+# equivalente a: docker compose pull && docker compose up -d
 
-# 3. Ver logs
+# 4. Ver logs
 npm run prod:logs
 # equivalente a: docker compose logs -f app
 ```
 
-**Build manual y push a tu servidor**:
+**Sin acceso a la imagen privada** (por ejemplo, si clonaste el repo): construye tu propia imagen y ajusta `image:` en `docker-compose.yml`.
 ```bash
-# Build local
-docker build -t finanzas:1.0 .
-
-# Guardar imagen
-docker save finanzas:1.0 | gzip > finanzas.tar.gz
-
-# Transferir (ejemplo con SCP)
-scp finanzas.tar.gz usuario@tu-servidor:~/
-
-# En el servidor
-ssh usuario@tu-servidor
-docker load < finanzas.tar.gz
-cd /path/al/proyecto
-cp .env.prod.example .env && nano .env
-npm run prod:up
+docker build -t finanzas-personales .
 ```
 
 **Solo imagen de la app** (sin PostgreSQL incluido, usando una DB externa):
 ```bash
-docker build -t finanzas:1.0 .
 docker run -d --name finanzas \
   -p 3000:3000 \
   -e DATABASE_URL="postgresql://user:pass@db-host:5432/finanzas" \
   -e NEXTAUTH_SECRET="tu-secreto" \
   -e NEXTAUTH_URL="http://tu-servidor:3000" \
   --restart unless-stopped \
-  finanzas:1.0
-```
-
-**Imagen publicada en registry**:
-```bash
-docker push tu-usuario/finanzas:1.0
-# En el servidor
-docker compose pull && up -d
+  finanzas-personales
 ```
 
 #### Desarrollo
@@ -293,17 +299,18 @@ npm run db:down
 - `dumb-init` para propagación correcta de señales (graceful shutdown)
 - `prisma generate`, `migrate deploy` y `db seed` corren automáticamente al arrancar
 - Healthchecks incluidos en el compose
-- Volumen `finanzas_pgdata` para persistencia
+- Datos de PostgreSQL en `${DATA_PATH}/finanzas/postgres` del host (bind mount)
 
 ### Actualizar el despliegue
 
-```bash
-# Rebuild imagen con cambios
-npm run prod:build
-# equivalente a: docker compose build --no-cache app
+Cada release publica una imagen nueva (ver [Versionado](#versionado)).
 
-# Reiniciar
+```bash
+# Última versión (latest)
 npm run prod:up
+
+# O fijar una versión específica
+IMAGE_TAG=0.2.0 npm run prod:up   # o definir IMAGE_TAG en el .env
 
 # Ver logs
 npm run prod:logs
@@ -320,4 +327,4 @@ npm run prod:logs
 
 ## Licencia
 
-MIT
+[MIT](LICENSE)
