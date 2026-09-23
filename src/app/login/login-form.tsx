@@ -20,7 +20,11 @@ export function LoginForm({
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
   const [formError, setFormError] = useState<string | null>(
-    error === "CredentialsSignin" ? "Credenciales inválidas" : null
+    error === "CredentialsSignin"
+      ? "Credenciales inválidas"
+      : error === "inactive"
+        ? "Tu sesión se cerró porque la cuenta fue desactivada o eliminada"
+        : null
   );
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
