@@ -183,7 +183,7 @@ gh pr merge --squash --delete-branch
 | Workflow | Cuándo corre | Qué hace |
 |---|---|---|
 | `ci.yml` | En cada PR hacia `main` | `npm ci` → `prisma generate` → `tsc --noEmit` → `next build` |
-| `docker-publish.yml` | Al mergear a `main` | Construye y publica la imagen en Docker Hub |
+| `docker-publish.yml` | Al mergear a `main` (se omite si solo cambian `.md`, excepto `docker/README.md`) | Construye y publica la imagen en Docker Hub |
 
 ## Despliegue
 
