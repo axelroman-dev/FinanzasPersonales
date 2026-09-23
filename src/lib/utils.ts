@@ -34,3 +34,5 @@ export function formatShortDate(date: Date | string): string {
     month: "short",
   }).format(d);
 }
+/** Cookie que recuerda si el sidebar de escritorio está colapsado */
+export const SIDEBAR_COOKIE = "sidebar_collapsed";
