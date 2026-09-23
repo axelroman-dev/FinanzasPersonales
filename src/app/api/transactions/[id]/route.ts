@@ -5,7 +5,6 @@ import { requireUser } from "@/lib/auth";
 import type { AccountType } from "@prisma/client";
 import {
   applyBalanceDeltas,
-  CURRENT_BALANCE_RULE,
   editEffects,
   revertEffects,
 } from "@/lib/transaction-balance";
@@ -129,7 +128,6 @@ export async function PATCH(
         accountType: existing.account.type,
         transferAccountId: existing.transferAccountId,
         transferAccountType: existing.transferAccount?.type,
-        balanceRule: existing.balanceRule,
       },
       {
         type,
@@ -145,8 +143,7 @@ export async function PATCH(
       await applyBalanceDeltas(tx, deltas);
       return tx.transaction.update({
         where: { id: params.id },
-        // Tras revertir con su regla original, queda aplicado con la actual
-        data: { ...data, transferAccountId, balanceRule: CURRENT_BALANCE_RULE },
+        data: { ...data, transferAccountId },
       });
     });
     return NextResponse.json(updated);
@@ -209,7 +206,6 @@ export async function DELETE(
             accountType: existing.account.type,
             transferAccountId: existing.transferAccountId,
             transferAccountType: existing.transferAccount?.type,
-            balanceRule: existing.balanceRule,
           })
         );
       }

@@ -142,32 +142,3 @@ describe("editEffects", () => {
     expect(total).toBe(0);
   });
 });
-
-describe("regla anterior (balanceRule 1)", () => {
-  const payCard = (balanceRule: number) =>
-    expense({
-      type: "TRANSFER",
-      transferAccountId: "tarjeta",
-      transferAccountType: "CREDIT",
-      balanceRule,
-    });
-
-  it("pagar la tarjeta aumentaba la deuda", () => {
-    expect(byAccount(balanceEffects(payCard(1)))).toEqual({ debito: -100, tarjeta: 100 });
-  });
-
-  it("los gastos en tarjeta son iguales con ambas reglas", () => {
-    const gasto = (balanceRule: number) =>
-      expense({ accountId: "tarjeta", accountType: "CREDIT", balanceRule });
-    expect(byAccount(balanceEffects(gasto(1)))).toEqual(byAccount(balanceEffects(gasto(2))));
-  });
-
-  it("borrar un pago viejo lo revierte con la regla con la que se aplicó", () => {
-    expect(byAccount(revertEffects(payCard(1)))).toEqual({ debito: 100, tarjeta: -100 });
-  });
-
-  it("editar un pago viejo sin cambios lo migra a la regla actual", () => {
-    // La deuda baja 200: se quita el +100 equivocado y se aplica el -100 correcto
-    expect(byAccount(editEffects(payCard(1), payCard(2)))).toEqual({ tarjeta: -200 });
-  });
-});

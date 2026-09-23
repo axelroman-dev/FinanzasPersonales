@@ -1,22 +1,6 @@
 import { Prisma, type AccountType, type TransactionType } from "@prisma/client";
 
 /**
- * Versión de la regla con la que se aplicó un movimiento a los balances
- * (columna `Transaction.balanceRule`):
- *
- * - 1: regla anterior. Todo el dinero que entraba a una cuenta sumaba a su
- *   balance, también en tarjetas de crédito: pagar la tarjeta o recibir un
- *   reembolso *aumentaba* la deuda.
- * - 2: regla actual. En tarjetas de crédito el balance es la deuda, así que el
- *   dinero que entra la reduce y el que sale la aumenta.
- *
- * Los movimientos se revierten con la regla con la que se aplicaron, así que
- * los de regla 1 se pueden editar o borrar sin descuadrar nada.
- * `scripts/fix-credit-balances.ts` migra los movimientos de regla 1 a la 2.
- */
-export const CURRENT_BALANCE_RULE = 2;
-
-/**
  * Datos de un movimiento necesarios para saber cómo afecta a los balances.
  */
 export type BalanceTx = {
@@ -26,27 +10,22 @@ export type BalanceTx = {
   accountType: AccountType;
   transferAccountId?: string | null;
   transferAccountType?: AccountType | null;
-  /** Por defecto, la regla actual */
-  balanceRule?: number;
 };
 
 export type BalanceDelta = { accountId: string; delta: Prisma.Decimal };
 
 /**
  * Cambio en el balance de una cuenta cuando entra (`in`) o sale (`out`) dinero.
- * En crédito el balance es deuda: con la regla actual entrar dinero la reduce.
+ * En crédito el balance es la deuda, así que entrar dinero la reduce (pagar la
+ * tarjeta, un reembolso) y sacarlo la aumenta (un gasto, retirar efectivo).
  */
 function flow(
   accountType: AccountType,
   direction: "in" | "out",
-  amount: Prisma.Decimal,
-  rule: number
+  amount: Prisma.Decimal
 ): Prisma.Decimal {
   const signed = direction === "in" ? amount : amount.neg();
-  if (accountType !== "CREDIT") return signed;
-  // Un gasto siempre aumentó la deuda, con cualquier regla
-  if (rule === 1 && direction === "in") return signed;
-  return signed.neg();
+  return accountType === "CREDIT" ? signed.neg() : signed;
 }
 
 /**
@@ -59,13 +38,12 @@ function flow(
  */
 export function balanceEffects(tx: BalanceTx): BalanceDelta[] {
   const amount = new Prisma.Decimal(tx.amount);
-  const rule = tx.balanceRule ?? CURRENT_BALANCE_RULE;
 
   switch (tx.type) {
     case "EXPENSE":
-      return [{ accountId: tx.accountId, delta: flow(tx.accountType, "out", amount, rule) }];
+      return [{ accountId: tx.accountId, delta: flow(tx.accountType, "out", amount) }];
     case "INCOME":
-      return [{ accountId: tx.accountId, delta: flow(tx.accountType, "in", amount, rule) }];
+      return [{ accountId: tx.accountId, delta: flow(tx.accountType, "in", amount) }];
     case "TRANSFER":
       // Datos legacy sin cuenta destino: no se aplicó nada al crearla
       if (!tx.transferAccountId) return [];
@@ -73,10 +51,10 @@ export function balanceEffects(tx: BalanceTx): BalanceDelta[] {
         throw new Error("transferAccountType es requerido para transferencias");
       }
       return [
-        { accountId: tx.accountId, delta: flow(tx.accountType, "out", amount, rule) },
+        { accountId: tx.accountId, delta: flow(tx.accountType, "out", amount) },
         {
           accountId: tx.transferAccountId,
-          delta: flow(tx.transferAccountType, "in", amount, rule),
+          delta: flow(tx.transferAccountType, "in", amount),
         },
       ];
   }
@@ -99,8 +77,8 @@ export function mergeDeltas(deltas: BalanceDelta[]): BalanceDelta[] {
 }
 
 /**
- * Cambios netos al editar un movimiento: revertir la versión anterior (con la
- * regla con la que se aplicó) y aplicar la nueva.
+ * Cambios netos al editar un movimiento: revertir la versión anterior y
+ * aplicar la nueva.
  */
 export function editEffects(before: BalanceTx, after: BalanceTx): BalanceDelta[] {
   return mergeDeltas([...revertEffects(before), ...balanceEffects(after)]);
