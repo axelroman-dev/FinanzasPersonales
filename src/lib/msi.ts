@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { Decimal } from "@prisma/client/runtime/library";
+import { splitInstallments } from "@/lib/msi-installments";
 
 /**
  * Genera una compra MSI:
@@ -18,7 +19,7 @@ export async function createMsiPurchase(params: {
 }) {
   const { userId, accountId, totalAmount, installments, description, category, categoryId } = params;
   const startDate = params.startDate ?? new Date();
-  const installmentAmount = new Decimal(totalAmount).div(installments);
+  const installmentAmounts = splitInstallments(totalAmount, installments);
 
   // Validar cuenta de crédito
   const account = await prisma.account.findFirst({
@@ -34,53 +35,56 @@ export async function createMsiPurchase(params: {
     }
   }
 
-  // 1. Transacción padre (gasto total cargado a la tarjeta)
-  const parent = await prisma.transaction.create({
-    data: {
-      userId,
-      type: "EXPENSE",
-      amount: new Decimal(totalAmount),
-      date: startDate,
-      description: `${description} (MSI ${installments}x)`,
-      category: category ?? null,
-      categoryId: categoryId ?? null,
-      accountId,
-      isMsi: true,
-      msiInstallments: installments,
-      msiTotalAmount: new Decimal(totalAmount),
-    },
-  });
-
-  // 2. N transacciones hijas (una por mes) que se cobrarán al balance
-  const children: any[] = [];
-  for (let i = 0; i < installments; i++) {
-    const dueDate = new Date(startDate);
-    dueDate.setMonth(dueDate.getMonth() + i);
-
-    const child = await prisma.transaction.create({
+  // Todo o nada: si algo falla no queda una compra a medias
+  return prisma.$transaction(async (tx) => {
+    // 1. Transacción padre (gasto total cargado a la tarjeta)
+    const parent = await tx.transaction.create({
       data: {
         userId,
         type: "EXPENSE",
-        amount: installmentAmount,
-        date: dueDate,
-        description: `${description} - Mensualidad ${i + 1}/${installments}`,
+        amount: new Decimal(totalAmount),
+        date: startDate,
+        description: `${description} (MSI ${installments}x)`,
         category: category ?? null,
         categoryId: categoryId ?? null,
         accountId,
         isMsi: true,
-        msiParentId: parent.id,
         msiInstallments: installments,
         msiTotalAmount: new Decimal(totalAmount),
       },
     });
-    children.push(child);
-  }
 
-  // 3. Actualizar balance de la cuenta (sumar el total al adeudo)
-  await prisma.account.update({
-    where: { id: accountId },
-    data: { balance: { increment: new Decimal(totalAmount) } },
+    // 2. N transacciones hijas (una por mes) que se cobrarán al balance
+    const children: any[] = [];
+    for (let i = 0; i < installments; i++) {
+      const dueDate = new Date(startDate);
+      dueDate.setMonth(dueDate.getMonth() + i);
+
+      const child = await tx.transaction.create({
+        data: {
+          userId,
+          type: "EXPENSE",
+          amount: installmentAmounts[i],
+          date: dueDate,
+          description: `${description} - Mensualidad ${i + 1}/${installments}`,
+          category: category ?? null,
+          categoryId: categoryId ?? null,
+          accountId,
+          isMsi: true,
+          msiParentId: parent.id,
+          msiInstallments: installments,
+          msiTotalAmount: new Decimal(totalAmount),
+        },
+      });
+      children.push(child);
+    }
+
+    // 3. Actualizar balance de la cuenta (sumar el total al adeudo)
+    await tx.account.update({
+      where: { id: accountId },
+      data: { balance: { increment: new Decimal(totalAmount) } },
+    });
+
+    return { parent, children };
   });
-
-  return { parent, children };
 }

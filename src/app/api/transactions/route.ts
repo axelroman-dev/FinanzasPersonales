@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import type { AccountType } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { createMsiPurchase } from "@/lib/msi";
@@ -93,6 +94,7 @@ export async function POST(req: Request) {
     }
 
     // Verificar cuenta destino si es transferencia
+    let transferAccountType: AccountType | null = null;
     if (data.type === "TRANSFER") {
       if (!data.transferAccountId) {
         return NextResponse.json(
@@ -115,6 +117,7 @@ export async function POST(req: Request) {
           { status: 404 }
         );
       }
+      transferAccountType = transfer.type;
     }
 
     // Verificar categoría si se proporciona
@@ -179,6 +182,7 @@ export async function POST(req: Request) {
           accountId: data.accountId,
           accountType: account.type,
           transferAccountId: data.transferAccountId,
+          transferAccountType,
         })
       );
 
