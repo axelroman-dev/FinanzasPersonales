@@ -38,9 +38,48 @@ describe("balanceEffects", () => {
   it("una transferencia resta del origen y suma al destino", () => {
     expect(
       byAccount(
-        balanceEffects(expense({ type: "TRANSFER", transferAccountId: "ahorro" }))
+        balanceEffects(expense({ type: "TRANSFER", transferAccountId: "ahorro", transferAccountType: "SAVINGS" }))
       )
     ).toEqual({ debito: -100, ahorro: 100 });
+  });
+
+  it("un ingreso a la tarjeta (reembolso) reduce la deuda", () => {
+    expect(
+      byAccount(
+        balanceEffects(expense({ type: "INCOME", accountId: "tarjeta", accountType: "CREDIT" }))
+      )
+    ).toEqual({ tarjeta: -100 });
+  });
+
+  it("pagar la tarjeta desde débito reduce el disponible y la deuda", () => {
+    expect(
+      byAccount(
+        balanceEffects(
+          expense({ type: "TRANSFER", transferAccountId: "tarjeta", transferAccountType: "CREDIT" })
+        )
+      )
+    ).toEqual({ debito: -100, tarjeta: -100 });
+  });
+
+  it("sacar efectivo de la tarjeta aumenta la deuda y el disponible", () => {
+    expect(
+      byAccount(
+        balanceEffects({
+          type: "TRANSFER",
+          amount: 100,
+          accountId: "tarjeta",
+          accountType: "CREDIT",
+          transferAccountId: "debito",
+          transferAccountType: "DEBIT",
+        })
+      )
+    ).toEqual({ tarjeta: 100, debito: 100 });
+  });
+
+  it("una transferencia sin tipo de cuenta destino es un error", () => {
+    expect(() =>
+      balanceEffects(expense({ type: "TRANSFER", transferAccountId: "ahorro" }))
+    ).toThrow();
   });
 
   it("una transferencia sin destino (datos legacy) no afecta nada", () => {
@@ -54,7 +93,7 @@ describe("balanceEffects", () => {
 
 describe("revertEffects", () => {
   it("es exactamente el inverso de balanceEffects", () => {
-    const tx = expense({ type: "TRANSFER", transferAccountId: "ahorro" });
+    const tx = expense({ type: "TRANSFER", transferAccountId: "ahorro", transferAccountType: "SAVINGS" });
     expect(byAccount(revertEffects(tx))).toEqual({ debito: 100, ahorro: -100 });
   });
 });
@@ -86,8 +125,8 @@ describe("editEffects", () => {
   });
 
   it("cambiar el destino de una transferencia mueve el monto entre destinos", () => {
-    const before = expense({ type: "TRANSFER", transferAccountId: "ahorro" });
-    const after = expense({ type: "TRANSFER", transferAccountId: "vales" });
+    const before = expense({ type: "TRANSFER", transferAccountId: "ahorro", transferAccountType: "SAVINGS" });
+    const after = expense({ type: "TRANSFER", transferAccountId: "vales", transferAccountType: "VOUCHER" });
     expect(byAccount(editEffects(before, after))).toEqual({ ahorro: -100, vales: 100 });
   });
 
@@ -101,5 +140,34 @@ describe("editEffects", () => {
       ...revertEffects(edited),
     ].reduce((sum, d) => sum + d.delta.toNumber(), 0);
     expect(total).toBe(0);
+  });
+});
+
+describe("regla anterior (balanceRule 1)", () => {
+  const payCard = (balanceRule: number) =>
+    expense({
+      type: "TRANSFER",
+      transferAccountId: "tarjeta",
+      transferAccountType: "CREDIT",
+      balanceRule,
+    });
+
+  it("pagar la tarjeta aumentaba la deuda", () => {
+    expect(byAccount(balanceEffects(payCard(1)))).toEqual({ debito: -100, tarjeta: 100 });
+  });
+
+  it("los gastos en tarjeta son iguales con ambas reglas", () => {
+    const gasto = (balanceRule: number) =>
+      expense({ accountId: "tarjeta", accountType: "CREDIT", balanceRule });
+    expect(byAccount(balanceEffects(gasto(1)))).toEqual(byAccount(balanceEffects(gasto(2))));
+  });
+
+  it("borrar un pago viejo lo revierte con la regla con la que se aplicó", () => {
+    expect(byAccount(revertEffects(payCard(1)))).toEqual({ debito: 100, tarjeta: -100 });
+  });
+
+  it("editar un pago viejo sin cambios lo migra a la regla actual", () => {
+    // La deuda baja 200: se quita el +100 equivocado y se aplica el -100 correcto
+    expect(byAccount(editEffects(payCard(1), payCard(2)))).toEqual({ tarjeta: -200 });
   });
 });

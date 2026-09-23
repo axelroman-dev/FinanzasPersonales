@@ -2,11 +2,14 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import type { AccountType } from "@prisma/client";
 import {
   applyBalanceDeltas,
+  CURRENT_BALANCE_RULE,
   editEffects,
   revertEffects,
 } from "@/lib/transaction-balance";
+import { msiParentRevertAmount } from "@/lib/msi-installments";
 
 const updateSchema = z.object({
   type: z.enum(["INCOME", "EXPENSE", "TRANSFER"]).optional(),
@@ -41,7 +44,7 @@ export async function PATCH(
     }
     const existing = await prisma.transaction.findFirst({
       where: { id: params.id, userId: user.id },
-      include: { account: true },
+      include: { account: true, transferAccount: true },
     });
     if (!existing) {
       return NextResponse.json({ error: "No encontrado" }, { status: 404 });
@@ -73,6 +76,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
     }
 
+    let transferAccountType: AccountType | null = null;
     if (type === "TRANSFER") {
       if (!transferAccountId) {
         return NextResponse.json({ error: "Cuenta destino requerida" }, { status: 400 });
@@ -92,6 +96,7 @@ export async function PATCH(
           { status: 404 }
         );
       }
+      transferAccountType = transfer.type;
     }
 
     if (data.categoryId) {
@@ -123,6 +128,8 @@ export async function PATCH(
         accountId: existing.accountId,
         accountType: existing.account.type,
         transferAccountId: existing.transferAccountId,
+        transferAccountType: existing.transferAccount?.type,
+        balanceRule: existing.balanceRule,
       },
       {
         type,
@@ -130,6 +137,7 @@ export async function PATCH(
         accountId,
         accountType: account.type,
         transferAccountId,
+        transferAccountType,
       }
     );
 
@@ -137,7 +145,8 @@ export async function PATCH(
       await applyBalanceDeltas(tx, deltas);
       return tx.transaction.update({
         where: { id: params.id },
-        data: { ...data, transferAccountId },
+        // Tras revertir con su regla original, queda aplicado con la actual
+        data: { ...data, transferAccountId, balanceRule: CURRENT_BALANCE_RULE },
       });
     });
     return NextResponse.json(updated);
@@ -154,7 +163,7 @@ export async function DELETE(
     const user = await requireUser();
     const existing = await prisma.transaction.findFirst({
       where: { id: params.id, userId: user.id },
-      include: { account: true },
+      include: { account: true, transferAccount: true },
     });
     if (!existing) {
       return NextResponse.json({ error: "No encontrado" }, { status: 404 });
@@ -163,19 +172,31 @@ export async function DELETE(
     await prisma.$transaction(async (tx) => {
       // Si es MSI padre, eliminar también los hijos y revertir balance
       if (existing.isMsi && existing.msiParentId === null && existing.msiInstallments) {
+        const children = await tx.transaction.findMany({
+          where: { msiParentId: existing.id },
+          select: { amount: true },
+        });
         await tx.transaction.deleteMany({
           where: { msiParentId: existing.id },
         });
-        // Revertir deuda de la tarjeta
+        // Revertir deuda de la tarjeta (sin contar mensualidades ya borradas)
         await tx.account.update({
           where: { id: existing.accountId },
-          data: { balance: { decrement: Number(existing.amount) } },
+          data: {
+            balance: {
+              decrement: msiParentRevertAmount({
+                totalAmount: existing.amount,
+                installments: existing.msiInstallments,
+                remainingChildren: children.map((c) => c.amount),
+              }),
+            },
+          },
         });
       } else if (existing.isMsi && existing.msiParentId) {
         // MSI hijo: solo decrementar su monto
         await tx.account.update({
           where: { id: existing.accountId },
-          data: { balance: { decrement: Number(existing.amount) } },
+          data: { balance: { decrement: existing.amount } },
         });
       } else {
         // Transacción normal: revertir cambio en balance
@@ -187,6 +208,8 @@ export async function DELETE(
             accountId: existing.accountId,
             accountType: existing.account.type,
             transferAccountId: existing.transferAccountId,
+            transferAccountType: existing.transferAccount?.type,
+            balanceRule: existing.balanceRule,
           })
         );
       }
