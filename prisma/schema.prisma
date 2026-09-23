@@ -107,10 +107,6 @@ model Transaction {
 
   subscriptionId String?
 
-  // Regla con la que se aplicó al balance (ver src/lib/transaction-balance.ts).
-  // 1 = anterior (entradas a crédito sumaban deuda), 2 = actual
-  balanceRule Int @default(2)
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
