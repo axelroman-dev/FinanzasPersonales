@@ -145,6 +145,46 @@ Los **vales de despensa** no cuentan en el balance.
 - Verificación de `isActive` en cada request
 - Validación con **Zod** en todos los endpoints
 
+## Flujo de trabajo
+
+`main` está protegida: no se puede hacer push directo. Todo cambio entra por pull request.
+
+```bash
+# 1. Partir de main actualizado
+git checkout main && git pull
+
+# 2. Crear una rama (prefijo según el tipo de cambio: feat/, fix/, docs/, chore/, ci/)
+git checkout -b feat/nombre-del-cambio
+
+# 3. Commits y push de la rama
+git push -u origin feat/nombre-del-cambio
+
+# 4. Abrir el PR
+gh pr create --fill
+
+# 5. (Opcional) Esperar el CI
+gh pr checks --watch
+
+# 6. Mergear y borrar la rama
+gh pr merge --squash --delete-branch
+```
+
+### Reglas de `main`
+
+| Regla | Detalle |
+|---|---|
+| Pull request obligatorio | Sin approvals requeridos |
+| Método de merge | Solo **Squash**: un commit por PR |
+| Check requerido | `check` (workflow de CI) debe pasar |
+| Protecciones | No se permite borrar `main` ni hacer force push |
+
+### GitHub Actions
+
+| Workflow | Cuándo corre | Qué hace |
+|---|---|---|
+| `ci.yml` | En cada PR hacia `main` | `npm ci` → `prisma generate` → `tsc --noEmit` → `next build` |
+| `docker-publish.yml` | Al mergear a `main` | Construye y publica la imagen en Docker Hub |
+
 ## Despliegue
 
 ### Opción A — Docker (recomendado para self-hosting)
