@@ -164,7 +164,7 @@ Los **vales de despensa** no cuentan en el balance.
 - Middleware protege todas las rutas excepto `/login` y `/register`
 - Usuarios con `mustChangePassword` son redirigidos a `/change-password` hasta que la cambien
 - Todas las queries filtran por `userId` desde la sesión (nunca del cliente)
-- Las cuentas desactivadas (`isActive = false`) no pueden iniciar sesión
+- `isActive` y el rol se verifican contra la DB en cada request: desactivar, eliminar o cambiar el rol de un usuario aplica de inmediato aunque tenga una sesión abierta
 - Validación con **Zod** en todos los endpoints
 
 ## Flujo de trabajo
