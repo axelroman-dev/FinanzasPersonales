@@ -58,6 +58,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+# Lógica de balances que usa scripts/fix-credit-balances.ts
+COPY --from=builder --chown=nextjs:nodejs /app/src/lib/transaction-balance.ts ./src/lib/transaction-balance.ts
 COPY --from=builder --chown=nextjs:nodejs /app/next.config.js ./
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 

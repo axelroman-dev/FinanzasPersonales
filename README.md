@@ -317,6 +317,20 @@ IMAGE_TAG=0.2.0 npm run prod:up   # o definir IMAGE_TAG en el .env
 npm run prod:logs
 ```
 
+### Corregir balances de tarjetas (una sola vez)
+
+Hasta la versión que introdujo `balanceRule`, pagar una tarjeta de crédito, recibir un reembolso en ella o transferir desde ella movía la deuda en el sentido equivocado. Después de desplegar esa versión, corre en el servidor:
+
+```bash
+# 1. Vista previa: muestra qué tarjetas cambian y cuánto, sin modificar nada
+docker compose exec app npx tsx scripts/fix-credit-balances.ts
+
+# 2. Si los números son correctos, aplicar
+docker compose exec app npx tsx scripts/fix-credit-balances.ts --apply
+```
+
+Es seguro correrlo más de una vez: la segunda no cambia nada. Mientras no se corra, editar o borrar movimientos viejos sigue funcionando bien, porque cada movimiento se revierte con la regla con la que se aplicó.
+
 ### Opción B — Despliegue manual (sin Docker)
 
 1. Configura un PostgreSQL gestionado (Supabase, Neon, Railway, etc.)
