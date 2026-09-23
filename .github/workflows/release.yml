@@ -1,0 +1,75 @@
+name: Release
+
+on:
+    push:
+        branches: [main]
+
+permissions:
+    contents: write
+    pull-requests: write
+
+env:
+    IMAGE: axelromandev/finanzas-personales
+
+jobs:
+    # Mantiene abierto el PR de release (versión + CHANGELOG). Al mergearlo,
+    # crea el tag vX.Y.Z y el GitHub Release.
+    release-please:
+        runs-on: ubuntu-latest
+        outputs:
+            release_created: ${{ steps.release.outputs.release_created }}
+            tag_name: ${{ steps.release.outputs.tag_name }}
+            version: ${{ steps.release.outputs.version }}
+            major: ${{ steps.release.outputs.major }}
+            minor: ${{ steps.release.outputs.minor }}
+        steps:
+            - name: Run release-please
+              id: release
+              uses: googleapis/release-please-action@v4
+              with:
+                  # PAT en lugar de GITHUB_TOKEN para que el PR de release
+                  # dispare el CI (check requerido por el ruleset de main)
+                  token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+                  config-file: release-please-config.json
+                  manifest-file: .release-please-manifest.json
+
+    # Solo corre cuando se acaba de crear un release
+    docker:
+        needs: release-please
+        if: needs.release-please.outputs.release_created == 'true'
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+              with:
+                  ref: ${{ needs.release-please.outputs.tag_name }}
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Log in to Docker Hub
+              uses: docker/login-action@v3
+              with:
+                  username: ${{ secrets.DOCKERHUB_USERNAME }}
+                  password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+            - name: Build and push
+              uses: docker/build-push-action@v6
+              with:
+                  context: .
+                  push: true
+                  tags: |
+                      ${{ env.IMAGE }}:${{ needs.release-please.outputs.version }}
+                      ${{ env.IMAGE }}:${{ needs.release-please.outputs.major }}.${{ needs.release-please.outputs.minor }}
+                      ${{ env.IMAGE }}:latest
+                  cache-from: type=gha
+                  cache-to: type=gha,mode=max
+
+            - name: Update Docker Hub description
+              uses: peter-evans/dockerhub-description@v4
+              with:
+                  username: ${{ secrets.DOCKERHUB_USERNAME }}
+                  password: ${{ secrets.DOCKERHUB_TOKEN }}
+                  repository: ${{ env.IMAGE }}
+                  readme-filepath: ./docker/README.md
+                  short-description: App de finanzas personales (Next.js + PostgreSQL)

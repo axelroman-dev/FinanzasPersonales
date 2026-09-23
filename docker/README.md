@@ -33,11 +33,12 @@ Al arrancar, el contenedor corre automáticamente `prisma migrate deploy` y el s
 
 ## Tags
 
-- `latest` — última build de la rama `main`
-- `<sha>` — build fijada a un commit específico
+- `latest` — última versión publicada
+- `X.Y.Z` — versión exacta (ej. `0.2.0`)
+- `X.Y` — última versión de esa serie (ej. `0.2`)
 
 ## Código fuente
 
 https://github.com/axelroman-dev/FinanzasPersonales
 
-Imagen construida automáticamente vía GitHub Actions en cada push a `main`.
+Imagen construida automáticamente vía GitHub Actions en cada release.

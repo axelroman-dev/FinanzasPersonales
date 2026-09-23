@@ -1,0 +1,22 @@
+{
+    "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+    "bootstrap-sha": "6fcf626d9f1153964e8e1cb8865daf9643dfcd92",
+    "include-component-in-tag": false,
+    "packages": {
+        ".": {
+            "release-type": "node",
+            "package-name": "finanzas",
+            "bump-minor-pre-major": true,
+            "changelog-sections": [
+                { "type": "feat", "section": "Nuevas funciones" },
+                { "type": "fix", "section": "Correcciones" },
+                { "type": "perf", "section": "Rendimiento" },
+                { "type": "revert", "section": "Reversiones" },
+                { "type": "docs", "section": "Documentación", "hidden": true },
+                { "type": "chore", "section": "Mantenimiento", "hidden": true },
+                { "type": "ci", "section": "CI", "hidden": true },
+                { "type": "refactor", "section": "Refactorización", "hidden": true }
+            ]
+        }
+    }
+}

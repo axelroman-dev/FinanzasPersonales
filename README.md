@@ -183,7 +183,28 @@ gh pr merge --squash --delete-branch
 | Workflow | Cuándo corre | Qué hace |
 |---|---|---|
 | `ci.yml` | En cada PR hacia `main` | `npm ci` → `prisma generate` → `tsc --noEmit` → `next build` |
-| `docker-publish.yml` | Al mergear a `main` (se omite si solo cambian `.md`, excepto `docker/README.md`) | Construye y publica la imagen en Docker Hub |
+| `release.yml` | Al mergear a `main` | Mantiene el PR de release; al mergear ese PR crea el tag, el GitHub Release y publica la imagen en Docker Hub |
+
+## Versionado
+
+El proyecto usa [SemVer](https://semver.org/lang/es/) y [release-please](https://github.com/googleapis/release-please). La versión se calcula a partir de los títulos de los PRs (que con squash son el mensaje del commit en `main`), así que deben seguir [Conventional Commits](https://www.conventionalcommits.org/es/):
+
+| Prefijo | Efecto en `0.x` | Aparece en el CHANGELOG |
+|---|---|---|
+| `fix:` | 0.1.0 → 0.1.1 | Sí (Correcciones) |
+| `feat:` | 0.1.0 → 0.2.0 | Sí (Nuevas funciones) |
+| `feat!:` / `BREAKING CHANGE:` | 0.1.0 → 0.2.0 | Sí |
+| `docs:`, `chore:`, `ci:`, `refactor:` | Ninguno | No |
+
+**Cómo sale una versión:**
+
+1. Al mergear PRs con `feat:` o `fix:`, release-please abre (o actualiza) un PR `chore(main): release X.Y.Z` con la nueva versión en `package.json` y las notas en `CHANGELOG.md`.
+2. Cuando quieras publicar, mergea ese PR.
+3. Se crea el tag `vX.Y.Z`, el GitHub Release y se publica la imagen con los tags `X.Y.Z`, `X.Y` y `latest`.
+
+**Pasar a 1.0.0:** mergea un PR cuyo commit incluya en el cuerpo la línea `Release-As: 1.0.0`.
+
+Requiere el secret `RELEASE_PLEASE_TOKEN`: un fine-grained PAT con permisos de lectura/escritura en *Contents*, *Pull requests* e *Issues* sobre este repo. Se usa en lugar de `GITHUB_TOKEN` para que el PR de release dispare el CI.
 
 ## Despliegue
 
