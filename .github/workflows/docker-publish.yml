@@ -3,6 +3,12 @@ name: Build and publish Docker image
 on:
     push:
         branches: [main]
+        # No publicar si solo cambió documentación, excepto docker/README.md
+        # (es la descripción que se sube a Docker Hub)
+        paths:
+            - "**"
+            - "!**.md"
+            - "docker/README.md"
     workflow_dispatch: {}
 
 env:
