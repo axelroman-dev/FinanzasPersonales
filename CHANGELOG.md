@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.1.2...v0.2.0) (2026-09-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* **setup:** se eliminan las variables ADMIN_EMAIL, ADMIN_PASSWORD y ADMIN_NAME. Las instalaciones nuevas crean el admin desde /setup con el código que aparece en los logs. Las instalaciones que ya tienen admin no cambian.
+
+### Nuevas funciones
+
+* **setup:** asistente de configuración inicial en lugar de credenciales por defecto ([#16](https://github.com/axelroman-dev/FinanzasPersonales/issues/16)) ([fb95dfc](https://github.com/axelroman-dev/FinanzasPersonales/commit/fb95dfc970486185361b7dc4706189c76cced247))
+
 ## [0.1.2](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.1.1...v0.1.2) (2026-09-23)
 
 
