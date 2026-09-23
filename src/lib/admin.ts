@@ -6,7 +6,7 @@ export const getRegistrationConfig = unstable_cache(
     const config = await prisma.appConfig.findUnique({
       where: { id: "singleton" },
     });
-    return config?.allowRegistration ?? true;
+    return config?.allowRegistration ?? false;
   },
   ["registration-config"],
   { revalidate: 60, tags: ["registration-config"] }

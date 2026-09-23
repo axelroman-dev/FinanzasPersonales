@@ -1,10 +1,15 @@
+import { redirect } from "next/navigation";
 import { RegisterForm } from "./register-form";
 import { getRegistrationConfig } from "@/lib/admin";
+import { hasAdmin } from "@/lib/setup";
 
 // Forzar render dinámico: consultar DB en cada request
 export const dynamic = "force-dynamic";
 
 export default async function RegisterPage() {
+  // Instalación nueva: primero hay que crear el admin
+  if (!(await hasAdmin())) redirect("/setup");
+
   const allowRegistration = await getRegistrationConfig();
 
   if (!allowRegistration) {

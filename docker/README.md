@@ -16,7 +16,10 @@ nano .env                     # editar NEXTAUTH_SECRET, DB_PASSWORD, NEXTAUTH_UR
 
 docker compose pull
 docker compose up -d
+docker compose logs app       # copiar el código de configuración inicial
 ```
+
+Luego abre la app en el navegador: pedirá el código de los logs para crear la cuenta de administrador. No hay credenciales por defecto.
 
 El `docker-compose.yml` de referencia está en el [repo del código fuente](https://github.com/axelroman-dev/FinanzasPersonales) y levanta la app + una base PostgreSQL 16.
 
@@ -27,9 +30,10 @@ El `docker-compose.yml` de referencia está en el [repo del código fuente](http
 | `DATABASE_URL` | URL de conexión a PostgreSQL |
 | `NEXTAUTH_SECRET` | Generar con `openssl rand -base64 32` |
 | `NEXTAUTH_URL` | URL pública de la app |
-| `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` | Credenciales del admin inicial (solo se usan en el seed) |
 
 Al arrancar, el contenedor corre automáticamente `prisma migrate deploy` y el seed inicial (idempotente).
+
+Si pierdes la contraseña del admin: `docker compose exec app npx tsx scripts/reset-admin-password.ts [email]`.
 
 ## Tags
 

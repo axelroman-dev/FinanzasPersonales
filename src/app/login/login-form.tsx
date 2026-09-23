@@ -11,10 +11,12 @@ import Link from "next/link";
 export function LoginForm({
   callbackUrl,
   error,
+  notice,
   allowRegistration,
 }: {
   callbackUrl?: string;
   error?: string;
+  notice?: string;
   allowRegistration: boolean;
 }) {
   const router = useRouter();
@@ -53,6 +55,11 @@ export function LoginForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
+      {notice && !formError && (
+        <div className="rounded-md bg-primary/10 border border-primary/20 p-3 text-sm">
+          {notice}
+        </div>
+      )}
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input
