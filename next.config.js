@@ -7,6 +7,8 @@ const nextConfig = {
     unoptimized: true,
   },
   experimental: {
+    // Habilita src/instrumentation.ts (código de configuración inicial)
+    instrumentationHook: true,
     serverActions: {
       bodySizeLimit: "2mb",
     },

@@ -51,16 +51,31 @@ npm run dev
 
 Abre [http://localhost:3000](http://localhost:3000).
 
-## Credenciales del primer admin
+## Primer inicio: crear el admin
 
-Configuradas en `.env` (por defecto):
+No hay credenciales por defecto. La primera vez que arranca, mientras no exista ningún admin, la app redirige a `/setup` y el servidor imprime en sus logs un **código de configuración**:
 
 ```
-ADMIN_EMAIL="admin@finanzas.local"
-ADMIN_PASSWORD="Admin123!"
+═══════════════════════════════════════════
+  Configuración inicial pendiente
+
+  Código de configuración: K7QM-3XPD
+  ...
 ```
 
-⚠️ **Cambia la contraseña del admin después del primer login.** Al admin del seed no se le exige el cambio; a los usuarios que crea un admin desde el panel sí se les pide cambiar la contraseña en su primer login.
+En desarrollo aparece en la terminal de `npm run dev`; con Docker, en `docker compose logs app`. El asistente tiene tres pasos:
+
+1. **Código**: el de los logs. Tras 5 intentos fallidos se invalida y hay que reiniciar el servidor para generar otro (también cambia en cada reinicio).
+2. **Administrador**: nombre, email y contraseña (mínimo 12 caracteres).
+3. **Registro**: si cualquiera puede crear una cuenta. Por defecto está desactivado; se puede cambiar después en *Configuración*.
+
+**¿Perdiste la contraseña del admin?** Desde el servidor:
+
+```bash
+docker compose exec app npx tsx scripts/reset-admin-password.ts [email]
+```
+
+Genera una contraseña temporal que hay que cambiar al iniciar sesión.
 
 ## Comandos útiles
 
@@ -99,7 +114,6 @@ Hay dos plantillas: `.env.local.example` (desarrollo local) y `.env.prod.example
 | `DB_PASSWORD` | Producción | Password de PostgreSQL |
 | `NEXTAUTH_SECRET` | Ambos | Genera con `openssl rand -base64 32` |
 | `NEXTAUTH_URL` | Ambos | URL base (ej. `http://localhost:3000`) |
-| `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` | Ambos | Solo se usan en el seed inicial |
 | `DATA_PATH` | Producción | Carpeta del host donde se guardan los datos de PostgreSQL (por defecto `/data`) |
 | `IMAGE_TAG` | Producción | Versión de la imagen a usar (por defecto `latest`) |
 
@@ -111,6 +125,7 @@ src/
 │   ├── login/                # Login
 │   ├── register/             # Registro (deshabilitable)
 │   ├── change-password/      # Cambio de contraseña obligatorio
+│   ├── setup/                # Asistente de configuración inicial
 │   ├── (app)/                # Rutas protegidas (con sidebar)
 │   │   ├── page.tsx          # Dashboard
 │   │   ├── accounts/
@@ -160,9 +175,11 @@ Los **vales de despensa** no cuentan en el balance.
 
 ## Seguridad
 
+- Sin credenciales por defecto: el admin se crea con un código de un solo uso que solo aparece en los logs del servidor
+- El registro público está desactivado por defecto
 - Passwords hasheados con **bcrypt** (10 rounds)
 - Sesiones JWT firmadas
-- Middleware protege todas las rutas excepto `/login` y `/register`
+- Middleware protege todas las rutas excepto `/login`, `/register` y `/setup`
 - Usuarios con `mustChangePassword` son redirigidos a `/change-password` hasta que la cambien
 - Todas las queries filtran por `userId` desde la sesión (nunca del cliente)
 - `isActive` y el rol se verifican contra la DB en cada request: desactivar, eliminar o cambiar el rol de un usuario aplica de inmediato aunque tenga una sesión abierta

@@ -34,7 +34,7 @@ export default async function ChangePasswordPage() {
           </div>
           <h1 className="text-2xl font-bold">Cambia tu contraseña</h1>
           <p className="text-sm text-muted-foreground mt-2">
-            Un administrador creó tu cuenta con una contraseña temporal.
+            Tu cuenta tiene una contraseña temporal.
             Por seguridad, debes cambiarla antes de continuar.
           </p>
         </div>

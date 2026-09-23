@@ -1,5 +1,7 @@
+import { redirect } from "next/navigation";
 import { LoginForm } from "./login-form";
 import { getRegistrationConfig } from "@/lib/admin";
+import { hasAdmin } from "@/lib/setup";
 
 // Forzar render dinámico: necesitamos consultar la DB en cada request
 // para saber si el registro está habilitado.
@@ -8,8 +10,11 @@ export const dynamic = "force-dynamic";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { callbackUrl?: string; error?: string };
+  searchParams: { callbackUrl?: string; error?: string; setup?: string };
 }) {
+  // Instalación nueva: primero hay que crear el admin
+  if (!(await hasAdmin())) redirect("/setup");
+
   const allowRegistration = await getRegistrationConfig();
 
   return (
@@ -38,6 +43,11 @@ export default async function LoginPage({
         <LoginForm
           callbackUrl={searchParams.callbackUrl}
           error={searchParams.error}
+          notice={
+            searchParams.setup === "done"
+              ? "Configuración completada. Inicia sesión con tu cuenta de administrador."
+              : undefined
+          }
           allowRegistration={allowRegistration}
         />
       </div>
