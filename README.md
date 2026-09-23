@@ -70,6 +70,7 @@ npm run dev          # Servidor de desarrollo (Next.js + conecta a DB en Docker)
 npm run db:up        # Levantar PostgreSQL (docker-compose.dev.yml)
 npm run db:down      # Detener PostgreSQL
 npm run db:reset     # Reset completo (BORRA DATOS)
+npm test             # Tests unitarios (Vitest)
 
 # ── Producción (Docker) ──
 npm run prod:up      # Descargar la imagen + levantar (docker-compose.yml)
@@ -204,7 +205,7 @@ gh pr merge --squash --delete-branch
 
 | Workflow | Cuándo corre | Qué hace |
 |---|---|---|
-| `ci.yml` | En cada PR hacia `main` | `npm ci` → `prisma generate` → `tsc --noEmit` → `next build` |
+| `ci.yml` | En cada PR hacia `main` | `npm ci` → `prisma generate` → `tsc --noEmit` → `npm test` → `next build` |
 | `release.yml` | Al mergear a `main` | Mantiene el PR de release; al mergear ese PR crea el tag, el GitHub Release y publica la imagen en Docker Hub |
 
 ## Versionado
