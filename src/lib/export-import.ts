@@ -65,7 +65,7 @@ export type ExportCategory = {
   id: string;
   name: string;
   parentName: string | null;
-  kind: "INCOME" | "EXPENSE" | "BOTH";
+  kind: "INCOME" | "EXPENSE" | "BOTH" | "INTERNAL";
   color: string | null;
   icon: string | null;
 };

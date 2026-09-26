@@ -33,7 +33,7 @@ type CategoryNode = {
   name: string;
   color: string | null;
   icon: string | null;
-  kind: "INCOME" | "EXPENSE" | "BOTH";
+  kind: "INCOME" | "EXPENSE" | "BOTH" | "INTERNAL";
   parentId: string | null;
   children: CategoryNode[];
 };

@@ -13,7 +13,7 @@ type CatNode = {
   id: string;
   name: string;
   color: string | null;
-  kind: "INCOME" | "EXPENSE" | "BOTH";
+  kind: "INCOME" | "EXPENSE" | "BOTH" | "INTERNAL";
   usageCount: number;
   children: CatNode[];
 };

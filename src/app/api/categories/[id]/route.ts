@@ -46,6 +46,12 @@ export async function PATCH(
     if (!existing) {
       return NextResponse.json({ error: "No encontrado" }, { status: 404 });
     }
+    if (existing.kind === "INTERNAL") {
+      return NextResponse.json(
+        { error: "Las categorías internas no se pueden modificar" },
+        { status: 400 }
+      );
+    }
 
     // Si cambian el kind y la categoría es padre, propagamos a los hijos
     // (mantener consistencia: hijos heredan kind del padre)
@@ -82,6 +88,12 @@ export async function DELETE(
     const existing = await findOwned(params.id, user.id);
     if (!existing) {
       return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+    }
+    if (existing.kind === "INTERNAL") {
+      return NextResponse.json(
+        { error: "Las categorías internas no se pueden modificar" },
+        { status: 400 }
+      );
     }
 
     const childIds = existing.children.map((c) => c.id);

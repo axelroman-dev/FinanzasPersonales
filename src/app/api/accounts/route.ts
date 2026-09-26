@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { recordBalanceChange } from "@/lib/internal-categories";
 
 const createSchema = z.object({
   name: z.string().min(1),
@@ -40,18 +41,29 @@ export async function POST(req: Request) {
     }
 
     const data = parsed.data;
-    const account = await prisma.account.create({
-      data: {
-        userId: user.id,
-        name: data.name,
-        type: data.type,
-        balance: data.balance,
-        currency: data.currency,
-        includeInBalance: data.type === "VOUCHER" ? false : data.includeInBalance,
-        creditLimit: data.type === "CREDIT" ? data.creditLimit ?? null : null,
-        cutoffDay: data.type === "CREDIT" ? data.cutoffDay ?? null : null,
-        paymentDay: data.type === "CREDIT" ? data.paymentDay ?? null : null,
-      },
+    const account = await prisma.$transaction(async (tx) => {
+      // La cuenta nace en 0 y el balance entra como movimiento de
+      // "Balance inicial", para que quede registrado cuándo se capturó
+      const created = await tx.account.create({
+        data: {
+          userId: user.id,
+          name: data.name,
+          type: data.type,
+          balance: 0,
+          currency: data.currency,
+          includeInBalance: data.type === "VOUCHER" ? false : data.includeInBalance,
+          creditLimit: data.type === "CREDIT" ? data.creditLimit ?? null : null,
+          cutoffDay: data.type === "CREDIT" ? data.cutoffDay ?? null : null,
+          paymentDay: data.type === "CREDIT" ? data.paymentDay ?? null : null,
+        },
+      });
+      await recordBalanceChange(tx, {
+        account: created,
+        from: 0,
+        to: data.balance,
+        key: "INITIAL_BALANCE",
+      });
+      return tx.account.findUniqueOrThrow({ where: { id: created.id } });
     });
     return NextResponse.json(account, { status: 201 });
   } catch (error) {

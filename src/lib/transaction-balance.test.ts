@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  adjustmentMovement,
   balanceEffects,
   editEffects,
   revertEffects,
@@ -140,5 +141,40 @@ describe("editEffects", () => {
       ...revertEffects(edited),
     ].reduce((sum, d) => sum + d.delta.toNumber(), 0);
     expect(total).toBe(0);
+  });
+});
+
+describe("adjustmentMovement", () => {
+  const apply = (accountType: BalanceTx["accountType"], from: number, to: number) => {
+    const movement = adjustmentMovement(accountType, from, to);
+    if (!movement) return from;
+    const [effect] = balanceEffects({ ...movement, accountId: "cuenta", accountType });
+    return effect.delta.add(from).toNumber();
+  };
+
+  it("sin cambio no genera movimiento", () => {
+    expect(adjustmentMovement("DEBIT", 500, 500)).toBeNull();
+  });
+
+  it("subir el balance de débito es un ingreso", () => {
+    const movement = adjustmentMovement("DEBIT", 0, 1500);
+    expect(movement?.type).toBe("INCOME");
+    expect(movement?.amount.toNumber()).toBe(1500);
+  });
+
+  it("subir la deuda de una tarjeta es un gasto", () => {
+    const movement = adjustmentMovement("CREDIT", 1000, 1200);
+    expect(movement?.type).toBe("EXPENSE");
+    expect(movement?.amount.toNumber()).toBe(200);
+  });
+
+  it.each([
+    ["DEBIT", 0, 1500],
+    ["DEBIT", 800, 300],
+    ["SAVINGS", 0, -50],
+    ["CREDIT", 0, 4000],
+    ["CREDIT", 4000, 3500.5],
+  ] as const)("en %s lleva el balance de %d a %d", (type, from, to) => {
+    expect(apply(type, from, to)).toBe(to);
   });
 });

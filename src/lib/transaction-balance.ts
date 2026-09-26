@@ -96,3 +96,19 @@ export async function applyBalanceDeltas(
     });
   }
 }
+
+/**
+ * Movimiento que lleva el balance de una cuenta de `from` a `to` (en crédito,
+ * el balance es la deuda). Devuelve null si no hay cambio.
+ */
+export function adjustmentMovement(
+  accountType: AccountType,
+  from: Prisma.Decimal | number | string,
+  to: Prisma.Decimal | number | string
+): { type: "INCOME" | "EXPENSE"; amount: Prisma.Decimal } | null {
+  const delta = new Prisma.Decimal(to).sub(from);
+  if (delta.isZero()) return null;
+  // En crédito, que suba el balance (la deuda) equivale a que salga dinero
+  const increases = accountType === "CREDIT" ? delta.isNeg() : delta.isPos();
+  return { type: increases ? "INCOME" : "EXPENSE", amount: delta.abs() };
+}

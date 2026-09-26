@@ -29,6 +29,9 @@ enum CategoryKind {
   INCOME
   EXPENSE
   BOTH
+  // Categorías del sistema (ver src/lib/internal-categories.ts): no se editan
+  // ni se eligen al capturar, y no cuentan como ingreso o gasto en reportes
+  INTERNAL
 }
 
 model User {

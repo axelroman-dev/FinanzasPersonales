@@ -16,6 +16,8 @@ type Tx = {
   category: string | null;
   categoryName: string | null;
   categoryColor: string | null;
+  /** Movimiento con categoría interna (balance inicial o ajuste de cuenta) */
+  isAdjustment: boolean;
   accountName: string;
   transferAccountName: string | null;
   isMsi: boolean;
@@ -117,7 +119,9 @@ export function TransactionsTable({ transactions }: { transactions: Tx[] }) {
                     )}
                   </td>
                   <td className="px-4 py-3 text-sm whitespace-nowrap">
-                    {tx.type === "INCOME"
+                    {tx.isAdjustment
+                      ? "Ajuste"
+                      : tx.type === "INCOME"
                       ? "Ingreso"
                       : tx.type === "EXPENSE"
                       ? "Gasto"
