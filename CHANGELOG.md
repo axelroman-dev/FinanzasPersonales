@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.2.0...v0.3.0) (2026-09-26)
+
+
+### Nuevas funciones
+
+* **accounts:** registrar balance inicial y ajustes de cuenta como movimientos ([#18](https://github.com/axelroman-dev/FinanzasPersonales/issues/18)) ([5e7f6e2](https://github.com/axelroman-dev/FinanzasPersonales/commit/5e7f6e299240097a544eaac7e3e51f8d6c5a1f70))
+
 ## [0.2.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.1.2...v0.2.0) (2026-09-23)
 
 
