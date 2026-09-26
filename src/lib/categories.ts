@@ -1,12 +1,15 @@
 import { prisma } from "@/lib/db";
 import { defaultCategories } from "../../prisma/default-categories";
+import { excludeInternal } from "@/lib/internal-categories";
 
 /**
  * Crea las categorías predeterminadas para un usuario recién registrado.
  * Idempotente: si el usuario ya tiene categorías, no hace nada.
  */
 export async function seedDefaultCategories(userId: string): Promise<void> {
-  const existing = await prisma.category.count({ where: { userId } });
+  const existing = await prisma.category.count({
+    where: { userId, kind: { not: "INTERNAL" } },
+  });
   if (existing > 0) return;
 
   for (const cat of defaultCategories) {
@@ -50,7 +53,7 @@ export type CategoryNode = {
   name: string;
   color: string | null;
   icon: string | null;
-  kind: "INCOME" | "EXPENSE" | "BOTH";
+  kind: "INCOME" | "EXPENSE" | "BOTH" | "INTERNAL";
   parentId: string | null;
   usageCount: number;
   children: CategoryNode[];
@@ -135,7 +138,8 @@ export async function getCategoryTotals(params: {
 }): Promise<CategoryTotal[]> {
   const { userId, type, from, to } = params;
 
-  const where: any = { userId, type };
+  // Los ajustes de balance no son ingresos ni gastos reales
+  const where: any = { userId, type, ...excludeInternal };
   if (from || to) {
     where.date = {};
     if (from) where.date.gte = from;

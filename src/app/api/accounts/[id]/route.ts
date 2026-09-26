@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { recordBalanceChange } from "@/lib/internal-categories";
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
@@ -34,9 +35,24 @@ export async function PATCH(
       return NextResponse.json({ error: "No encontrado" }, { status: 404 });
     }
 
-    const account = await prisma.account.update({
-      where: { id: params.id },
-      data: parsed.data,
+    // El balance no se sobrescribe: la diferencia se registra como un
+    // movimiento de "Ajuste de cuenta" (con el tipo de cuenta ya actualizado)
+    const { balance, ...data } = parsed.data;
+    const account = await prisma.$transaction(async (tx) => {
+      const updated = await tx.account.update({
+        where: { id: params.id },
+        data,
+      });
+      if (balance === undefined) return updated;
+      const adjustment = await recordBalanceChange(tx, {
+        account: updated,
+        from: updated.balance,
+        to: balance,
+        key: "ADJUSTMENT",
+      });
+      return adjustment
+        ? tx.account.findUniqueOrThrow({ where: { id: params.id } })
+        : updated;
     });
     return NextResponse.json(account);
   } catch {

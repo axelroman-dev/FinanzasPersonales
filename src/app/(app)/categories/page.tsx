@@ -22,7 +22,7 @@ export default async function CategoriesPage({
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-  const [tree, totals] = await Promise.all([
+  const [fullTree, totals] = await Promise.all([
     getCategoryTree(user.id),
     getMonthlyTotalsByRoot({
       userId: user.id,
@@ -30,6 +30,12 @@ export default async function CategoriesPage({
       to: endOfMonth,
     }),
   ]);
+
+  // Las categorías internas las gestiona el sistema: no se muestran aquí
+  const tree = fullTree.filter(
+    (c): c is typeof c & { kind: Exclude<typeof c.kind, "INTERNAL"> } =>
+      c.kind !== "INTERNAL"
+  );
 
   // monthlyTotals: total por categoría raíz (ya calculado en una sola pasada)
   const monthlyTotals: Record<string, number> = {};

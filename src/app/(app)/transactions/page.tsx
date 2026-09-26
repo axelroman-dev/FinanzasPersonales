@@ -138,6 +138,7 @@ export default async function TransactionsPage({
               category: t.category,
               categoryName: cat ? `${rootCat?.name ?? ""}${cat.parent ? ` › ${cat.name}` : ""}` : null,
               categoryColor: cat?.color ?? null,
+              isAdjustment: cat?.kind === "INTERNAL",
               accountName: t.account.name,
               transferAccountName: t.transferAccount?.name ?? null,
               isMsi: t.isMsi,

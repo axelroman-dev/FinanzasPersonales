@@ -47,6 +47,12 @@ export async function POST(req: Request) {
           { status: 404 }
         );
       }
+      if (parent.kind === "INTERNAL") {
+        return NextResponse.json(
+          { error: "Las categorías internas no se pueden modificar" },
+          { status: 400 }
+        );
+      }
       if (parent.parentId) {
         return NextResponse.json(
           { error: "No se permiten subcategorías de subcategorías" },

@@ -237,6 +237,11 @@ function AccountFormDialog({
             onChange={(e) => setBalance(parseFloat(e.target.value) || 0)}
             required
           />
+          <p className="text-xs text-muted-foreground">
+            {mode === "create"
+              ? "Se registrará como movimiento de «Balance inicial»."
+              : "Si lo cambias, la diferencia se registrará como «Ajuste de cuenta»."}
+          </p>
         </div>
 
         {type === "CREDIT" && (

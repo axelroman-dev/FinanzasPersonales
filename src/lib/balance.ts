@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { Decimal } from "@prisma/client/runtime/library";
+import { excludeInternal } from "@/lib/internal-categories";
 
 export type BalanceSummary = {
   // Total dinero en cuentas que cuentan al balance
@@ -181,6 +182,8 @@ export async function getMonthlyFlow(userId: string) {
       date: { gte: startOfMonth, lte: endOfMonth },
       // Excluir transferencias (no son ingreso ni gasto real)
       type: { in: ["INCOME", "EXPENSE"] },
+      // Ni los ajustes de balance
+      ...excludeInternal,
     },
     select: { type: true, amount: true, date: true },
   });
