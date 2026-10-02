@@ -42,8 +42,8 @@ export default async function DashboardPage() {
             </p>
             <p className="text-sm text-muted-foreground pt-2">
               Dinero disponible {formatCurrency(balance.cashAvailable)} − Deuda{" "}
-              {formatCurrency(balance.creditUsed)} − Suscripciones{" "}
-              {formatCurrency(balance.subscriptionsTotal)} − MSI{" "}
+              {formatCurrency(balance.creditUsed)} − Suscripciones pendientes{" "}
+              {formatCurrency(balance.subscriptionsPending)} − MSI{" "}
               {formatCurrency(balance.msiMonthlyTotal)}
             </p>
           </div>
@@ -92,10 +92,10 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-amber-400">
-              {formatCurrency(balance.subscriptionsTotal + balance.msiMonthlyTotal)}
+              {formatCurrency(balance.subscriptionsPending + balance.msiMonthlyTotal)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Suscripciones + MSI
+              Suscripciones pendientes + MSI
             </p>
           </CardContent>
         </Card>
