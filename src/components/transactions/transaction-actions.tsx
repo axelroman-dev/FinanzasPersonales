@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect, useMemo } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -15,18 +15,18 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Trash2, Tag } from "lucide-react";
+import { CategorySelect } from "@/components/shared/category-select";
+import { useFormResetKey } from "@/hooks/use-form-reset-key";
 
 type AccountOpt = { id: string; name: string; type: string };
 type CreditAccount = { id: string; name: string; creditLimit: number | null };
-type SubOpt = { id: string; name: string; amount: number };
+type SubOpt = { id: string; name: string; amount: number; categoryId: string | null };
 
 type CategoryNode = {
   id: string;
@@ -56,10 +56,12 @@ export function TransactionActions({
   children?: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const formKey = useFormResetKey(open);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {children ? <DialogTrigger asChild>{children}</DialogTrigger> : null}
       <TxFormDialog
+        key={formKey}
         mode={mode}
         accounts={accounts}
         creditAccounts={creditAccounts}
@@ -130,22 +132,18 @@ function TxFormDialog({
   // Solo permitir MSI si es gasto en crédito
   const canMsi = type === "EXPENSE" && creditAccounts.some((c) => c.id === accountId);
 
-  // Categorías filtradas por tipo
-  const filteredCategories = useMemo(() => {
-    if (!categories) return [];
-    return categories.filter((c) => {
-      if (type === "INCOME") return c.kind === "INCOME";
-      if (type === "EXPENSE") return c.kind === "EXPENSE";
-      return false; // transferencias no tienen categoría
-    });
-  }, [categories, type]);
+  // Las categorías dependen del tipo: al cambiarlo, la elegida ya no aplica
+  function onTypeChange(next: "INCOME" | "EXPENSE" | "TRANSFER") {
+    if (next !== type) setCategoryId("");
+    setType(next);
+  }
 
-  // Reset categoría si cambia el tipo y no aplica
-  useEffect(() => {
-    if (type === "TRANSFER") {
-      setCategoryId("");
-    }
-  }, [type]);
+  // Al elegir una suscripción, usar su categoría si aún no hay una
+  function onSubscriptionChange(id: string) {
+    setSubscriptionId(id);
+    const sub = subscriptions?.find((s) => s.id === id);
+    if (sub?.categoryId && !categoryId) setCategoryId(sub.categoryId);
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -232,7 +230,7 @@ function TxFormDialog({
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label>Tipo</Label>
-          <Select value={type} onValueChange={(v) => setType(v as any)}>
+          <Select value={type} onValueChange={(v) => onTypeChange(v as any)}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -323,7 +321,7 @@ function TxFormDialog({
             <Label>Suscripción (opcional)</Label>
             <Select
               value={subscriptionId || "none"}
-              onValueChange={(v) => setSubscriptionId(v === "none" ? "" : v)}
+              onValueChange={(v) => onSubscriptionChange(v === "none" ? "" : v)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Sin suscripción" />
@@ -383,40 +381,13 @@ function TxFormDialog({
             <Tag className="h-3 w-3" />
             Categoría (opcional)
           </Label>
-          <Select
-            value={categoryId || "none"}
-            onValueChange={(v) => setCategoryId(v === "none" ? "" : v)}
+          <CategorySelect
+            categories={categories ?? []}
+            kind={type === "INCOME" ? "INCOME" : "EXPENSE"}
+            value={categoryId}
+            onChange={setCategoryId}
             disabled={type === "TRANSFER"}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Sin categoría" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Sin categoría</SelectItem>
-              {filteredCategories.map((cat) => (
-                <SelectGroup key={cat.id}>
-                  <SelectLabel className="flex items-center gap-2">
-                    <span
-                      className="h-2 w-2 rounded-full"
-                      style={{ backgroundColor: cat.color ?? "#71717a" }}
-                    />
-                    {cat.name}
-                  </SelectLabel>
-                  {cat.children.map((sub) => (
-                    <SelectItem key={sub.id} value={sub.id} className="pl-8">
-                      <span className="flex items-center gap-2">
-                        <span
-                          className="h-1.5 w-1.5 rounded-full"
-                          style={{ backgroundColor: sub.color ?? cat.color ?? "#71717a" }}
-                        />
-                        {sub.name}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              ))}
-            </SelectContent>
-          </Select>
+          />
         </div>
 
         {error && (

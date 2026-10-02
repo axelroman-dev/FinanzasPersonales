@@ -133,6 +133,18 @@ export async function POST(req: Request) {
       }
     }
 
+    if (data.subscriptionId) {
+      const sub = await prisma.subscription.findFirst({
+        where: { id: data.subscriptionId, userId: user.id },
+      });
+      if (!sub) {
+        return NextResponse.json(
+          { error: "Suscripción no encontrada" },
+          { status: 404 }
+        );
+      }
+    }
+
     // MSI: solo gastos en cuenta de crédito
     if (data.isMsi && data.msiInstallments) {
       if (data.type !== "EXPENSE" || account.type !== "CREDIT") {

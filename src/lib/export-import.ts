@@ -61,7 +61,10 @@ export type ExportSubscription = {
   name: string;
   amount: number;
   billingDay: number;
-  category: string | null;
+  categoryName?: string | null;
+  categoryParentName?: string | null;
+  /** Exports anteriores: la categoría era texto libre; se resuelve por nombre */
+  category?: string | null;
   isActive: boolean;
   accountName: string;
   createdAt: string;
@@ -101,7 +104,10 @@ export async function exportUserData(userId: string): Promise<ExportData> {
     }),
     prisma.subscription.findMany({
       where: { userId },
-      include: { account: { select: { name: true } } },
+      include: {
+        account: { select: { name: true } },
+        category: { select: { name: true, parent: { select: { name: true } } } },
+      },
       orderBy: { createdAt: "asc" },
     }),
     prisma.category.findMany({
@@ -151,7 +157,8 @@ export async function exportUserData(userId: string): Promise<ExportData> {
         name: s.name,
         amount: Number(s.amount),
         billingDay: s.billingDay,
-        category: s.category,
+        categoryName: s.category?.name ?? null,
+        categoryParentName: s.category?.parent?.name ?? null,
         isActive: s.isActive,
         accountName: s.account.name,
         createdAt: s.createdAt.toISOString(),
@@ -555,6 +562,12 @@ async function importDataTx(
       userId,
       sub,
       accountId,
+      resolveCategoryId(
+        categoryIdMap,
+        sub.categoryName !== undefined
+          ? { categoryName: sub.categoryName, categoryParentName: sub.categoryParentName ?? null }
+          : { categoryName: sub.category ?? null } // export anterior: solo nombre
+      ),
       strategy,
       result,
       existingSubByName
@@ -723,6 +736,7 @@ async function upsertSubscriptionTx(
   userId: string,
   sub: ExportSubscription,
   accountId: string,
+  categoryId: string | null,
   strategy: ImportStrategy,
   result: { created: number; updated: number; skipped: number },
   existingByName: Map<string, string>
@@ -740,7 +754,7 @@ async function upsertSubscriptionTx(
         data: {
           amount: sub.amount,
           billingDay: sub.billingDay,
-          category: sub.category,
+          categoryId,
           isActive: sub.isActive,
           accountId,
         },
@@ -758,7 +772,7 @@ async function upsertSubscriptionTx(
       name: sub.name,
       amount: sub.amount,
       billingDay: sub.billingDay,
-      category: sub.category,
+      categoryId,
       isActive: sub.isActive,
       accountId,
     },

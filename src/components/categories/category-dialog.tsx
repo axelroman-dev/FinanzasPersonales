@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
+import { useFormResetKey } from "@/hooks/use-form-reset-key";
 import { CATEGORY_KIND_LABEL, type CategoryKind } from "@/lib/category-kind";
 
 type CatFormData = {
@@ -65,6 +66,7 @@ export function CategoryDialog({
   const [internalOpen, setInternalOpen] = useState(false);
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : internalOpen;
+  const formKey = useFormResetKey(open);
 
   function setOpen(value: boolean) {
     if (isControlled) {
@@ -78,6 +80,7 @@ export function CategoryDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       {children ? <DialogTrigger asChild>{children}</DialogTrigger> : null}
       <CatFormDialog
+        key={formKey}
         mode={mode}
         category={category}
         parentId={parentId}

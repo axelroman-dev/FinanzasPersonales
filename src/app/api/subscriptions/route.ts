@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { isValidSubscriptionCategory } from "@/lib/subscriptions";
 
 const schema = z.object({
   name: z.string().min(1),
   amount: z.number().positive(),
   billingDay: z.number().int().min(1).max(31),
-  category: z.string().nullable().optional(),
+  categoryId: z.string().nullable().optional(),
   isActive: z.boolean().optional(),
   accountId: z.string(),
 });
@@ -46,13 +47,21 @@ export async function POST(req: Request) {
       );
     }
 
+    const categoryId = parsed.data.categoryId ?? null;
+    if (!(await isValidSubscriptionCategory(user.id, categoryId))) {
+      return NextResponse.json(
+        { error: "Categoría no encontrada" },
+        { status: 404 }
+      );
+    }
+
     const sub = await prisma.subscription.create({
       data: {
         userId: user.id,
         name: parsed.data.name,
         amount: parsed.data.amount,
         billingDay: parsed.data.billingDay,
-        category: parsed.data.category ?? null,
+        categoryId,
         isActive: parsed.data.isActive ?? true,
         accountId: parsed.data.accountId,
       },

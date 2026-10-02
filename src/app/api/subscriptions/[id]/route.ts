@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { isValidSubscriptionCategory } from "@/lib/subscriptions";
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
   amount: z.number().positive().optional(),
   billingDay: z.number().int().min(1).max(31).optional(),
-  category: z.string().nullable().optional(),
+  categoryId: z.string().nullable().optional(),
   isActive: z.boolean().optional(),
   accountId: z.string().optional(),
 });
@@ -36,6 +37,15 @@ export async function PATCH(
       if (!account) {
         return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
       }
+    }
+    if (
+      parsed.data.categoryId !== undefined &&
+      !(await isValidSubscriptionCategory(user.id, parsed.data.categoryId))
+    ) {
+      return NextResponse.json(
+        { error: "Categoría no encontrada" },
+        { status: 404 }
+      );
     }
     const sub = await prisma.subscription.update({
       where: { id: params.id },
