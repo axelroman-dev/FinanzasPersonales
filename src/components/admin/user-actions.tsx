@@ -18,11 +18,13 @@ type UserActionsData = {
   role: "USER" | "ADMIN";
   isActive: boolean;
   isSelf: boolean;
+  isSystem: boolean;
 };
 
 export function UserActions({ user }: { user: UserActionsData }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const locked = user.isSelf || user.isSystem;
 
   function call(action: string, body: any) {
     startTransition(async () => {
@@ -50,14 +52,14 @@ export function UserActions({ user }: { user: UserActionsData }) {
         <DropdownMenuLabel>Acciones</DropdownMenuLabel>
         <DropdownMenuItem
           onClick={() => call("toggle-active", {})}
-          disabled={user.isSelf}
+          disabled={locked}
         >
           <Power className="h-4 w-4" />
           {user.isActive ? "Desactivar" : "Activar"}
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => call("toggle-role", {})}
-          disabled={user.isSelf}
+          disabled={locked}
         >
           {user.role === "ADMIN" ? (
             <>
@@ -77,7 +79,7 @@ export function UserActions({ user }: { user: UserActionsData }) {
             if (!confirm("¿Eliminar este usuario y todos sus datos?")) return;
             call("delete", {});
           }}
-          disabled={user.isSelf}
+          disabled={locked}
           className="text-destructive focus:text-destructive"
         >
           <Trash2 className="h-4 w-4" />

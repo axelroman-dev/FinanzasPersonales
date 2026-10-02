@@ -59,10 +59,6 @@ model User {
 model AppConfig {
   id                String   @id @default("singleton")
   allowRegistration Boolean  @default(false)
-  // Configuración inicial (ver src/lib/setup.ts): hash del código que se
-  // imprime en los logs mientras no exista un admin, e intentos fallidos
-  setupCodeHash     String?
-  setupAttempts     Int      @default(0)
   updatedAt         DateTime @updatedAt
   updatedById       String?
   updatedBy         User?    @relation("ConfigUpdater", fields: [updatedById], references: [id])

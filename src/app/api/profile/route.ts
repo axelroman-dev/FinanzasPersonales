@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { isSystemAdmin } from "@/lib/system-admin";
 
 const schema = z.object({
   name: z.string().min(1).max(100),
@@ -10,6 +11,12 @@ const schema = z.object({
 export async function PATCH(req: Request) {
   try {
     const user = await requireUser();
+    if (isSystemAdmin(user)) {
+      return NextResponse.json(
+        { error: "El nombre del administrador del sistema no se puede modificar" },
+        { status: 403 }
+      );
+    }
     const body = await req.json();
     const parsed = schema.safeParse(body);
     if (!parsed.success) {

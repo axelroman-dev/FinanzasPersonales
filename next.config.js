@@ -7,7 +7,7 @@ const nextConfig = {
     unoptimized: true,
   },
   experimental: {
-    // Habilita src/instrumentation.ts (código de configuración inicial)
+    // Habilita src/instrumentation.ts (crea/sincroniza el admin del sistema)
     instrumentationHook: true,
     serverActions: {
       bodySizeLimit: "2mb",
