@@ -3,6 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ProfileForm } from "@/components/profile/profile-form";
 import { ChangePasswordForm } from "@/app/change-password/change-password-form";
 import { isSystemAdmin } from "@/lib/system-admin";
+import { UserImportExportPanel } from "@/components/profile/user-import-export-panel";
+import { DangerZone } from "@/components/profile/danger-zone";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +17,7 @@ export default async function ProfilePage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Mi perfil</h1>
         <p className="text-muted-foreground">
-          Administra tu información personal y contraseña
+          Administra tu información personal, contraseña y datos
         </p>
       </div>
 
@@ -54,6 +56,31 @@ export default async function ProfilePage() {
           ) : (
             <ChangePasswordForm userName={user.name} userEmail={user.email} />
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Mis datos</CardTitle>
+          <CardDescription>
+            Descarga una copia de tus cuentas, movimientos, suscripciones y
+            categorías, o restáurala desde un archivo exportado antes.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <UserImportExportPanel />
+        </CardContent>
+      </Card>
+
+      <Card className="border-destructive/40">
+        <CardHeader>
+          <CardTitle className="text-destructive">Zona de peligro</CardTitle>
+          <CardDescription>
+            Acciones irreversibles. Se confirman con tu contraseña.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DangerZone canDelete={!isSystem} />
         </CardContent>
       </Card>
     </div>
