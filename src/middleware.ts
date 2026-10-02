@@ -33,6 +33,9 @@ export default auth((req) => {
   const isStaticAsset =
     path.startsWith("/_next") ||
     path.startsWith("/favicon") ||
+    // Iconos de src/app (icon.svg, apple-icon.png): se piden también sin sesión
+    path === "/icon.svg" ||
+    path === "/apple-icon.png" ||
     path === "/robots.txt";
 
   if (
