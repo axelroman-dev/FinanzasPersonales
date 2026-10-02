@@ -76,7 +76,7 @@ export default async function TransactionsPage({
     }),
     prisma.subscription.findMany({
       where: { userId: user.id, isActive: true },
-      select: { id: true, name: true, amount: true },
+      select: { id: true, name: true, amount: true, categoryId: true },
     }),
   ]);
 

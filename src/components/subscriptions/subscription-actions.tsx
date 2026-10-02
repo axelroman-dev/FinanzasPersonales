@@ -21,6 +21,11 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Trash2 } from "lucide-react";
+import {
+  CategorySelect,
+  type CategoryOption,
+} from "@/components/shared/category-select";
+import { useFormResetKey } from "@/hooks/use-form-reset-key";
 
 type AccountOpt = { id: string; name: string; type: string };
 type SubFormData = {
@@ -28,7 +33,7 @@ type SubFormData = {
   name: string;
   amount: number;
   billingDay: number;
-  category: string | null;
+  categoryId: string | null;
   isActive: boolean;
   accountId: string;
 };
@@ -36,21 +41,26 @@ type SubFormData = {
 export function SubscriptionActions({
   mode,
   accounts,
+  categories,
   subscription,
   children,
 }: {
   mode: "create" | "edit";
   accounts: AccountOpt[];
+  categories: CategoryOption[];
   subscription?: SubFormData;
   children?: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const formKey = useFormResetKey(open);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {children ? <DialogTrigger asChild>{children}</DialogTrigger> : null}
       <SubFormDialog
+        key={formKey}
         mode={mode}
         accounts={accounts}
+        categories={categories}
         subscription={subscription}
         onClose={() => setOpen(false)}
         onSaved={() => setOpen(false)}
@@ -62,12 +72,14 @@ export function SubscriptionActions({
 function SubFormDialog({
   mode,
   accounts,
+  categories,
   subscription,
   onClose,
   onSaved,
 }: {
   mode: "create" | "edit";
   accounts: AccountOpt[];
+  categories: CategoryOption[];
   subscription?: SubFormData;
   onClose: () => void;
   onSaved: () => void;
@@ -80,7 +92,7 @@ function SubFormDialog({
   const [billingDay, setBillingDay] = useState<number | "">(
     subscription?.billingDay ?? 1
   );
-  const [category, setCategory] = useState(subscription?.category ?? "");
+  const [categoryId, setCategoryId] = useState(subscription?.categoryId ?? "");
   const [isActive, setIsActive] = useState(subscription?.isActive ?? true);
   const [accountId, setAccountId] = useState(
     subscription?.accountId ?? accounts[0]?.id ?? ""
@@ -95,7 +107,7 @@ function SubFormDialog({
           name,
           amount: Number(amount),
           billingDay: Number(billingDay),
-          category: category || null,
+          categoryId: categoryId || null,
           isActive,
           accountId,
         };
@@ -205,12 +217,12 @@ function SubFormDialog({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="category">Categoría (opcional)</Label>
-          <Input
-            id="category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            placeholder="Entretenimiento"
+          <Label>Categoría (opcional)</Label>
+          <CategorySelect
+            categories={categories}
+            kind="EXPENSE"
+            value={categoryId}
+            onChange={setCategoryId}
           />
         </div>
 

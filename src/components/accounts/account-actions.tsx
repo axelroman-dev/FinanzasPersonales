@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Trash2, Loader2, Pencil } from "lucide-react";
+import { useFormResetKey } from "@/hooks/use-form-reset-key";
 
 type AccountFormData = {
   id: string;
@@ -44,12 +45,14 @@ export function AccountActions({
   children?: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const formKey = useFormResetKey(open);
   const router = useRouter();
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {children ? <DialogTrigger asChild>{children}</DialogTrigger> : null}
       <AccountFormDialog
+        key={formKey}
         mode={mode}
         account={account}
         onClose={() => setOpen(false)}

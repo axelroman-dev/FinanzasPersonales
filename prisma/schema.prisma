@@ -132,7 +132,7 @@ model Subscription {
   name       String
   amount     Decimal  @db.Decimal(14, 2)
   billingDay Int // día del mes
-  category   String?
+  categoryId String?
   isActive   Boolean  @default(true)
   accountId  String
   createdAt  DateTime @default(now())
@@ -140,10 +140,12 @@ model Subscription {
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   account      Account       @relation(fields: [accountId], references: [id])
+  category     Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   transactions Transaction[]
 
   @@index([userId])
   @@index([isActive])
+  @@index([categoryId])
 }
 
 model Category {
@@ -157,10 +159,11 @@ model Category {
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent      Category?    @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
-  children    Category[]   @relation("CategoryTree")
-  transactions Transaction[]
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent        Category?      @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children      Category[]     @relation("CategoryTree")
+  transactions  Transaction[]
+  subscriptions Subscription[]
 
   @@unique([userId, name, parentId])
   @@index([userId])

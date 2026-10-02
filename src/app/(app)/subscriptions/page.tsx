@@ -7,17 +7,22 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Plus, Receipt } from "lucide-react";
 import { SubscriptionActions } from "@/components/subscriptions/subscription-actions";
+import { getCategoryTree } from "@/lib/categories";
 
 export default async function SubscriptionsPage() {
   const user = await requireUser();
-  const [subscriptions, accounts, balance] = await Promise.all([
+  const [subscriptions, accounts, balance, categories] = await Promise.all([
     prisma.subscription.findMany({
       where: { userId: user.id },
       orderBy: [{ isActive: "desc" }, { createdAt: "asc" }],
-      include: { account: true },
+      include: {
+        account: true,
+        category: { select: { name: true, parent: { select: { name: true } } } },
+      },
     }),
     prisma.account.findMany({ where: { userId: user.id } }),
     calculateBalance(user.id),
+    getCategoryTree(user.id, "EXPENSE"),
   ]);
 
   const total = subscriptions
@@ -36,6 +41,7 @@ export default async function SubscriptionsPage() {
         </div>
         <SubscriptionActions
           mode="create"
+          categories={categories}
           accounts={accounts.map((a) => ({
             id: a.id,
             name: a.name,
@@ -86,6 +92,7 @@ export default async function SubscriptionsPage() {
             </p>
             <SubscriptionActions
               mode="create"
+              categories={categories}
               accounts={accounts.map((a) => ({
                 id: a.id,
                 name: a.name,
@@ -116,7 +123,8 @@ export default async function SubscriptionsPage() {
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {sub.account.name} • Día {sub.billingDay}
-                  {sub.category && ` • ${sub.category}`}
+                  {sub.category &&
+                    ` • ${sub.category.parent ? `${sub.category.parent.name} › ` : ""}${sub.category.name}`}
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -125,6 +133,7 @@ export default async function SubscriptionsPage() {
                 </p>
                 <SubscriptionActions
                   mode="edit"
+                  categories={categories}
                   accounts={accounts.map((a) => ({
                     id: a.id,
                     name: a.name,
@@ -135,7 +144,7 @@ export default async function SubscriptionsPage() {
                     name: sub.name,
                     amount: Number(sub.amount),
                     billingDay: sub.billingDay,
-                    category: sub.category,
+                    categoryId: sub.categoryId,
                     isActive: sub.isActive,
                     accountId: sub.accountId,
                   }}

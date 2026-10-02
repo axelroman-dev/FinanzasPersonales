@@ -22,13 +22,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
+import { useFormResetKey } from "@/hooks/use-form-reset-key";
 
 export function CreateUserDialog({ children }: { children?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const formKey = useFormResetKey(open);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {children ? <DialogTrigger asChild>{children}</DialogTrigger> : null}
-      <CreateUserForm onClose={() => setOpen(false)} />
+      <CreateUserForm key={formKey} onClose={() => setOpen(false)} />
     </Dialog>
   );
 }
