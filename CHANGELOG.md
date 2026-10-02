@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.3.0...v0.3.1) (2026-10-02)
+
+
+### Correcciones
+
+* **import:** restaurar cada usuario del backup global en su propia cuenta ([#21](https://github.com/axelroman-dev/FinanzasPersonales/issues/21)) ([dcf87b5](https://github.com/axelroman-dev/FinanzasPersonales/commit/dcf87b5fd8f66189d79da4efc6cbea640eefb0be))
+
 ## [0.3.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.2.0...v0.3.0) (2026-10-02)
 
 
