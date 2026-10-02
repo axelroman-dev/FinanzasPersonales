@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireUser, requireAdmin } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import {
   previewImport,
   applyImport,
@@ -43,8 +43,11 @@ export async function POST(req: Request) {
 
     // Global (solo admin): cada usuario del backup va a su propia cuenta,
     // buscada por email. Por usuario: los datos van al usuario actual.
+    const user = await requireUser();
     if (isGlobal || json.scope === "global") {
-      await requireAdmin();
+      if (user.role !== "ADMIN") {
+        return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+      }
       const globalJson = json as GlobalExportData;
       if (!Array.isArray(globalJson.users)) {
         return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
@@ -60,7 +63,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, ...result });
     }
 
-    const user = await requireUser();
     const userJson = json as ExportData;
     if (mode === "preview") {
       const preview = await previewImport(user.id, userJson);
