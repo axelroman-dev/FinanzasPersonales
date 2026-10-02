@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.3.1...v0.4.0) (2026-10-02)
+
+
+### Nuevas funciones
+
+* **categories:** quitar el tipo Ambos y permitir eliminar categorías principales ([#25](https://github.com/axelroman-dev/FinanzasPersonales/issues/25)) ([80f357e](https://github.com/axelroman-dev/FinanzasPersonales/commit/80f357e3c6e87f3590ce0c30b02b0882aef0cb86))
+* **profile:** exportar e importar mis datos y zona de peligro ([#23](https://github.com/axelroman-dev/FinanzasPersonales/issues/23)) ([a15bd49](https://github.com/axelroman-dev/FinanzasPersonales/commit/a15bd491db468d4607bd34a23ef0aa05f9fa7073))
+
 ## [0.3.1](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.3.0...v0.3.1) (2026-10-02)
 
 
