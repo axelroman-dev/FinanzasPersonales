@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.2.0...v0.3.0) (2026-10-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* **auth:** ADMIN_PASSWORD es obligatoria en el .env. Se elimina el asistente /setup y scripts/reset-admin-password.ts; el admin del sistema es admin@finanzas.local.
+
+### Nuevas funciones
+
+* **accounts:** registrar balance inicial y ajustes de cuenta como movimientos ([#18](https://github.com/axelroman-dev/FinanzasPersonales/issues/18)) ([5e7f6e2](https://github.com/axelroman-dev/FinanzasPersonales/commit/5e7f6e299240097a544eaac7e3e51f8d6c5a1f70))
+* **auth:** admin del sistema con contraseña desde ADMIN_PASSWORD ([#20](https://github.com/axelroman-dev/FinanzasPersonales/issues/20)) ([4327018](https://github.com/axelroman-dev/FinanzasPersonales/commit/43270182af6d25aba99611eca83e4d9a4c14f8fe))
+
 ## [0.2.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.1.2...v0.2.0) (2026-09-23)
 
 
