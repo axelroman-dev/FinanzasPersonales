@@ -30,10 +30,11 @@ El `docker-compose.yml` de referencia está en el [repo del código fuente](http
 | `DATABASE_URL` | URL de conexión a PostgreSQL |
 | `NEXTAUTH_SECRET` | Generar con `openssl rand -base64 32` |
 | `NEXTAUTH_URL` | URL pública de la app |
+| `ADMIN_PASSWORD` | Contraseña de `admin@finanzas.local` (obligatoria, mínimo 12 caracteres) |
 
 Al arrancar, el contenedor corre automáticamente `prisma migrate deploy` y el seed inicial (idempotente).
 
-Si pierdes la contraseña del admin: `docker compose exec app npx tsx scripts/reset-admin-password.ts [email]`.
+Para cambiar o recuperar la contraseña del admin, edita `ADMIN_PASSWORD` en el `.env` y reinicia el contenedor.
 
 ## Tags
 

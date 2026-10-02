@@ -42,7 +42,7 @@ npm run db:up
 npm run prisma:generate
 npm run prisma:migrate
 
-# 5. Sembrar datos iniciales (admin)
+# 5. Sembrar datos iniciales
 npm run prisma:seed
 
 # 6. Levantar el servidor de desarrollo
@@ -51,31 +51,16 @@ npm run dev
 
 Abre [http://localhost:3000](http://localhost:3000).
 
-## Primer inicio: crear el admin
+## Primer inicio: el admin
 
-No hay credenciales por defecto. La primera vez que arranca, mientras no exista ningún admin, la app redirige a `/setup` y el servidor imprime en sus logs un **código de configuración**:
+La app crea al arrancar un administrador fijo:
 
-```
-═══════════════════════════════════════════
-  Configuración inicial pendiente
+- **Email:** `admin@finanzas.local`
+- **Contraseña:** la de `ADMIN_PASSWORD` en el `.env` (obligatoria, mínimo 12 caracteres). Sin ella el servidor no arranca.
 
-  Código de configuración: K7QM-3XPD
-  ...
-```
+Su email y nombre no se pueden modificar, ni se puede desactivar, degradar o eliminar. El `.env` es la fuente de verdad de su contraseña: en cada arranque se sincroniza, así que para cambiarla (o recuperarla) se edita `ADMIN_PASSWORD` y se reinicia el servidor.
 
-En desarrollo aparece en la terminal de `npm run dev`; con Docker, en `docker compose logs app`. El asistente tiene tres pasos:
-
-1. **Código**: el de los logs. Tras 5 intentos fallidos se invalida y hay que reiniciar el servidor para generar otro (también cambia en cada reinicio).
-2. **Administrador**: nombre, email y contraseña (mínimo 12 caracteres).
-3. **Registro**: si cualquiera puede crear una cuenta. Por defecto está desactivado; se puede cambiar después en *Configuración*.
-
-**¿Perdiste la contraseña del admin?** Desde el servidor:
-
-```bash
-docker compose exec app npx tsx scripts/reset-admin-password.ts [email]
-```
-
-Genera una contraseña temporal que hay que cambiar al iniciar sesión.
+El registro público está desactivado por defecto; se puede activar en *Configuración*.
 
 ## Comandos útiles
 
@@ -125,7 +110,6 @@ src/
 │   ├── login/                # Login
 │   ├── register/             # Registro (deshabilitable)
 │   ├── change-password/      # Cambio de contraseña obligatorio
-│   ├── setup/                # Asistente de configuración inicial
 │   ├── (app)/                # Rutas protegidas (con sidebar)
 │   │   ├── page.tsx          # Dashboard
 │   │   ├── accounts/
@@ -179,7 +163,7 @@ Los **vales de despensa** no cuentan en el balance.
 - El registro público está desactivado por defecto
 - Passwords hasheados con **bcrypt** (10 rounds)
 - Sesiones JWT firmadas
-- Middleware protege todas las rutas excepto `/login`, `/register` y `/setup`
+- Middleware protege todas las rutas excepto `/login` y `/register`
 - Usuarios con `mustChangePassword` son redirigidos a `/change-password` hasta que la cambien
 - Todas las queries filtran por `userId` desde la sesión (nunca del cliente)
 - `isActive` y el rol se verifican contra la DB en cada request: desactivar, eliminar o cambiar el rol de un usuario aplica de inmediato aunque tenga una sesión abierta

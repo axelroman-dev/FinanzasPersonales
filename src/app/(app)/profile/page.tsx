@@ -2,11 +2,13 @@ import { requireUser } from "@/lib/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProfileForm } from "@/components/profile/profile-form";
 import { ChangePasswordForm } from "@/app/change-password/change-password-form";
+import { isSystemAdmin } from "@/lib/system-admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProfilePage() {
   const user = await requireUser();
+  const isSystem = isSystemAdmin(user);
 
   return (
     <div className="p-6 md:p-8 max-w-3xl mx-auto space-y-6">
@@ -29,6 +31,7 @@ export default async function ProfilePage() {
             initialName={user.name}
             initialEmail={user.email}
             role={user.role}
+            isSystem={isSystem}
           />
         </CardContent>
       </Card>
@@ -37,11 +40,20 @@ export default async function ProfilePage() {
         <CardHeader>
           <CardTitle>Cambiar contraseña</CardTitle>
           <CardDescription>
-            Necesitarás tu contraseña actual para confirmar el cambio
+            {isSystem
+              ? "La contraseña del administrador del sistema se configura en el servidor"
+              : "Necesitarás tu contraseña actual para confirmar el cambio"}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ChangePasswordForm userName={user.name} userEmail={user.email} />
+          {isSystem ? (
+            <p className="text-sm text-muted-foreground">
+              Cambia <code>ADMIN_PASSWORD</code> en el <code>.env</code> y
+              reinicia el servidor.
+            </p>
+          ) : (
+            <ChangePasswordForm userName={user.name} userEmail={user.email} />
+          )}
         </CardContent>
       </Card>
     </div>

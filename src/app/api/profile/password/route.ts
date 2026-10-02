@@ -3,6 +3,7 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { isSystemAdmin } from "@/lib/system-admin";
 
 const schema = z
   .object({
@@ -17,6 +18,12 @@ const schema = z
 export async function POST(req: Request) {
   try {
     const user = await requireUser();
+    if (isSystemAdmin(user)) {
+      return NextResponse.json(
+        { error: "La contraseña se configura con ADMIN_PASSWORD en el .env" },
+        { status: 403 }
+      );
+    }
     const body = await req.json();
     const parsed = schema.safeParse(body);
     if (!parsed.success) {

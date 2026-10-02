@@ -7,6 +7,7 @@ import { formatShortDate } from "@/lib/utils";
 import { UserActions } from "@/components/admin/user-actions";
 import { CreateUserDialog } from "@/components/admin/create-user-dialog";
 import { Plus } from "lucide-react";
+import { isSystemAdmin } from "@/lib/system-admin";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,15 @@ export default async function AdminUsersPage() {
                         <p className="font-medium">{u.name}</p>
                         <p className="text-xs text-muted-foreground">{u.email}</p>
                       </div>
+                      {isSystemAdmin(u) && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px]"
+                          title="Cuenta fija; la contraseña se configura en el .env"
+                        >
+                          Sistema
+                        </Badge>
+                      )}
                       {u.mustChangePassword && (
                         <Badge
                           variant="warning"
@@ -87,6 +97,7 @@ export default async function AdminUsersPage() {
                         role: u.role,
                         isActive: u.isActive,
                         isSelf: u.id === admin.id,
+                        isSystem: isSystemAdmin(u),
                       }}
                     />
                   </td>

@@ -12,10 +12,12 @@ export function ProfileForm({
   initialName,
   initialEmail,
   role,
+  isSystem,
 }: {
   initialName: string;
   initialEmail: string;
   role: "USER" | "ADMIN";
+  isSystem: boolean;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -61,6 +63,9 @@ export function ProfileForm({
           onChange={(e) => setName(e.target.value)}
           required
           maxLength={100}
+          disabled={isSystem}
+          readOnly={isSystem}
+          className={isSystem ? "bg-muted/30" : undefined}
         />
       </div>
 
@@ -79,7 +84,9 @@ export function ProfileForm({
           </Badge>
         </div>
         <p className="text-xs text-muted-foreground">
-          El email no se puede modificar
+          {isSystem
+            ? "El nombre y el email del administrador del sistema no se pueden modificar"
+            : "El email no se puede modificar"}
         </p>
       </div>
 
@@ -94,10 +101,12 @@ export function ProfileForm({
         </div>
       )}
 
-      <Button type="submit" disabled={isPending}>
-        {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-        Guardar cambios
-      </Button>
+      {!isSystem && (
+        <Button type="submit" disabled={isPending}>
+          {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+          Guardar cambios
+        </Button>
+      )}
     </form>
   );
 }
