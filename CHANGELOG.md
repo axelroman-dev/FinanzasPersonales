@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.4.0...v0.5.0) (2026-10-02)
+
+
+### Nuevas funciones
+
+* agregar favicon con el icono de cartera del sidebar ([#30](https://github.com/axelroman-dev/FinanzasPersonales/issues/30)) ([2fa0e07](https://github.com/axelroman-dev/FinanzasPersonales/commit/2fa0e073a6f5c86686b36bdd279ed21d26099712))
+
+
+### Correcciones
+
+* **balance:** no descontar las suscripciones ya pagadas este mes ([#29](https://github.com/axelroman-dev/FinanzasPersonales/issues/29)) ([5d022e3](https://github.com/axelroman-dev/FinanzasPersonales/commit/5d022e32cad6c0c30b9a6bac4358b8366ceb1f69))
+* **forms:** limpiar formularios al abrirlos y elegir la categoría de suscripciones ([#26](https://github.com/axelroman-dev/FinanzasPersonales/issues/26)) ([415a2cf](https://github.com/axelroman-dev/FinanzasPersonales/commit/415a2cf8631fea77657e5472d97f6abb03090457))
+
 ## [0.4.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.3.1...v0.4.0) (2026-10-02)
 
 
