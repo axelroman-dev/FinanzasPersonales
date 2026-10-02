@@ -1,3 +1,5 @@
+import { randomInt } from "crypto";
+import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 
 /**
@@ -40,6 +42,10 @@ export type ExportTransaction = {
   description: string;
   category: string | null;
   categoryName: string | null; // nombre para resolver al importar
+  // Padre de la categoría: distingue subcategorías con el mismo nombre (p. ej.
+  // "Servicios" raíz y "Vivienda › Servicios"). Los exports anteriores no lo
+  // tienen; en ese caso se resuelve solo por nombre, prefiriendo la raíz.
+  categoryParentName?: string | null;
   accountName: string; // nombre para resolver al importar
   transferAccountName: string | null;
   isMsi: boolean;
@@ -84,7 +90,7 @@ export async function exportUserData(userId: string): Promise<ExportData> {
     prisma.transaction.findMany({
       where: { userId },
       include: {
-        categoryRef: true,
+        categoryRef: { include: { parent: { select: { name: true } } } },
         account: { select: { name: true } },
         transferAccount: { select: { name: true } },
         subscription: { select: { name: true } },
@@ -102,9 +108,6 @@ export async function exportUserData(userId: string): Promise<ExportData> {
       orderBy: { createdAt: "asc" },
     }),
   ]);
-
-  // Construir mapa de categorías por nombre para resolver parentName
-  const categoryByName = new Map(categories.map((c) => [c.name, c]));
 
   return {
     version: "1.0",
@@ -131,6 +134,7 @@ export async function exportUserData(userId: string): Promise<ExportData> {
         description: t.description,
         category: t.category,
         categoryName: t.categoryRef?.name ?? null,
+        categoryParentName: t.categoryRef?.parent?.name ?? null,
         accountName: t.account.name,
         transferAccountName: t.transferAccount?.name ?? null,
         isMsi: t.isMsi,
@@ -233,13 +237,24 @@ export type ImportPreview = {
 export type ImportStrategy = "create" | "overwrite" | "skip";
 
 /**
- * Analiza el JSON y devuelve un preview antes de aplicar.
+ * Analiza el JSON de un usuario y devuelve un preview antes de aplicar.
  */
 export async function previewImport(
   userId: string,
-  json: ExportData | GlobalExportData
+  json: ExportData
 ): Promise<ImportPreview> {
-  const preview: ImportPreview = {
+  const preview = emptyPreview();
+  if (json.version !== "1.0") {
+    preview.errors.push(`Versión no soportada: ${json.version}`);
+    return preview;
+  }
+  addTotals(preview, json.data);
+  await addDuplicates(preview, userId, json.data);
+  return preview;
+}
+
+function emptyPreview(): ImportPreview {
+  return {
     totalAccounts: 0,
     totalTransactions: 0,
     totalSubscriptions: 0,
@@ -247,27 +262,21 @@ export async function previewImport(
     duplicates: { accounts: [], subscriptions: [], categories: [] },
     errors: [],
   };
+}
 
-  // Validar versión
-  if (json.version !== "1.0") {
-    preview.errors.push(`Versión no soportada: ${json.version}`);
-    return preview;
-  }
+function addTotals(preview: ImportPreview, data: ExportData["data"]) {
+  preview.totalAccounts += data.accounts.length;
+  preview.totalTransactions += data.transactions.length;
+  preview.totalSubscriptions += data.subscriptions.length;
+  preview.totalCategories += data.categories.length;
+}
 
-  // Determinar los bloques de datos según el scope
-  const dataBlocks: ExportData["data"][] =
-    json.scope === "global"
-      ? (json as GlobalExportData).users.map((u) => u.data)
-      : [json.data];
-
-  for (const data of dataBlocks) {
-    preview.totalAccounts += data.accounts.length;
-    preview.totalTransactions += data.transactions.length;
-    preview.totalSubscriptions += data.subscriptions.length;
-    preview.totalCategories += data.categories.length;
-  }
-
-  // Detectar duplicados contra el estado actual del usuario destino
+/** Detecta duplicados contra el estado actual del usuario destino */
+async function addDuplicates(
+  preview: ImportPreview,
+  userId: string,
+  data: ExportData["data"]
+) {
   const [existingAccounts, existingSubs, existingCategories] = await Promise.all([
     prisma.account.findMany({
       where: { userId },
@@ -289,28 +298,67 @@ export async function previewImport(
     existingCategories.map((c) => `${c.parent?.name ?? ""}|${c.name}`)
   );
 
-  for (const data of dataBlocks) {
-    for (const acc of data.accounts) {
-      if (existingAccountNames.has(acc.name)) {
-        preview.duplicates.accounts.push(acc.name);
-      }
-    }
-    for (const sub of data.subscriptions) {
-      if (existingSubNames.has(sub.name)) {
-        preview.duplicates.subscriptions.push(sub.name);
-      }
-    }
-    for (const cat of data.categories) {
-      const key = `${cat.parentName ?? ""}|${cat.name}`;
-      if (existingCategoryKeys.has(key)) {
-        preview.duplicates.categories.push({
-          name: cat.name,
-          parentName: cat.parentName,
-        });
-      }
+  for (const acc of data.accounts) {
+    if (existingAccountNames.has(acc.name)) {
+      preview.duplicates.accounts.push(acc.name);
     }
   }
+  for (const sub of data.subscriptions) {
+    if (existingSubNames.has(sub.name)) {
+      preview.duplicates.subscriptions.push(sub.name);
+    }
+  }
+  for (const cat of data.categories) {
+    const key = `${cat.parentName ?? ""}|${cat.name}`;
+    if (existingCategoryKeys.has(key)) {
+      preview.duplicates.categories.push({
+        name: cat.name,
+        parentName: cat.parentName,
+      });
+    }
+  }
+}
 
+/**
+ * Preview de un import global: cada usuario del backup se restaura en la
+ * cuenta con su mismo email. Si no existe, se creará.
+ */
+export type GlobalImportPreview = ImportPreview & {
+  users: Array<{
+    email: string;
+    name: string;
+    exists: boolean;
+    totalAccounts: number;
+    totalTransactions: number;
+  }>;
+};
+
+export async function previewGlobalImport(
+  json: GlobalExportData
+): Promise<GlobalImportPreview> {
+  const preview: GlobalImportPreview = { ...emptyPreview(), users: [] };
+  if (json.version !== "1.0") {
+    preview.errors.push(`Versión no soportada: ${json.version}`);
+    return preview;
+  }
+
+  for (const u of json.users) {
+    const email = u.email.trim().toLowerCase();
+    const existing = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+    addTotals(preview, u.data);
+    // Un usuario nuevo empieza vacío: no puede haber duplicados
+    if (existing) await addDuplicates(preview, existing.id, u.data);
+    preview.users.push({
+      email,
+      name: u.name,
+      exists: !!existing,
+      totalAccounts: u.data.accounts.length,
+      totalTransactions: u.data.transactions.length,
+    });
+  }
   return preview;
 }
 
@@ -322,9 +370,9 @@ export async function previewImport(
  */
 export async function applyImport(params: {
   userId: string;
-  json: ExportData | GlobalExportData;
+  json: ExportData;
   strategy: ImportStrategy;
-}): Promise<{ created: number; updated: number; skipped: number }> {
+}): Promise<ImportResult> {
   const { userId, json, strategy } = params;
 
   const result = { created: 0, updated: 0, skipped: 0 };
@@ -334,143 +382,230 @@ export async function applyImport(params: {
     throw new Error(`Versión no soportada: ${json.version}`);
   }
 
-  const dataBlocks: ExportData["data"][] =
-    json.scope === "global"
-      ? (json as GlobalExportData).users.map((u) => u.data)
-      : [json.data];
+  // Una sola transacción: cualquier error rollback completo
+  await prisma.$transaction((tx) =>
+    importDataTx(tx, userId, json.data, strategy, result)
+  );
 
-  for (const data of dataBlocks) {
-    await importOne(userId, data, strategy, result);
+  return result;
+}
+
+export type ImportResult = { created: number; updated: number; skipped: number };
+
+export type GlobalImportResult = ImportResult & {
+  /** Usuarios que no existían: se crearon con una contraseña temporal */
+  createdUsers: Array<{ email: string; tempPassword: string }>;
+};
+
+const TEMP_PASSWORD_ALPHABET =
+  "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+
+function generateTempPassword(): string {
+  return Array.from(
+    { length: 16 },
+    () => TEMP_PASSWORD_ALPHABET[randomInt(TEMP_PASSWORD_ALPHABET.length)]
+  ).join("");
+}
+
+/**
+ * Aplica un import global: los datos de cada usuario del backup van a la
+ * cuenta con su mismo email. Si no existe se crea, con una contraseña
+ * temporal que hay que cambiar al iniciar sesión (el backup no incluye
+ * contraseñas). Los usuarios existentes conservan su nombre, rol y estado.
+ * Cada usuario se importa en su propia transacción.
+ */
+export async function applyGlobalImport(params: {
+  json: GlobalExportData;
+  strategy: ImportStrategy;
+}): Promise<GlobalImportResult> {
+  const { json, strategy } = params;
+  const result: GlobalImportResult = {
+    created: 0,
+    updated: 0,
+    skipped: 0,
+    createdUsers: [],
+  };
+
+  if (json.version !== "1.0") {
+    throw new Error(`Versión no soportada: ${json.version}`);
+  }
+
+  for (const u of json.users) {
+    const email = u.email.trim().toLowerCase();
+    const tempPassword = generateTempPassword();
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+    const created = await prisma.$transaction(async (tx) => {
+      let user = await tx.user.findUnique({ where: { email } });
+      const isNew = !user;
+      if (!user) {
+        user = await tx.user.create({
+          data: {
+            email,
+            name: u.name,
+            role: u.role,
+            isActive: u.isActive,
+            passwordHash,
+            mustChangePassword: true,
+          },
+        });
+      }
+      await importDataTx(tx, user.id, u.data, strategy, result);
+      return isNew;
+    });
+
+    if (created) result.createdUsers.push({ email, tempPassword });
   }
 
   return result;
 }
 
-async function importOne(
+async function importDataTx(
+  tx: TxClient,
   userId: string,
   data: ExportData["data"],
   strategy: ImportStrategy,
-  result: { created: number; updated: number; skipped: number }
+  result: ImportResult
 ) {
-  // Una sola transacción: cualquier error rollback completo
-  await prisma.$transaction(async (tx) => {
-    // 1. Categorías (padres antes que hijos)
+  // 1. Categorías (padres antes que hijos). Clave "padre|nombre": puede
+  // haber subcategorías con el mismo nombre que una raíz u otra subcategoría.
   const categoryIdMap = new Map<string, string>();
 
-    // Batch: traer TODAS las categorías existentes del usuario en una sola query
-    const existingCategories = await tx.category.findMany({ where: { userId } });
-    const existingCategoryKeys = new Set<string>();
-    const existingCategoryByKey = new Map<string, string>();
-    for (const c of existingCategories) {
-      const key = `${c.parentId ?? "null"}|${c.name}`;
-      existingCategoryKeys.add(key);
-      existingCategoryByKey.set(key, c.id);
-    }
+  // Batch: traer TODAS las categorías existentes del usuario en una sola query
+  const existingCategories = await tx.category.findMany({ where: { userId } });
+  const existingCategoryKeys = new Set<string>();
+  const existingCategoryByKey = new Map<string, string>();
+  for (const c of existingCategories) {
+    const key = `${c.parentId ?? "null"}|${c.name}`;
+    existingCategoryKeys.add(key);
+    existingCategoryByKey.set(key, c.id);
+  }
 
-    // Primero las raíces
-    for (const cat of data.categories.filter((c) => !c.parentName)) {
-      const id = await upsertCategoryTx(
-        tx,
-        userId,
-        cat,
-        null,
-        strategy,
-        result,
-        existingCategoryKeys,
-        existingCategoryByKey
-      );
-      if (id) categoryIdMap.set(cat.name, id);
+  // Primero las raíces
+  for (const cat of data.categories.filter((c) => !c.parentName)) {
+    const id = await upsertCategoryTx(
+      tx,
+      userId,
+      cat,
+      null,
+      strategy,
+      result,
+      existingCategoryKeys,
+      existingCategoryByKey
+    );
+    if (id) categoryIdMap.set(categoryKey(cat.parentName, cat.name), id);
+  }
+  // Después las hijas
+  for (const cat of data.categories.filter((c) => c.parentName)) {
+    const parentId = categoryIdMap.get(categoryKey(null, cat.parentName!));
+    if (!parentId) {
+      result.skipped++;
+      continue;
     }
-    // Después las hijas
-    for (const cat of data.categories.filter((c) => c.parentName)) {
-      const parentId = categoryIdMap.get(cat.parentName!);
-      if (!parentId) {
-        result.skipped++;
-        continue;
-      }
-      const id = await upsertCategoryTx(
-        tx,
-        userId,
-        cat,
-        parentId,
-        strategy,
-        result,
-        existingCategoryKeys,
-        existingCategoryByKey
-      );
-      if (id) categoryIdMap.set(cat.name, id);
-    }
+    const id = await upsertCategoryTx(
+      tx,
+      userId,
+      cat,
+      parentId,
+      strategy,
+      result,
+      existingCategoryKeys,
+      existingCategoryByKey
+    );
+    if (id) categoryIdMap.set(categoryKey(cat.parentName, cat.name), id);
+  }
 
   // 2. Cuentas: batch lookup
-    const accountIdMap = new Map<string, string>();
-    const existingAccounts = await tx.account.findMany({
-      where: { userId },
-      select: { id: true, name: true },
-    });
-    const existingAccountByName = new Map(existingAccounts.map((a) => [a.name, a.id]));
+  const accountIdMap = new Map<string, string>();
+  const existingAccounts = await tx.account.findMany({
+    where: { userId },
+    select: { id: true, name: true },
+  });
+  const existingAccountByName = new Map(existingAccounts.map((a) => [a.name, a.id]));
 
-    for (const acc of data.accounts) {
-      const id = await upsertAccountTx(
-        tx,
-        userId,
-        acc,
-        strategy,
-        result,
-        existingAccountByName
-      );
-      if (id) accountIdMap.set(acc.name, id);
-    }
+  for (const acc of data.accounts) {
+    const id = await upsertAccountTx(
+      tx,
+      userId,
+      acc,
+      strategy,
+      result,
+      existingAccountByName
+    );
+    if (id) accountIdMap.set(acc.name, id);
+  }
 
   // 3. Suscripciones
-    const existingSubs = await tx.subscription.findMany({
-      where: { userId },
-      select: { id: true, name: true },
-    });
-    const existingSubByName = new Map(existingSubs.map((s) => [s.name, s.id]));
+  const existingSubs = await tx.subscription.findMany({
+    where: { userId },
+    select: { id: true, name: true },
+  });
+  const existingSubByName = new Map(existingSubs.map((s) => [s.name, s.id]));
 
-    for (const sub of data.subscriptions) {
-      const accountId = accountIdMap.get(sub.accountName);
-      if (!accountId) {
-        result.skipped++;
-        continue;
-      }
-      await upsertSubscriptionTx(
-        tx,
-        userId,
-        sub,
-        accountId,
-        strategy,
-        result,
-        existingSubByName
-      );
+  for (const sub of data.subscriptions) {
+    const accountId = accountIdMap.get(sub.accountName);
+    if (!accountId) {
+      result.skipped++;
+      continue;
     }
+    await upsertSubscriptionTx(
+      tx,
+      userId,
+      sub,
+      accountId,
+      strategy,
+      result,
+      existingSubByName
+    );
+  }
 
   // 4. Transacciones (dependen de todo lo anterior)
-    for (const txData of data.transactions) {
-      const accountId = accountIdMap.get(txData.accountName);
-      const transferAccountId =
-        txData.transferAccountName != null
-          ? accountIdMap.get(txData.transferAccountName) ?? null
-          : null;
-      if (
-        !accountId ||
-        (txData.transferAccountName && !transferAccountId)
-      ) {
-        result.skipped++;
-        continue;
-      }
-      await upsertTransactionTx(
-        tx,
-        userId,
-        txData,
-        accountId,
-        transferAccountId,
-        categoryIdMap,
-        strategy,
-        result
-      );
+  for (const txData of data.transactions) {
+    const accountId = accountIdMap.get(txData.accountName);
+    const transferAccountId =
+      txData.transferAccountName != null
+        ? accountIdMap.get(txData.transferAccountName) ?? null
+        : null;
+    if (
+      !accountId ||
+      (txData.transferAccountName && !transferAccountId)
+    ) {
+      result.skipped++;
+      continue;
     }
-  });
+    await upsertTransactionTx(
+      tx,
+      userId,
+      txData,
+      accountId,
+      transferAccountId,
+      categoryIdMap,
+      strategy,
+      result
+    );
+  }
+}
+
+function categoryKey(parentName: string | null, name: string): string {
+  return `${parentName ?? ""}|${name}`;
+}
+
+function resolveCategoryId(
+  categoryIdMap: Map<string, string>,
+  t: Pick<ExportTransaction, "categoryName" | "categoryParentName">
+): string | null {
+  if (!t.categoryName) return null;
+  if (t.categoryParentName !== undefined) {
+    return categoryIdMap.get(categoryKey(t.categoryParentName, t.categoryName)) ?? null;
+  }
+  // Export anterior sin padre: la raíz con ese nombre, o la primera
+  // subcategoría que coincida
+  const root = categoryIdMap.get(categoryKey(null, t.categoryName));
+  if (root) return root;
+  for (const [key, id] of categoryIdMap) {
+    if (key.endsWith(`|${t.categoryName}`)) return id;
+  }
+  return null;
 }
 
 // Versiones Tx (reciben el cliente de transacción y mapas pre-cargados)
@@ -636,9 +771,7 @@ async function upsertTransactionTx(
   strategy: ImportStrategy,
   result: { created: number; updated: number; skipped: number }
 ): Promise<void> {
-  const categoryId = t.categoryName
-    ? categoryIdMap.get(t.categoryName) ?? null
-    : null;
+  const categoryId = resolveCategoryId(categoryIdMap, t);
 
   const duplicate = await tx.transaction.findFirst({
     where: {
@@ -689,229 +822,6 @@ async function upsertTransactionTx(
       isMsi: t.isMsi,
       msiTotalAmount: t.msiTotalAmount,
       msiInstallments: t.msiInstallments,
-    },
-  });
-  result.created++;
-}
-
-async function upsertCategory(
-  userId: string,
-  cat: ExportCategory,
-  parentId: string | null,
-  strategy: ImportStrategy,
-  result: { created: number; updated: number; skipped: number }
-): Promise<string | null> {
-  const existing = await prisma.category.findFirst({
-    where: {
-      userId,
-      name: cat.name,
-      parentId,
-    },
-  });
-
-  if (existing) {
-    if (strategy === "skip") {
-      result.skipped++;
-      return existing.id;
-    }
-    if (strategy === "overwrite") {
-      await prisma.category.update({
-        where: { id: existing.id },
-        data: {
-          kind: cat.kind,
-          color: cat.color,
-          icon: cat.icon,
-        },
-      });
-      result.updated++;
-      return existing.id;
-    }
-    // create: fallará por unique constraint, saltamos
-    result.skipped++;
-    return existing.id;
-  }
-
-  const created = await prisma.category.create({
-    data: {
-      userId,
-      name: cat.name,
-      parentId,
-      kind: cat.kind,
-      color: cat.color,
-      icon: cat.icon,
-    },
-  });
-  result.created++;
-  return created.id;
-}
-
-async function upsertAccount(
-  userId: string,
-  acc: ExportAccount,
-  strategy: ImportStrategy,
-  result: { created: number; updated: number; skipped: number }
-): Promise<string | null> {
-  const existing = await prisma.account.findFirst({
-    where: { userId, name: acc.name },
-  });
-
-  if (existing) {
-    if (strategy === "skip") {
-      result.skipped++;
-      return existing.id;
-    }
-    if (strategy === "overwrite") {
-      await prisma.account.update({
-        where: { id: existing.id },
-        data: {
-          type: acc.type,
-          balance: acc.balance,
-          currency: acc.currency,
-          includeInBalance: acc.includeInBalance,
-          creditLimit: acc.creditLimit,
-          cutoffDay: acc.cutoffDay,
-          paymentDay: acc.paymentDay,
-        },
-      });
-      result.updated++;
-      return existing.id;
-    }
-    result.skipped++;
-    return existing.id;
-  }
-
-  const created = await prisma.account.create({
-    data: {
-      userId,
-      name: acc.name,
-      type: acc.type,
-      balance: acc.balance,
-      currency: acc.currency,
-      includeInBalance: acc.includeInBalance,
-      creditLimit: acc.creditLimit,
-      cutoffDay: acc.cutoffDay,
-      paymentDay: acc.paymentDay,
-    },
-  });
-  result.created++;
-  return created.id;
-}
-
-async function upsertSubscription(
-  userId: string,
-  sub: ExportSubscription,
-  accountId: string,
-  strategy: ImportStrategy,
-  result: { created: number; updated: number; skipped: number }
-): Promise<void> {
-  const existing = await prisma.subscription.findFirst({
-    where: { userId, name: sub.name },
-  });
-
-  if (existing) {
-    if (strategy === "skip") {
-      result.skipped++;
-      return;
-    }
-    if (strategy === "overwrite") {
-      await prisma.subscription.update({
-        where: { id: existing.id },
-        data: {
-          amount: sub.amount,
-          billingDay: sub.billingDay,
-          category: sub.category,
-          isActive: sub.isActive,
-          accountId,
-        },
-      });
-      result.updated++;
-      return;
-    }
-    result.skipped++;
-    return;
-  }
-
-  await prisma.subscription.create({
-    data: {
-      userId,
-      name: sub.name,
-      amount: sub.amount,
-      billingDay: sub.billingDay,
-      category: sub.category,
-      isActive: sub.isActive,
-      accountId,
-    },
-  });
-  result.created++;
-}
-
-async function upsertTransaction(
-  userId: string,
-  tx: ExportTransaction,
-  accountId: string,
-  transferAccountId: string | null,
-  categoryIdMap: Map<string, string>,
-  strategy: ImportStrategy,
-  result: { created: number; updated: number; skipped: number }
-): Promise<void> {
-  // Las transacciones NO se sobreescriben (cada una es única por fecha+descripción+monto)
-  // Siempre se crean nuevas si no hay duplicado obvio
-  const categoryId = tx.categoryName
-    ? categoryIdMap.get(tx.categoryName) ?? null
-    : null;
-
-  // Detectar duplicado obvio: misma fecha + descripción + monto + cuenta
-  const duplicate = await prisma.transaction.findFirst({
-    where: {
-      userId,
-      date: new Date(tx.date),
-      description: tx.description,
-      amount: tx.amount,
-      accountId,
-    },
-  });
-
-  if (duplicate) {
-    if (strategy === "skip") {
-      result.skipped++;
-      return;
-    }
-    // Si strategy es "overwrite", actualizamos algunos campos
-    if (strategy === "overwrite") {
-      await prisma.transaction.update({
-        where: { id: duplicate.id },
-        data: {
-          type: tx.type,
-          category: tx.category,
-          categoryId,
-          transferAccountId,
-          isMsi: tx.isMsi,
-          msiTotalAmount: tx.msiTotalAmount,
-          msiInstallments: tx.msiInstallments,
-        },
-      });
-      result.updated++;
-      return;
-    }
-    // create: saltar duplicado obvio
-    result.skipped++;
-    return;
-  }
-
-  await prisma.transaction.create({
-    data: {
-      userId,
-      type: tx.type,
-      amount: tx.amount,
-      date: new Date(tx.date),
-      description: tx.description,
-      category: tx.category,
-      categoryId,
-      accountId,
-      transferAccountId,
-      isMsi: tx.isMsi,
-      msiTotalAmount: tx.msiTotalAmount,
-      msiInstallments: tx.msiInstallments,
     },
   });
   result.created++;
