@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { CATEGORY_KIND_LABEL, type CategoryKind } from "@/lib/category-kind";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +35,7 @@ export type Subcategory = {
   id: string;
   name: string;
   color: string | null;
+  icon: string | null;
   usageCount: number;
 };
 
@@ -55,13 +57,14 @@ export function SubcategoryTable({
     id: string;
     name: string;
     color: string | null;
-    kind: "INCOME" | "EXPENSE" | "BOTH";
+    icon: string | null;
+    kind: CategoryKind;
+    /** Movimientos de la categoría y sus subcategorías */
+    usageCount: number;
   };
   subcategories: Subcategory[];
   monthlyStats: SubcategoryStat[];
 }) {
-  const isBoth = category.kind === "BOTH";
-
   // Stats por subcategoría para mostrar el gasto del mes
   const statsById = new Map<string, SubcategoryStat>();
   for (const s of monthlyStats) {
@@ -98,11 +101,12 @@ export function SubcategoryTable({
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <CardTitle className="truncate">{category.name}</CardTitle>
-                {isBoth && (
-                  <Badge variant="outline" className="text-[10px]">
-                    ↕ Gastos e ingresos
-                  </Badge>
-                )}
+                <Badge
+                  variant={category.kind === "EXPENSE" ? "destructive" : "success"}
+                  className="text-[10px]"
+                >
+                  {CATEGORY_KIND_LABEL[category.kind]}
+                </Badge>
               </div>
               <CardDescription>
                 {subcategories.length} subcategoría
@@ -119,32 +123,20 @@ export function SubcategoryTable({
               </Button>
             </CategoryDialog>
 
-            <CategoryMenu categoryId={category.id} categoryName={category.name} />
+            <CategoryMenu
+              category={category}
+              subcategoryCount={subcategories.length}
+            />
           </div>
         </div>
 
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-4">
-          {isBoth ? (
-            <>
-              <Kpi
-                label="Gastos del mes"
-                value={formatCurrency(expenseTotal)}
-                color="text-red-400"
-              />
-              <Kpi
-                label="Ingresos del mes"
-                value={formatCurrency(incomeTotal)}
-                color="text-emerald-400"
-              />
-            </>
-          ) : (
-            <Kpi
-              label={category.kind === "EXPENSE" ? "Gasto del mes" : "Ingreso del mes"}
-              value={formatCurrency(expenseTotal + incomeTotal)}
-              color={category.kind === "EXPENSE" ? "text-red-400" : "text-emerald-400"}
-            />
-          )}
+          <Kpi
+            label={category.kind === "EXPENSE" ? "Gasto del mes" : "Ingreso del mes"}
+            value={formatCurrency(expenseTotal + incomeTotal)}
+            color={category.kind === "EXPENSE" ? "text-red-400" : "text-emerald-400"}
+          />
           <Kpi
             label="Movimientos del mes"
             value={totalMovements.toString()}
@@ -167,16 +159,9 @@ export function SubcategoryTable({
                 <tr className="border-b text-left text-xs font-medium text-muted-foreground">
                   <th className="px-4 py-2.5">Subcategoría</th>
                   <th className="px-4 py-2.5 text-right">Movimientos</th>
-                  {isBoth ? (
-                    <>
-                      <th className="px-4 py-2.5 text-right">Gastos</th>
-                      <th className="px-4 py-2.5 text-right">Ingresos</th>
-                    </>
-                  ) : (
-                    <th className="px-4 py-2.5 text-right">
-                      {category.kind === "EXPENSE" ? "Gasto del mes" : "Ingreso del mes"}
-                    </th>
-                  )}
+                  <th className="px-4 py-2.5 text-right">
+                    {category.kind === "EXPENSE" ? "Gasto del mes" : "Ingreso del mes"}
+                  </th>
                   <th className="px-4 py-2.5 text-right">Uso total</th>
                   <th className="px-4 py-2.5 w-12"></th>
                 </tr>
@@ -189,8 +174,7 @@ export function SubcategoryTable({
                       key={sub.id}
                       sub={sub}
                       stat={stat}
-                      isBoth={isBoth}
-                      categoryKind={category.kind}
+                      category={category}
                     />
                   );
                 })}
@@ -202,25 +186,14 @@ export function SubcategoryTable({
                     <td className="px-4 py-2.5 text-sm text-right tabular-nums">
                       {totalMovements}
                     </td>
-                    {isBoth ? (
-                      <>
-                        <td className="px-4 py-2.5 text-sm text-right tabular-nums font-semibold text-red-400">
-                          {formatCurrency(expenseTotal)}
-                        </td>
-                        <td className="px-4 py-2.5 text-sm text-right tabular-nums font-semibold text-emerald-400">
-                          {formatCurrency(incomeTotal)}
-                        </td>
-                      </>
-                    ) : (
-                      <td
-                        className={cn(
-                          "px-4 py-2.5 text-sm text-right tabular-nums font-semibold",
-                          category.kind === "EXPENSE" ? "text-red-400" : "text-emerald-400"
-                        )}
-                      >
-                        {formatCurrency(expenseTotal + incomeTotal)}
-                      </td>
-                    )}
+                    <td
+                      className={cn(
+                        "px-4 py-2.5 text-sm text-right tabular-nums font-semibold",
+                        category.kind === "EXPENSE" ? "text-red-400" : "text-emerald-400"
+                      )}
+                    >
+                      {formatCurrency(expenseTotal + incomeTotal)}
+                    </td>
                     <td></td>
                     <td></td>
                   </tr>
@@ -277,20 +250,67 @@ function EmptyState({
 }
 
 function CategoryMenu({
-  categoryId,
-  categoryName,
+  category,
+  subcategoryCount,
 }: {
-  categoryId: string;
-  categoryName: string;
+  category: {
+    id: string;
+    name: string;
+    color: string | null;
+    icon: string | null;
+    kind: CategoryKind;
+    usageCount: number;
+  };
+  subcategoryCount: number;
 }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [editOpen, setEditOpen] = useState(false);
+
+  function onDelete() {
+    const details = [
+      subcategoryCount > 0 &&
+        `Se eliminarán también sus ${subcategoryCount} subcategoría(s).`,
+      category.usageCount > 0 &&
+        `${category.usageCount} movimiento(s) quedarán SIN categoría.`,
+    ].filter(Boolean);
+    if (
+      !confirm(
+        [`¿Eliminar la categoría "${category.name}"?`, ...details].join("\n\n")
+      )
+    ) {
+      return;
+    }
+    startTransition(async () => {
+      // force: el usuario ya confirmó desvincular los movimientos
+      const res = await fetch(`/api/categories/${category.id}?force=true`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Error al eliminar");
+        return;
+      }
+      router.push("/categories");
+      router.refresh();
+    });
+  }
 
   return (
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="icon" aria-label="Opciones de categoría">
-            <MoreHorizontal className="h-4 w-4" />
+          <Button
+            variant="outline"
+            size="icon"
+            disabled={isPending}
+            aria-label="Opciones de categoría"
+          >
+            {isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <MoreHorizontal className="h-4 w-4" />
+            )}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
@@ -304,8 +324,12 @@ function CategoryMenu({
             Editar categoría
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem disabled className="text-muted-foreground text-xs">
-            Para eliminar, primero vacía las subcategorías
+          <DropdownMenuItem
+            onSelect={onDelete}
+            className="text-destructive focus:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+            Eliminar categoría
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -316,11 +340,11 @@ function CategoryMenu({
           open={editOpen}
           onOpenChange={setEditOpen}
           category={{
-            id: categoryId,
-            name: categoryName,
-            kind: "BOTH",
-            color: null,
-            icon: null,
+            id: category.id,
+            name: category.name,
+            kind: category.kind,
+            color: category.color,
+            icon: category.icon,
             parentId: null,
           }}
         />
@@ -332,13 +356,11 @@ function CategoryMenu({
 function SubcategoryRow({
   sub,
   stat,
-  isBoth,
-  categoryKind,
+  category,
 }: {
   sub: Subcategory;
   stat: SubcategoryStat | undefined;
-  isBoth: boolean;
-  categoryKind: "INCOME" | "EXPENSE" | "BOTH";
+  category: { id: string; kind: CategoryKind };
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -380,7 +402,7 @@ function SubcategoryRow({
   const expenseAmount = stat?.byType.EXPENSE ?? 0;
   const incomeAmount = stat?.byType.INCOME ?? 0;
   const singleAmount = expenseAmount + incomeAmount;
-  const singleColor = categoryKind === "INCOME" ? "text-emerald-400" : "text-red-400";
+  const singleColor = category.kind === "INCOME" ? "text-emerald-400" : "text-red-400";
 
   return (
     <tr className={cn("border-b last:border-0 hover:bg-secondary/30", hidden && "opacity-50")}>
@@ -398,35 +420,16 @@ function SubcategoryRow({
       <td className="px-4 py-2.5 text-sm text-right tabular-nums text-muted-foreground">
         {stat?.count ?? 0}
       </td>
-      {isBoth ? (
-        <>
-          <td className="px-4 py-2.5 text-sm text-right tabular-nums font-medium text-red-400">
-            {expenseAmount > 0 ? (
-              formatCurrency(expenseAmount)
-            ) : (
-              <span className="text-muted-foreground">—</span>
-            )}
-          </td>
-          <td className="px-4 py-2.5 text-sm text-right tabular-nums font-medium text-emerald-400">
-            {incomeAmount > 0 ? (
-              formatCurrency(incomeAmount)
-            ) : (
-              <span className="text-muted-foreground">—</span>
-            )}
-          </td>
-        </>
-      ) : (
-        <td
-          className={cn(
-            "px-4 py-2.5 text-sm text-right tabular-nums font-medium",
-            singleColor
-          )}
-        >
-          {singleAmount > 0 ? formatCurrency(singleAmount) : (
-            <span className="text-muted-foreground">$0.00</span>
-          )}
-        </td>
-      )}
+      <td
+        className={cn(
+          "px-4 py-2.5 text-sm text-right tabular-nums font-medium",
+          singleColor
+        )}
+      >
+        {singleAmount > 0 ? formatCurrency(singleAmount) : (
+          <span className="text-muted-foreground">$0.00</span>
+        )}
+      </td>
       <td className="px-4 py-2.5 text-sm text-right tabular-nums text-muted-foreground">
         {sub.usageCount > 0 ? sub.usageCount : <span className="text-xs">—</span>}
       </td>
@@ -491,10 +494,10 @@ function SubcategoryRow({
           category={{
             id: sub.id,
             name: sub.name,
-            kind: "EXPENSE",
+            kind: category.kind,
             color: sub.color,
-            icon: null,
-            parentId: null,
+            icon: sub.icon,
+            parentId: category.id,
           }}
         />
       )}

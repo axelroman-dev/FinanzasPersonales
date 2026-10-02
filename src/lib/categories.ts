@@ -53,7 +53,7 @@ export type CategoryNode = {
   name: string;
   color: string | null;
   icon: string | null;
-  kind: "INCOME" | "EXPENSE" | "BOTH" | "INTERNAL";
+  kind: "INCOME" | "EXPENSE" | "INTERNAL";
   parentId: string | null;
   usageCount: number;
   children: CategoryNode[];
@@ -61,7 +61,7 @@ export type CategoryNode = {
 
 export async function getCategoryTree(
   userId: string,
-  kindFilter?: "INCOME" | "EXPENSE" | "BOTH"
+  kindFilter?: "INCOME" | "EXPENSE"
 ): Promise<CategoryNode[]> {
   const [all, usage] = await Promise.all([
     prisma.category.findMany({
@@ -84,7 +84,7 @@ export async function getCategoryTree(
   }
 
   const filtered = kindFilter
-    ? all.filter((c) => c.kind === kindFilter || c.kind === "BOTH")
+    ? all.filter((c) => c.kind === kindFilter)
     : all;
 
   const byId = new Map<string, CategoryNode>();
@@ -297,7 +297,7 @@ export async function getMonthlyTotalsByRoot(params: {
       total: number;
       count: number;
       parentId: string | null;
-      /** Desglose por tipo (para categorías BOTH) */
+      /** Desglose por tipo de movimiento */
       byType: { INCOME: number; EXPENSE: number };
     }
   >;

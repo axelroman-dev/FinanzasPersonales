@@ -13,7 +13,7 @@ type CatNode = {
   id: string;
   name: string;
   color: string | null;
-  kind: "INCOME" | "EXPENSE" | "BOTH" | "INTERNAL";
+  kind: "INCOME" | "EXPENSE" | "INTERNAL";
   usageCount: number;
   children: CatNode[];
 };
@@ -30,23 +30,7 @@ export function CategorySidebar({
   /** Total del mes por categoría raíz (solo el subcategory hijo) */
   monthlyTotals: TotalsByCategory;
 }) {
-  // Distribución de categorías por grupo:
-  // - EXPENSE → solo en Gastos
-  // - INCOME → solo en Ingresos
-  // - BOTH → en ambos grupos (es una categoría compartida)
-  // Pero para evitar la confusión visual de "Otros" apareciendo duplicado,
-  // lo mostramos en Gastos. Si tiene subcategorías, también en Ingresos.
-  // En la práctica, "BOTH" significa "puede aplicar a ambos tipos", no "se duplica".
-
-  // Para evitar duplicados visuales: cada BOTH aparece UNA SOLA VEZ en Gastos.
-  // Si el usuario quiere usarla para ingresos, lo puede hacer desde el grupo Gastos
-  // o cambiar el `kind` a INCOME si es exclusivamente para ingresos.
-
-  // Mostrar BOTH en gastos únicamente (no duplicar).
-  const expenses = categories.filter(
-    (c) => c.kind === "EXPENSE" || c.kind === "BOTH"
-  );
-  // Para ingresos, excluir las BOTH (ya aparecen en gastos)
+  const expenses = categories.filter((c) => c.kind === "EXPENSE");
   const incomes = categories.filter((c) => c.kind === "INCOME");
 
   return (
@@ -57,7 +41,6 @@ export function CategorySidebar({
         categories={expenses}
         selectedId={selectedId}
         monthlyTotals={monthlyTotals}
-        showBothHint
       />
       <SidebarGroup
         title="Ingresos"
@@ -76,14 +59,12 @@ function SidebarGroup({
   categories,
   selectedId,
   monthlyTotals,
-  showBothHint,
 }: {
   title: string;
   badgeVariant: "destructive" | "success";
   categories: CatNode[];
   selectedId: string | null;
   monthlyTotals: TotalsByCategory;
-  showBothHint?: boolean;
 }) {
   if (categories.length === 0) return null;
 
@@ -97,16 +78,10 @@ function SidebarGroup({
           {categories.length}
         </span>
       </div>
-      {showBothHint && (
-        <p className="text-[11px] text-muted-foreground/70 px-1">
-          Las categorías marcadas con ↕ también aceptan ingresos.
-        </p>
-      )}
       <div className="space-y-1">
         {categories.map((cat) => {
           const isSelected = cat.id === selectedId;
           const total = monthlyTotals[cat.id] ?? 0;
-          const isBoth = cat.kind === "BOTH";
           return (
             <Link
               key={cat.id}
@@ -123,14 +98,6 @@ function SidebarGroup({
                 style={{ backgroundColor: cat.color ?? "#71717a" }}
               />
               <span className="font-medium flex-1 truncate">{cat.name}</span>
-              {isBoth && showBothHint && (
-                <span
-                  className="text-[10px] uppercase tracking-wide text-muted-foreground/70"
-                  title="Aplica a gastos e ingresos"
-                >
-                  ↕
-                </span>
-              )}
               {total > 0 && (
                 <span
                   className={cn(

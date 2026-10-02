@@ -3,7 +3,7 @@
 
 export type DefaultCategory = {
   name: string;
-  kind: "INCOME" | "EXPENSE" | "BOTH";
+  kind: "INCOME" | "EXPENSE";
   color: string;
   icon: string;
   children?: { name: string; color?: string; icon?: string }[];
@@ -117,7 +117,7 @@ export const defaultCategories: DefaultCategory[] = [
   },
   {
     name: "Otros",
-    kind: "BOTH",
+    kind: "EXPENSE",
     color: "#71717a",
     icon: "Circle",
   },

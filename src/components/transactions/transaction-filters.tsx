@@ -20,7 +20,7 @@ type CategoryNode = {
   id: string;
   name: string;
   color: string | null;
-  kind: "INCOME" | "EXPENSE" | "BOTH" | "INTERNAL";
+  kind: "INCOME" | "EXPENSE" | "INTERNAL";
   parentId: string | null;
   children: CategoryNode[];
 };

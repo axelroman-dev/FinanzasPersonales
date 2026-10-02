@@ -20,11 +20,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
+import { CATEGORY_KIND_LABEL, type CategoryKind } from "@/lib/category-kind";
 
 type CatFormData = {
   id: string;
   name: string;
-  kind: "INCOME" | "EXPENSE" | "BOTH";
+  kind: CategoryKind;
   color: string | null;
   icon: string | null;
   parentId: string | null;
@@ -110,21 +111,21 @@ function CatFormDialog({
     category?.color ?? COLOR_PRESETS[0]
   );
 
-  const isSubcategory = mode === "create" && !!parentId;
+  // Las subcategorías heredan el tipo del padre: no se elige
+  const isSubcategory =
+    mode === "create" ? !!parentId : !!category?.parentId;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     startTransition(async () => {
       try {
-        const body: any = {
-          name,
-          kind,
-          color,
-          icon: null,
-        };
+        const body: any = { name, color };
+        if (!isSubcategory) body.kind = kind;
+        // Al editar no se manda el icono: el diálogo no lo cambia
         if (mode === "create") {
           body.parentId = parentId ?? null;
+          body.icon = null;
         }
 
         const url =
@@ -158,7 +159,9 @@ function CatFormDialog({
             ? isSubcategory
               ? "Nueva subcategoría"
               : "Nueva categoría"
-            : "Editar categoría"}
+            : isSubcategory
+              ? "Editar subcategoría"
+              : "Editar categoría"}
         </DialogTitle>
       </DialogHeader>
 
@@ -178,14 +181,13 @@ function CatFormDialog({
         {!isSubcategory && (
           <div className="space-y-2">
             <Label>Tipo</Label>
-            <Select value={kind} onValueChange={(v) => setKind(v as any)}>
+            <Select value={kind} onValueChange={(v) => setKind(v as CategoryKind)}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="EXPENSE">Gasto</SelectItem>
-                <SelectItem value="INCOME">Ingreso</SelectItem>
-                <SelectItem value="BOTH">Ambos</SelectItem>
+                <SelectItem value="EXPENSE">{CATEGORY_KIND_LABEL.EXPENSE}</SelectItem>
+                <SelectItem value="INCOME">{CATEGORY_KIND_LABEL.INCOME}</SelectItem>
               </SelectContent>
             </Select>
           </div>

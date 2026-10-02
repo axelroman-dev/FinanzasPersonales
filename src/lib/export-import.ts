@@ -71,6 +71,8 @@ export type ExportCategory = {
   id: string;
   name: string;
   parentName: string | null;
+  // "BOTH" solo aparece en exports anteriores a quitar ese tipo; al importar
+  // se convierte en "EXPENSE" (ver importKind)
   kind: "INCOME" | "EXPENSE" | "BOTH" | "INTERNAL";
   color: string | null;
   icon: string | null;
@@ -586,6 +588,10 @@ async function importDataTx(
   }
 }
 
+function importKind(kind: ExportCategory["kind"]) {
+  return kind === "BOTH" ? "EXPENSE" : kind;
+}
+
 function categoryKey(parentName: string | null, name: string): string {
   return `${parentName ?? ""}|${name}`;
 }
@@ -633,7 +639,7 @@ async function upsertCategoryTx(
     if (strategy === "overwrite") {
       await tx.category.update({
         where: { id: existingId },
-        data: { kind: cat.kind, color: cat.color, icon: cat.icon },
+        data: { kind: importKind(cat.kind), color: cat.color, icon: cat.icon },
       });
       result.updated++;
       return existingId;
@@ -648,7 +654,7 @@ async function upsertCategoryTx(
       userId,
       name: cat.name,
       parentId,
-      kind: cat.kind,
+      kind: importKind(cat.kind),
       color: cat.color,
       icon: cat.icon,
     },
