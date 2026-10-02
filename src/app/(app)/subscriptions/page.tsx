@@ -5,7 +5,7 @@ import { formatCurrency } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, Receipt } from "lucide-react";
+import { Pencil, Plus, Receipt } from "lucide-react";
 import { SubscriptionActions } from "@/components/subscriptions/subscription-actions";
 import { getCategoryTree } from "@/lib/categories";
 
@@ -148,7 +148,16 @@ export default async function SubscriptionsPage() {
                     isActive: sub.isActive,
                     accountId: sub.accountId,
                   }}
-                />
+                >
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    aria-label={`Editar ${sub.name}`}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                </SubscriptionActions>
               </div>
             </CardContent>
           </Card>
