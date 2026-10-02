@@ -8,10 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Pencil, Plus, Receipt } from "lucide-react";
 import { SubscriptionActions } from "@/components/subscriptions/subscription-actions";
 import { getCategoryTree } from "@/lib/categories";
+import { getPaidSubscriptionIds, summarizeSubscriptions } from "@/lib/subscriptions";
 
 export default async function SubscriptionsPage() {
   const user = await requireUser();
-  const [subscriptions, accounts, balance, categories] = await Promise.all([
+  const [subscriptions, accounts, balance, categories, paidIds] = await Promise.all([
     prisma.subscription.findMany({
       where: { userId: user.id },
       orderBy: [{ isActive: "desc" }, { createdAt: "asc" }],
@@ -23,12 +24,13 @@ export default async function SubscriptionsPage() {
     prisma.account.findMany({ where: { userId: user.id } }),
     calculateBalance(user.id),
     getCategoryTree(user.id, "EXPENSE"),
+    getPaidSubscriptionIds(user.id),
   ]);
 
-  const total = subscriptions
-    .filter((s) => s.isActive)
-    .reduce((sum, s) => sum + Number(s.amount), 0);
-  const projectedBalance = balance.realBalance - total;
+  const summary = summarizeSubscriptions(
+    subscriptions.map((s) => ({ ...s, amount: Number(s.amount) })),
+    paidIds
+  );
 
   return (
     <div className="p-6 md:p-8 space-y-6 max-w-5xl mx-auto">
@@ -61,21 +63,39 @@ export default async function SubscriptionsPage() {
             <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
               Total mensual activo
             </p>
-            <p className="text-3xl font-bold">{formatCurrency(total)}</p>
+            <p className="text-3xl font-bold">{formatCurrency(summary.activeTotal)}</p>
           </div>
-          <div className="pt-3 border-t">
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <p className="text-muted-foreground">Pagado este mes</p>
+              <p className="font-semibold text-emerald-400 tabular-nums">
+                {formatCurrency(summary.paidTotal)}
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Pendiente este mes</p>
+              <p className="font-semibold text-amber-400 tabular-nums">
+                {formatCurrency(summary.pendingTotal)}
+              </p>
+            </div>
+          </div>
+          <div className="pt-3 border-t space-y-1">
             <div className="flex justify-between items-baseline">
               <p className="text-sm text-muted-foreground">
-                Si pagas todas este mes, tu balance quedaría en:
+                Después de pagar las pendientes, tu balance quedaría en:
               </p>
               <p
                 className={`text-xl font-bold ${
-                  projectedBalance >= 0 ? "text-emerald-400" : "text-red-400"
+                  balance.realBalance >= 0 ? "text-emerald-400" : "text-red-400"
                 }`}
               >
-                {formatCurrency(projectedBalance)}
+                {formatCurrency(balance.realBalance)}
               </p>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Una suscripción cuenta como pagada cuando registras el gasto y la
+              eliges en el campo &quot;Suscripción&quot; del movimiento.
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -115,9 +135,17 @@ export default async function SubscriptionsPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="font-medium truncate">{sub.name}</p>
-                  {!sub.isActive && (
+                  {!sub.isActive ? (
                     <Badge variant="secondary" className="text-xs">
                       Inactiva
+                    </Badge>
+                  ) : paidIds.has(sub.id) ? (
+                    <Badge variant="success" className="text-xs">
+                      Pagada este mes
+                    </Badge>
+                  ) : (
+                    <Badge variant="warning" className="text-xs">
+                      Pendiente
                     </Badge>
                   )}
                 </div>

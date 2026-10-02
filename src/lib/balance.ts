@@ -1,14 +1,16 @@
 import { prisma } from "@/lib/db";
 import { Decimal } from "@prisma/client/runtime/library";
 import { excludeInternal } from "@/lib/internal-categories";
+import { getPaidSubscriptionIds, summarizeSubscriptions } from "@/lib/subscriptions";
 
 export type BalanceSummary = {
   // Total dinero en cuentas que cuentan al balance
   cashAvailable: number;
   // Deuda usada en tarjetas de crédito
   creditUsed: number;
-  // Total suscripciones activas del mes
-  subscriptionsTotal: number;
+  // Suscripciones activas aún sin pagar este mes (las pagadas ya bajaron el
+  // saldo de su cuenta: restarlas otra vez las contaría dos veces)
+  subscriptionsPending: number;
   // Total mensualidades MSI pendientes
   msiMonthlyTotal: number;
   // Balance real final
@@ -52,13 +54,17 @@ export async function calculateBalance(userId: string): Promise<BalanceSummary> 
     }
   }
 
-  // Suscripciones activas (total del mes)
-  const activeSubs = await prisma.subscription.findMany({
-    where: { userId, isActive: true },
-  });
-  const subscriptionsTotal = activeSubs.reduce(
-    (sum, s) => sum + Number(s.amount),
-    0
+  // Suscripciones pendientes del mes
+  const [activeSubs, paidSubIds] = await Promise.all([
+    prisma.subscription.findMany({
+      where: { userId, isActive: true },
+      select: { id: true, amount: true, isActive: true },
+    }),
+    getPaidSubscriptionIds(userId),
+  ]);
+  const { pendingTotal: subscriptionsPending } = summarizeSubscriptions(
+    activeSubs.map((s) => ({ ...s, amount: Number(s.amount) })),
+    paidSubIds
   );
 
   // MSI: mensualidades pendientes del mes actual
@@ -84,7 +90,7 @@ export async function calculateBalance(userId: string): Promise<BalanceSummary> 
   );
 
   const realBalance =
-    cashAvailable - creditUsed - subscriptionsTotal - msiMonthlyTotal;
+    cashAvailable - creditUsed - subscriptionsPending - msiMonthlyTotal;
 
   const creditUsagePercent =
     totalCreditLimit > 0 ? (creditUsed / totalCreditLimit) * 100 : 0;
@@ -92,7 +98,7 @@ export async function calculateBalance(userId: string): Promise<BalanceSummary> 
   return {
     cashAvailable,
     creditUsed,
-    subscriptionsTotal,
+    subscriptionsPending,
     msiMonthlyTotal,
     realBalance,
     creditUsagePercent,

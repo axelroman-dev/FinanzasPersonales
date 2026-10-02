@@ -135,6 +135,8 @@ function TxFormDialog({
   // Las categorías dependen del tipo: al cambiarlo, la elegida ya no aplica
   function onTypeChange(next: "INCOME" | "EXPENSE" | "TRANSFER") {
     if (next !== type) setCategoryId("");
+    // Solo los gastos pueden ser pago de una suscripción
+    if (next !== "EXPENSE") setSubscriptionId("");
     setType(next);
   }
 
@@ -335,6 +337,10 @@ function TxFormDialog({
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">
+              Si este gasto es el pago de una suscripción, elígela: queda
+              marcada como pagada este mes y el balance no la vuelve a restar.
+            </p>
           </div>
         )}
 
