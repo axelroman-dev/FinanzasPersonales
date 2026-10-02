@@ -5,7 +5,7 @@ import { requireUser } from "@/lib/auth";
 
 const updateSchema = z.object({
   name: z.string().min(1).max(50).optional(),
-  kind: z.enum(["INCOME", "EXPENSE", "BOTH"]).optional(),
+  kind: z.enum(["INCOME", "EXPENSE"]).optional(),
   color: z.string().nullable().optional(),
   icon: z.string().nullable().optional(),
 });
@@ -56,6 +56,8 @@ export async function PATCH(
     // Si cambian el kind y la categoría es padre, propagamos a los hijos
     // (mantener consistencia: hijos heredan kind del padre)
     const data = parsed.data;
+    // Las subcategorías heredan el tipo del padre: no se cambia por separado
+    if (existing.parentId) delete data.kind;
     if (data.kind && existing.children.length > 0) {
       await prisma.category.updateMany({
         where: { id: { in: existing.children.map((c) => c.id) } },

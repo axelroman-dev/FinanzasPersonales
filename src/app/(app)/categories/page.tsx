@@ -134,12 +134,15 @@ export default async function CategoriesPage({
               id: selected.id,
               name: selected.name,
               color: selected.color,
+              icon: selected.icon,
               kind: selected.kind,
+              usageCount: selected.usageCount,
             }}
             subcategories={selected.children.map((s) => ({
               id: s.id,
               name: s.name,
               color: s.color,
+              icon: s.icon,
               usageCount: s.usageCount,
             }))}
             monthlyStats={selectedSubStats}

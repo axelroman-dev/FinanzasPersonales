@@ -33,7 +33,7 @@ type CategoryNode = {
   name: string;
   color: string | null;
   icon: string | null;
-  kind: "INCOME" | "EXPENSE" | "BOTH" | "INTERNAL";
+  kind: "INCOME" | "EXPENSE" | "INTERNAL";
   parentId: string | null;
   children: CategoryNode[];
 };
@@ -134,8 +134,8 @@ function TxFormDialog({
   const filteredCategories = useMemo(() => {
     if (!categories) return [];
     return categories.filter((c) => {
-      if (type === "INCOME") return c.kind === "INCOME" || c.kind === "BOTH";
-      if (type === "EXPENSE") return c.kind === "EXPENSE" || c.kind === "BOTH";
+      if (type === "INCOME") return c.kind === "INCOME";
+      if (type === "EXPENSE") return c.kind === "EXPENSE";
       return false; // transferencias no tienen categoría
     });
   }, [categories, type]);

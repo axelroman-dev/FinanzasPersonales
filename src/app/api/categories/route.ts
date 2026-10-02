@@ -7,7 +7,7 @@ import { getCategoryTree } from "@/lib/categories";
 const createSchema = z.object({
   name: z.string().min(1).max(50),
   parentId: z.string().nullable().optional(),
-  kind: z.enum(["INCOME", "EXPENSE", "BOTH"]).default("BOTH"),
+  kind: z.enum(["INCOME", "EXPENSE"]).default("EXPENSE"),
   color: z.string().nullable().optional(),
   icon: z.string().nullable().optional(),
 });
@@ -36,7 +36,9 @@ export async function POST(req: Request) {
 
     const data = parsed.data;
 
-    // Si tiene parentId, validar que pertenece al usuario y que es raíz
+    // Si tiene parentId, validar que pertenece al usuario y que es raíz.
+    // La subcategoría hereda el tipo del padre.
+    let kind = data.kind;
     if (data.parentId) {
       const parent = await prisma.category.findFirst({
         where: { id: data.parentId, userId: user.id },
@@ -59,6 +61,7 @@ export async function POST(req: Request) {
           { status: 400 }
         );
       }
+      kind = parent.kind;
     }
 
     const category = await prisma.category.create({
@@ -66,7 +69,7 @@ export async function POST(req: Request) {
         userId: user.id,
         name: data.name,
         parentId: data.parentId ?? null,
-        kind: data.kind,
+        kind,
         color: data.color ?? null,
         icon: data.icon ?? null,
       },

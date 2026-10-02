@@ -28,7 +28,6 @@ enum TransactionType {
 enum CategoryKind {
   INCOME
   EXPENSE
-  BOTH
   // Categorías del sistema (ver src/lib/internal-categories.ts): no se editan
   // ni se eligen al capturar, y no cuentan como ingreso o gasto en reportes
   INTERNAL
@@ -152,7 +151,7 @@ model Category {
   userId    String
   name      String
   parentId  String? // null = categoría raíz
-  kind      CategoryKind @default(BOTH)
+  kind      CategoryKind @default(EXPENSE)
   color     String? // hex, ej. "#10b981"
   icon      String? // nombre de icono lucide
   createdAt DateTime     @default(now())
