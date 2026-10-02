@@ -3,7 +3,12 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Download, Upload, AlertTriangle, FileJson, ShieldAlert } from "lucide-react";
-import type { GlobalExportData, ImportPreview, ImportStrategy } from "@/lib/export-import";
+import type {
+  GlobalExportData,
+  GlobalImportPreview,
+  GlobalImportResult,
+  ImportStrategy,
+} from "@/lib/export-import";
 
 /**
  * Variante del ImportExportPanel pero para export/import global (solo admin).
@@ -11,15 +16,11 @@ import type { GlobalExportData, ImportPreview, ImportStrategy } from "@/lib/expo
  */
 export function GlobalImportExportPanel() {
   const [step, setStep] = useState<"idle" | "preview" | "done">("idle");
-  const [preview, setPreview] = useState<ImportPreview | null>(null);
+  const [preview, setPreview] = useState<GlobalImportPreview | null>(null);
   const [strategy, setStrategy] = useState<ImportStrategy>("create");
   const [json, setJson] = useState<GlobalExportData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{
-    created: number;
-    updated: number;
-    skipped: number;
-  } | null>(null);
+  const [result, setResult] = useState<GlobalImportResult | null>(null);
 
   async function handleExport() {
     setError(null);
@@ -86,7 +87,7 @@ export function GlobalImportExportPanel() {
       return;
     }
     const data = await res.json();
-    setResult({ created: data.created, updated: data.updated, skipped: data.skipped });
+    setResult(data);
     setStep("done");
   }
 
@@ -106,11 +107,37 @@ export function GlobalImportExportPanel() {
           <div className="text-sm">
             <p className="font-medium text-amber-400">Importación global</p>
             <p className="text-amber-300/80 mt-1">
-              Este import contiene datos de {json?.users.length ?? 0}{" "}
-              usuario(s). Los registros se importarán al usuario admin actual.
-              Los IDs de usuario originales se pierden.
+              Este import contiene datos de {preview.users.length}{" "}
+              usuario(s). Los datos de cada uno se importan a la cuenta con su
+              mismo email; las que no existen se crean con una contraseña
+              temporal.
             </p>
           </div>
+        </div>
+
+        <div className="rounded-md border bg-card divide-y text-sm">
+          {preview.users.map((u) => (
+            <div key={u.email} className="flex items-center justify-between gap-2 p-3">
+              <div className="min-w-0">
+                <p className="font-medium truncate">{u.name}</p>
+                <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+              </div>
+              <div className="flex items-center gap-3 shrink-0 text-xs text-muted-foreground">
+                <span>
+                  {u.totalAccounts} cuentas · {u.totalTransactions} movimientos
+                </span>
+                <span
+                  className={
+                    u.exists
+                      ? "rounded border px-1.5 py-0.5"
+                      : "rounded border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-primary"
+                  }
+                >
+                  {u.exists ? "Existente" : "Nuevo"}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
 
         <div className="rounded-md border bg-card p-4 space-y-3">
@@ -183,6 +210,25 @@ export function GlobalImportExportPanel() {
             <li>{result.skipped} saltado(s)</li>
           </ul>
         </div>
+        {result.createdUsers.length > 0 && (
+          <div className="rounded-md border border-amber-500/20 bg-amber-500/10 p-4 space-y-2">
+            <p className="font-medium text-amber-400">
+              Usuarios creados con contraseña temporal
+            </p>
+            <p className="text-sm text-amber-300/80">
+              Compártelas con cada usuario: tendrán que cambiarlas al iniciar
+              sesión. No se volverán a mostrar.
+            </p>
+            <ul className="text-sm space-y-1">
+              {result.createdUsers.map((u) => (
+                <li key={u.email} className="flex flex-wrap gap-x-2">
+                  <span>{u.email}</span>
+                  <code className="rounded bg-muted px-1.5">{u.tempPassword}</code>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <Button variant="outline" onClick={reset}>
           Importar otro archivo
         </Button>
@@ -230,8 +276,9 @@ export function GlobalImportExportPanel() {
         </p>
         <p>
           El export global contiene datos de <strong>todos</strong> los usuarios
-          (sin passwords). El import los aplica al usuario admin actual — no
-          crea nuevos usuarios.
+          (sin contraseñas). Al importarlo, los datos de cada usuario van a la
+          cuenta con su mismo email; si no existe, se crea con una contraseña
+          temporal.
         </p>
       </div>
     </div>

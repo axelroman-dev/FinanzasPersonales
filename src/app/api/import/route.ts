@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser, requireAdmin } from "@/lib/auth";
-import { previewImport, applyImport } from "@/lib/export-import";
+import {
+  previewImport,
+  applyImport,
+  previewGlobalImport,
+  applyGlobalImport,
+} from "@/lib/export-import";
 import type { ExportData, GlobalExportData } from "@/lib/export-import";
 
 // POST /api/import/preview — analiza el JSON y devuelve qué se importaría
@@ -25,44 +30,48 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
     }
 
-    // Si es global, requiere admin. Si es por usuario, usa el user actual.
-    let userId: string;
-    let scope: "user" | "global";
+    if (mode !== "preview" && mode !== "apply") {
+      return NextResponse.json({ error: "Modo inválido" }, { status: 400 });
+    }
+    const parsedStrategy = strategySchema.safeParse(strategy);
+    if (mode === "apply" && !parsedStrategy.success) {
+      return NextResponse.json(
+        { error: "Estrategia inválida" },
+        { status: 400 }
+      );
+    }
+
+    // Global (solo admin): cada usuario del backup va a su propia cuenta,
+    // buscada por email. Por usuario: los datos van al usuario actual.
     if (isGlobal || json.scope === "global") {
       await requireAdmin();
-      // Para import global, los datos van al usuario admin actual
-      // (la importación global es para backup/restore en una sola cuenta)
-      const admin = await requireAdmin();
-      userId = admin.id;
-      scope = "global";
-    } else {
-      const user = await requireUser();
-      userId = user.id;
-      scope = "user";
-    }
-
-    if (mode === "preview") {
-      const preview = await previewImport(userId, json);
-      return NextResponse.json({ ...preview, scope });
-    }
-
-    if (mode === "apply") {
-      if (!strategy || !strategySchema.safeParse(strategy).success) {
-        return NextResponse.json(
-          { error: "Estrategia inválida" },
-          { status: 400 }
-        );
+      const globalJson = json as GlobalExportData;
+      if (!Array.isArray(globalJson.users)) {
+        return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
       }
-      const parsedStrategy = strategySchema.parse(strategy);
-      const result = await applyImport({
-        userId,
-        json,
-        strategy: parsedStrategy,
+      if (mode === "preview") {
+        const preview = await previewGlobalImport(globalJson);
+        return NextResponse.json({ ...preview, scope: "global" });
+      }
+      const result = await applyGlobalImport({
+        json: globalJson,
+        strategy: parsedStrategy.data!,
       });
       return NextResponse.json({ ok: true, ...result });
     }
 
-    return NextResponse.json({ error: "Modo inválido" }, { status: 400 });
+    const user = await requireUser();
+    const userJson = json as ExportData;
+    if (mode === "preview") {
+      const preview = await previewImport(user.id, userJson);
+      return NextResponse.json({ ...preview, scope: "user" });
+    }
+    const result = await applyImport({
+      userId: user.id,
+      json: userJson,
+      strategy: parsedStrategy.data!,
+    });
+    return NextResponse.json({ ok: true, ...result });
   } catch (error: any) {
     if (error.message === "Unauthorized") {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
