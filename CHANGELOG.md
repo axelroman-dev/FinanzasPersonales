@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.6.1...v0.7.0) (2026-10-03)
+
+
+### Nuevas funciones
+
+* **export:** incluir los adjuntos de los movimientos en el respaldo ([#37](https://github.com/axelroman-dev/FinanzasPersonales/issues/37)) ([d2903f9](https://github.com/axelroman-dev/FinanzasPersonales/commit/d2903f900ef5fcc54b8171042b93ba7662a7b6bc))
+
 ## [0.6.1](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.6.0...v0.6.1) (2026-10-03)
 
 
