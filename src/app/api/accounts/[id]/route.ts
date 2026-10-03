@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { recordBalanceChange } from "@/lib/internal-categories";
+import { deleteStoredFiles } from "@/lib/attachments";
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
@@ -108,9 +109,13 @@ export async function DELETE(
       // Forzar: el campo `accountId` es required (no nullable), por lo que
       // las transacciones donde esta cuenta aparece como origen deben borrarse.
       // Las transferencias (donde aparece como destino) pueden desvincularse.
-      await prisma.transaction.deleteMany({
-        where: { accountId: params.id, type: { not: "TRANSFER" } },
+      const deletedWhere = { accountId: params.id, type: { not: "TRANSFER" as const } };
+      const attachments = await prisma.attachment.findMany({
+        where: { transaction: deletedWhere },
+        select: { storageKey: true },
       });
+      await prisma.transaction.deleteMany({ where: deletedWhere });
+      await deleteStoredFiles(attachments.map((a) => a.storageKey));
       await prisma.transaction.updateMany({
         where: { transferAccountId: params.id },
         data: { transferAccountId: null },

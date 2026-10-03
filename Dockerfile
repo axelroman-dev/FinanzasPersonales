@@ -72,6 +72,9 @@ RUN npm install --no-save --omit=dev --no-audit --no-fund --prefer-offline \
 # Asegurar permisos en scripts
 RUN chmod +x ./scripts/start.sh
 
+# Carpeta de adjuntos (se monta como volumen; ver docker-compose.yml)
+RUN mkdir -p /app/data/uploads && chown -R nextjs:nodejs /app/data
+
 USER nextjs
 
 EXPOSE 3000

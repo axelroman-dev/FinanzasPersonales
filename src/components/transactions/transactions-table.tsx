@@ -21,6 +21,7 @@ import {
   type EditableTransaction,
   type TransactionFormOptions,
 } from "./transaction-actions";
+import { AttachmentsViewer } from "./attachments-viewer";
 
 type Tx = {
   id: string;
@@ -44,6 +45,7 @@ type Tx = {
   accountId: string;
   transferAccountId: string | null;
   subscriptionId: string | null;
+  attachmentCount: number;
 };
 
 export function TransactionsTable({
@@ -137,6 +139,13 @@ export function TransactionsTable({
                             <Badge variant="secondary" className="text-xs">
                               {tx.subscriptionName}
                             </Badge>
+                          )}
+                          {tx.attachmentCount > 0 && (
+                            <AttachmentsViewer
+                              transactionId={tx.id}
+                              description={tx.description}
+                              count={tx.attachmentCount}
+                            />
                           )}
                         </div>
                       </div>

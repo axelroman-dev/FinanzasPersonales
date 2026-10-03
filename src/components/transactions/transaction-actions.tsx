@@ -25,6 +25,7 @@ import { CategorySelect } from "@/components/shared/category-select";
 import { AccountSelect, type AccountOption } from "@/components/shared/account-select";
 import { toDateTimeLocalValue } from "@/lib/utils";
 import { useFormResetKey } from "@/hooks/use-form-reset-key";
+import { AttachmentsField, uploadAttachments } from "./attachments-field";
 
 type CreditAccount = { id: string; name: string; creditLimit: number | null };
 type SubOpt = { id: string; name: string; amount: number; categoryId: string | null };
@@ -45,6 +46,8 @@ export type TransactionFormOptions = {
   creditAccounts: CreditAccount[];
   subscriptions?: SubOpt[];
   categories?: CategoryNode[];
+  /** false si falta ATTACHMENTS_KEY: no se muestra la sección de recibos */
+  attachmentsEnabled?: boolean;
 };
 
 /** Datos de un movimiento existente para editarlo */
@@ -68,6 +71,7 @@ export function TransactionActions({
   creditAccounts,
   subscriptions,
   categories,
+  attachmentsEnabled,
   transaction,
   children,
 }: {
@@ -76,6 +80,7 @@ export function TransactionActions({
   creditAccounts: CreditAccount[];
   subscriptions?: SubOpt[];
   categories?: CategoryNode[];
+  attachmentsEnabled?: boolean;
   transaction?: EditableTransaction;
   children?: React.ReactNode;
 }) {
@@ -91,6 +96,7 @@ export function TransactionActions({
         creditAccounts={creditAccounts}
         subscriptions={subscriptions}
         categories={categories}
+        attachmentsEnabled={attachmentsEnabled}
         transaction={transaction}
         onClose={() => setOpen(false)}
         onSaved={() => setOpen(false)}
@@ -105,6 +111,7 @@ function TxFormDialog({
   creditAccounts,
   subscriptions,
   categories,
+  attachmentsEnabled,
   transaction,
   onClose,
   onSaved,
@@ -114,6 +121,7 @@ function TxFormDialog({
   creditAccounts: CreditAccount[];
   subscriptions?: SubOpt[];
   categories?: CategoryNode[];
+  attachmentsEnabled?: boolean;
   transaction?: EditableTransaction;
   onClose: () => void;
   onSaved: () => void;
@@ -121,6 +129,8 @@ function TxFormDialog({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // Archivos elegidos que se suben al guardar
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   const [type, setType] = useState<"INCOME" | "EXPENSE" | "TRANSFER">(
     transaction?.type ?? "EXPENSE"
@@ -214,10 +224,18 @@ function TxFormDialog({
           body: JSON.stringify(body),
         });
 
+        const data = await res.json();
         if (!res.ok) {
-          const data = await res.json();
           setError(data.error || "Error al guardar");
           return;
+        }
+
+        // Los adjuntos necesitan el id: se suben después de guardar. En una
+        // compra a MSI van en la compra (parent), no en las mensualidades
+        const savedId: string = data.parent?.id ?? data.id;
+        const uploadError = await uploadAttachments(savedId, pendingFiles);
+        if (uploadError) {
+          alert(`El movimiento se guardó, pero los recibos no: ${uploadError}`);
         }
 
         onSaved();
@@ -404,6 +422,14 @@ function TxFormDialog({
             disabled={type === "TRANSFER"}
           />
         </div>
+
+        {attachmentsEnabled && (
+          <AttachmentsField
+            transactionId={transaction?.id}
+            pending={pendingFiles}
+            onPendingChange={setPendingFiles}
+          />
+        )}
 
         {error && (
           <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">

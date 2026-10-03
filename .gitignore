@@ -16,3 +16,4 @@ public/*
 next-env.d.ts
 *.tsbuildinfo
 bun.lock
+/data

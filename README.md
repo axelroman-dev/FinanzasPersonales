@@ -62,6 +62,29 @@ Su email y nombre no se pueden modificar, ni se puede desactivar, degradar o eli
 
 El registro público está desactivado por defecto; se puede activar en *Configuración*.
 
+## Adjuntos (recibos)
+
+Cada movimiento puede tener hasta 10 fotos o PDF de hasta 10 MB. Desde el celular, **Tomar foto** abre la cámara. Para activarlos:
+
+1. Genera una clave con `openssl rand -base64 32` y ponla en `ATTACHMENTS_KEY` en el `.env`.
+2. En Docker, crea la carpeta del volumen con el dueño correcto:
+   ```bash
+   sudo mkdir -p ${DATA_PATH}/finanzas/uploads
+   sudo chown -R 1001:1001 ${DATA_PATH}/finanzas/uploads
+   ```
+3. Si usas un reverse proxy, permite subidas de 10 MB o más (en nginx: `client_max_body_size 12m;`).
+
+Sobre los archivos:
+- **Cifrado:** se guardan cifrados. Quien copie la carpeta o un respaldo sin la clave no puede abrirlos.
+- **Respaldo:** un respaldo completo es **la base de datos + la carpeta `uploads` + `ATTACHMENTS_KEY`**. Si se pierde la clave, los adjuntos no se pueden recuperar.
+- **Formatos:** las fotos HEIC no se aceptan. En iPhone, Safari normalmente las convierte a JPEG al subirlas; si no, usa Ajustes › Cámara › Formatos › Más compatible.
+- **Export JSON:** el export e import en JSON no incluyen los adjuntos.
+- **Huérfanos:** para limpiar archivos que quedaron sin registro (por ejemplo, tras una caída del servidor):
+  ```bash
+  docker compose exec app npx tsx scripts/cleanup-attachments.ts          # lista
+  docker compose exec app npx tsx scripts/cleanup-attachments.ts --apply  # borra
+  ```
+
 ## Comandos útiles
 
 ```bash
@@ -99,7 +122,11 @@ Hay dos plantillas: `.env.local.example` (desarrollo local) y `.env.prod.example
 | `DB_PASSWORD` | Producción | Password de PostgreSQL |
 | `NEXTAUTH_SECRET` | Ambos | Genera con `openssl rand -base64 32` |
 | `NEXTAUTH_URL` | Ambos | URL base (ej. `http://localhost:3000`) |
-| `DATA_PATH` | Producción | Carpeta del host donde se guardan los datos de PostgreSQL (por defecto `/data`) |
+| `ADMIN_PASSWORD` | Ambos | Contraseña de `admin@finanzas.local` (obligatoria, mínimo 12 caracteres) |
+| `ATTACHMENTS_KEY` | Ambos | Clave para cifrar los adjuntos (opcional; sin ella están desactivados). Genera con `openssl rand -base64 32` |
+| `ATTACHMENTS_DIR` | Ambos | Carpeta de adjuntos (opcional; por defecto `./data/uploads`, en Docker `/app/data/uploads`) |
+| `TZ` | Producción | Zona horaria del servidor (por defecto `America/Mexico_City`) |
+| `DATA_PATH` | Producción | Carpeta del host donde se guardan los datos de PostgreSQL y los adjuntos (por defecto `/data`) |
 | `IMAGE_TAG` | Producción | Versión de la imagen a usar (por defecto `latest`) |
 
 ## Estructura
@@ -159,7 +186,7 @@ Los **vales de despensa** no cuentan en el balance.
 
 ## Seguridad
 
-- Sin credenciales por defecto: el admin se crea con un código de un solo uso que solo aparece en los logs del servidor
+- Sin credenciales por defecto: la contraseña del admin del sistema es obligatoria y viene del `.env`
 - El registro público está desactivado por defecto
 - Passwords hasheados con **bcrypt** (10 rounds)
 - Sesiones JWT firmadas
@@ -168,6 +195,11 @@ Los **vales de despensa** no cuentan en el balance.
 - Todas las queries filtran por `userId` desde la sesión (nunca del cliente)
 - `isActive` y el rol se verifican contra la DB en cada request: desactivar, eliminar o cambiar el rol de un usuario aplica de inmediato aunque tenga una sesión abierta
 - Validación con **Zod** en todos los endpoints
+- Adjuntos (recibos):
+  - cifrados en disco con **AES-256-GCM** (`ATTACHMENTS_KEY`);
+  - el tipo se detecta por el contenido, no por la extensión;
+  - las fotos se recodifican sin metadatos (EXIF, GPS);
+  - solo se sirven al dueño, por la API y con headers que impiden ejecutar contenido
 
 ## Flujo de trabajo
 
