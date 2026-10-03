@@ -147,14 +147,14 @@ function AccountFormDialog({
 
     if (probe.status === 409) {
       const data = await probe.json();
-      const total = (data.txCount ?? 0) + (data.subCount ?? 0);
+      const lines = [
+        data.ownTxCount > 0 && `• Se BORRARÁN sus ${data.ownTxCount} movimiento(s)`,
+        data.transferCount > 0 &&
+          `• Sus ${data.transferCount} transferencia(s) con otras cuentas se conservan en esas cuentas como ingreso o gasto (sus saldos no cambian)`,
+        data.subCount > 0 && `• Se BORRARÁN sus ${data.subCount} suscripción(es)`,
+      ].filter(Boolean);
       const force = confirm(
-        `Esta cuenta tiene ${data.txCount ?? 0} movimiento(s) y ${data.subCount ?? 0} suscripción(es) vinculada(s).\n\n` +
-          `Si la eliminas con "force":\n` +
-          `• Los ${data.txCount ?? 0} movimiento(s) no-transfer se BORRARÁN\n` +
-          `• Las transferencias se desvincularán\n` +
-          `• Las ${data.subCount ?? 0} suscripción(es) se BORRARÁN\n\n` +
-          `¿Continuar?`
+        `¿Eliminar la cuenta "${account.name}"?\n\n${lines.join("\n")}\n\nEsta acción no se puede deshacer.`
       );
       if (!force) return;
       startTransition(async () => {

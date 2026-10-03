@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { recordBalanceChange } from "@/lib/internal-categories";
 import { deleteStoredFiles } from "@/lib/attachments";
+import { detachTransfer } from "@/lib/account-deletion";
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
@@ -74,21 +75,23 @@ export async function DELETE(
       return NextResponse.json({ error: "No encontrado" }, { status: 404 });
     }
 
-    // Contar uso: transacciones donde aparece como accountId o transferAccountId,
-    // y suscripciones vinculadas
-    const [txCount, subCount] = await Promise.all([
+    // Contar uso: movimientos propios de la cuenta, transferencias con otras
+    // cuentas y suscripciones vinculadas
+    const [ownTxCount, transferCount, subCount] = await Promise.all([
+      prisma.transaction.count({
+        where: { accountId: params.id, type: { not: "TRANSFER" } },
+      }),
       prisma.transaction.count({
         where: {
-          OR: [
-            { accountId: params.id },
-            { transferAccountId: params.id },
-          ],
+          type: "TRANSFER",
+          OR: [{ accountId: params.id }, { transferAccountId: params.id }],
         },
       }),
       prisma.subscription.count({
         where: { accountId: params.id },
       }),
     ]);
+    const txCount = ownTxCount + transferCount;
 
     const totalUsage = txCount + subCount;
 
@@ -100,33 +103,66 @@ export async function DELETE(
           {
             error: "Cuenta en uso",
             txCount,
+            ownTxCount,
+            transferCount,
             subCount,
             message: `Esta cuenta tiene ${txCount} movimiento(s) y ${subCount} suscripción(es) vinculada(s). Usa ?force=true para desvincular y eliminar.`,
           },
           { status: 409 }
         );
       }
-      // Forzar: el campo `accountId` es required (no nullable), por lo que
-      // las transacciones donde esta cuenta aparece como origen deben borrarse.
-      // Las transferencias (donde aparece como destino) pueden desvincularse.
-      const deletedWhere = { accountId: params.id, type: { not: "TRANSFER" as const } };
-      const attachments = await prisma.attachment.findMany({
+    }
+
+    // Todo en una transacción: si algo falla no queda nada borrado a medias.
+    // - Movimientos propios de la cuenta (no transferencias): se borran
+    // - Transferencias con otra cuenta: esa cuenta conserva su mitad como
+    //   ingreso o gasto, sin cambiar su balance (ver detachTransfer)
+    // - Suscripciones de la cuenta: se borran
+    const result = await prisma.$transaction(async (tx) => {
+      const transfers = await tx.transaction.findMany({
+        where: {
+          type: "TRANSFER",
+          OR: [{ accountId: params.id }, { transferAccountId: params.id }],
+        },
+        select: { id: true, accountId: true, transferAccountId: true, description: true },
+      });
+
+      const toDelete: string[] = [];
+      let converted = 0;
+      for (const transfer of transfers) {
+        const result = detachTransfer(transfer, existing);
+        if (result.action === "delete") {
+          toDelete.push(transfer.id);
+        } else {
+          await tx.transaction.update({ where: { id: transfer.id }, data: result.data });
+          converted++;
+        }
+      }
+
+      const deletedWhere = {
+        OR: [
+          { accountId: params.id, type: { not: "TRANSFER" as const } },
+          { id: { in: toDelete } },
+        ],
+      };
+      // Los registros de adjuntos se borran en cascada; los archivos, después
+      const attachments = await tx.attachment.findMany({
         where: { transaction: deletedWhere },
         select: { storageKey: true },
       });
-      await prisma.transaction.deleteMany({ where: deletedWhere });
-      await deleteStoredFiles(attachments.map((a) => a.storageKey));
-      await prisma.transaction.updateMany({
-        where: { transferAccountId: params.id },
-        data: { transferAccountId: null },
-      });
-      await prisma.subscription.deleteMany({
-        where: { accountId: params.id },
-      });
-    }
+      const { count: deletedTxs } = await tx.transaction.deleteMany({ where: deletedWhere });
+      await tx.subscription.deleteMany({ where: { accountId: params.id } });
+      await tx.account.delete({ where: { id: params.id } });
+      return { deletedTxs, converted, keys: attachments.map((a) => a.storageKey) };
+    });
+    await deleteStoredFiles(result.keys);
 
-    await prisma.account.delete({ where: { id: params.id } });
-    return NextResponse.json({ ok: true, deletedTxs: txCount, deletedSubs: subCount });
+    return NextResponse.json({
+      ok: true,
+      deletedTxs: result.deletedTxs,
+      convertedTransfers: result.converted,
+      deletedSubs: subCount,
+    });
   } catch (error: any) {
     console.error("Delete account error:", error);
     return NextResponse.json(
