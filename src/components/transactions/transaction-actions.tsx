@@ -39,6 +39,29 @@ type CategoryNode = {
   children: CategoryNode[];
 };
 
+/** Opciones que necesita el formulario (las arma la página de movimientos) */
+export type TransactionFormOptions = {
+  accounts: AccountOption[];
+  creditAccounts: CreditAccount[];
+  subscriptions?: SubOpt[];
+  categories?: CategoryNode[];
+};
+
+/** Datos de un movimiento existente para editarlo */
+export type EditableTransaction = {
+  id: string;
+  type: "INCOME" | "EXPENSE" | "TRANSFER";
+  amount: number;
+  date: string;
+  description: string;
+  categoryId: string | null;
+  accountId: string;
+  transferAccountId: string | null;
+  subscriptionId: string | null;
+  isMsi: boolean;
+  msiInstallments: number | null;
+};
+
 export function TransactionActions({
   mode,
   accounts,
@@ -53,7 +76,7 @@ export function TransactionActions({
   creditAccounts: CreditAccount[];
   subscriptions?: SubOpt[];
   categories?: CategoryNode[];
-  transaction?: any;
+  transaction?: EditableTransaction;
   children?: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -91,7 +114,7 @@ function TxFormDialog({
   creditAccounts: CreditAccount[];
   subscriptions?: SubOpt[];
   categories?: CategoryNode[];
-  transaction?: any;
+  transaction?: EditableTransaction;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -183,7 +206,7 @@ function TxFormDialog({
         const url =
           mode === "create"
             ? "/api/transactions"
-            : `/api/transactions/${transaction.id}`;
+            : `/api/transactions/${transaction!.id}`;
         const method = mode === "create" ? "POST" : "PATCH";
         const res = await fetch(url, {
           method,

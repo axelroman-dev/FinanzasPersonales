@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Plus, ArrowLeftRight } from "lucide-react";
 import { TransactionsTable } from "@/components/transactions/transactions-table";
 import { TransactionFilters } from "@/components/transactions/transaction-filters";
-import { TransactionActions } from "@/components/transactions/transaction-actions";
+import {
+  TransactionActions,
+  type TransactionFormOptions,
+} from "@/components/transactions/transaction-actions";
 
 export default async function TransactionsPage({
   searchParams,
@@ -80,6 +83,24 @@ export default async function TransactionsPage({
     }),
   ]);
 
+  const formOptions: TransactionFormOptions = {
+    accounts: accounts.map((a) => ({
+      id: a.id,
+      name: a.name,
+      type: a.type,
+      balance: Number(a.balance),
+    })),
+    creditAccounts: accounts
+      .filter((a) => a.type === "CREDIT")
+      .map((a) => ({
+        id: a.id,
+        name: a.name,
+        creditLimit: a.creditLimit ? Number(a.creditLimit) : null,
+      })),
+    subscriptions: activeSubs.map((s) => ({ ...s, amount: Number(s.amount) })),
+    categories,
+  };
+
   return (
     <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
@@ -89,20 +110,7 @@ export default async function TransactionsPage({
             Todos tus gastos, ingresos y transferencias
           </p>
         </div>
-        <TransactionActions
-          mode="create"
-          accounts={accounts.map((a) => ({
-            id: a.id,
-            name: a.name,
-            type: a.type,
-            balance: Number(a.balance),
-          }))}
-          creditAccounts={accounts
-            .filter((a) => a.type === "CREDIT")
-            .map((a) => ({ id: a.id, name: a.name, creditLimit: a.creditLimit ? Number(a.creditLimit) : null }))}
-          subscriptions={activeSubs.map((s) => ({ ...s, amount: Number(s.amount) }))}
-          categories={categories}
-        >
+        <TransactionActions mode="create" {...formOptions}>
           <Button>
             <Plus className="h-4 w-4" />
             Nuevo movimiento
@@ -146,8 +154,13 @@ export default async function TransactionsPage({
               msiParentId: t.msiParentId,
               msiInstallments: t.msiInstallments,
               subscriptionName: t.subscription?.name ?? null,
+              categoryId: t.categoryId,
+              accountId: t.accountId,
+              transferAccountId: t.transferAccountId,
+              subscriptionId: t.subscriptionId,
             };
           })}
+          formOptions={formOptions}
         />
       )}
     </div>
