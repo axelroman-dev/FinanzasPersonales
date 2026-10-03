@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.5.0...v0.6.0) (2026-10-03)
+
+
+### Nuevas funciones
+
+* **attachments:** adjuntar fotos y PDF de recibos a los movimientos ([#33](https://github.com/axelroman-dev/FinanzasPersonales/issues/33)) ([9680800](https://github.com/axelroman-dev/FinanzasPersonales/commit/9680800009588f786ef4f02e01d21bc787eb301f))
+* **transactions:** fecha con hora, selector de cuenta por tipo y edición de movimientos ([#31](https://github.com/axelroman-dev/FinanzasPersonales/issues/31)) ([e3172e6](https://github.com/axelroman-dev/FinanzasPersonales/commit/e3172e623cee4e66318435ffce3c5d8f3d1fc236))
+
+
+### Correcciones
+
+* **accounts:** eliminar cuentas con transferencias sin dejar datos a medias ([#34](https://github.com/axelroman-dev/FinanzasPersonales/issues/34)) ([26f9f7f](https://github.com/axelroman-dev/FinanzasPersonales/commit/26f9f7f4e72baa9d2548f74a588af23a185d91af))
+
 ## [0.5.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.4.0...v0.5.0) (2026-10-02)
 
 
