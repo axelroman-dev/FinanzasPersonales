@@ -48,6 +48,7 @@ export default async function SubscriptionsPage() {
             id: a.id,
             name: a.name,
             type: a.type,
+            balance: Number(a.balance),
           }))}
         >
           <Button>
@@ -117,6 +118,7 @@ export default async function SubscriptionsPage() {
                 id: a.id,
                 name: a.name,
                 type: a.type,
+                balance: Number(a.balance),
               }))}
             >
               <Button>
@@ -166,6 +168,7 @@ export default async function SubscriptionsPage() {
                     id: a.id,
                     name: a.name,
                     type: a.type,
+                    balance: Number(a.balance),
                   }))}
                   subscription={{
                     id: sub.id,

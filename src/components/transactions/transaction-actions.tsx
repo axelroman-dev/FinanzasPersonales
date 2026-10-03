@@ -22,9 +22,10 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Trash2, Tag } from "lucide-react";
 import { CategorySelect } from "@/components/shared/category-select";
+import { AccountSelect, type AccountOption } from "@/components/shared/account-select";
+import { toDateTimeLocalValue } from "@/lib/utils";
 import { useFormResetKey } from "@/hooks/use-form-reset-key";
 
-type AccountOpt = { id: string; name: string; type: string };
 type CreditAccount = { id: string; name: string; creditLimit: number | null };
 type SubOpt = { id: string; name: string; amount: number; categoryId: string | null };
 
@@ -48,7 +49,7 @@ export function TransactionActions({
   children,
 }: {
   mode: "create" | "edit";
-  accounts: AccountOpt[];
+  accounts: AccountOption[];
   creditAccounts: CreditAccount[];
   subscriptions?: SubOpt[];
   categories?: CategoryNode[];
@@ -86,7 +87,7 @@ function TxFormDialog({
   onSaved,
 }: {
   mode: "create" | "edit";
-  accounts: AccountOpt[];
+  accounts: AccountOption[];
   creditAccounts: CreditAccount[];
   subscriptions?: SubOpt[];
   categories?: CategoryNode[];
@@ -104,10 +105,9 @@ function TxFormDialog({
   const [amount, setAmount] = useState<number | "">(
     transaction ? Math.abs(Number(transaction.amount)) : ""
   );
+  // Fecha y hora en la zona del navegador ("YYYY-MM-DDTHH:mm")
   const [date, setDate] = useState(
-    transaction?.date
-      ? new Date(transaction.date).toISOString().slice(0, 10)
-      : new Date().toISOString().slice(0, 10)
+    toDateTimeLocalValue(transaction?.date ?? new Date())
   );
   const [description, setDescription] = useState(transaction?.description ?? "");
   const [categoryId, setCategoryId] = useState<string>(transaction?.categoryId ?? "");
@@ -166,7 +166,8 @@ function TxFormDialog({
         const body: any = {
           type,
           amount: Number(amount),
-          date,
+          // Instante exacto (con zona): el servidor no sabe la hora local
+          date: new Date(date).toISOString(),
           description,
           categoryId: type === "TRANSFER" ? null : (categoryId || null),
           accountId,
@@ -218,9 +219,6 @@ function TxFormDialog({
     });
   }
 
-  // Cuentas disponibles para transferir (excluyendo la origen)
-  const transferOptions = accounts.filter((a) => a.id !== accountId);
-
   return (
     <DialogContent className="max-w-lg">
       <DialogHeader>
@@ -259,10 +257,10 @@ function TxFormDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="date">Fecha</Label>
+            <Label htmlFor="date">Fecha y hora</Label>
             <Input
               id="date"
-              type="date"
+              type="datetime-local"
               value={date}
               onChange={(e) => setDate(e.target.value)}
               required
@@ -283,38 +281,26 @@ function TxFormDialog({
 
         <div className="space-y-2">
           <Label>Cuenta {type === "TRANSFER" ? "origen" : ""}</Label>
-          <Select value={accountId} onValueChange={setAccountId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecciona cuenta" />
-            </SelectTrigger>
-            <SelectContent>
-              {accounts.map((a) => (
-                <SelectItem key={a.id} value={a.id}>
-                  {a.name} ({a.type})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <AccountSelect
+            accounts={accounts}
+            value={accountId}
+            onChange={(id) => {
+              setAccountId(id);
+              if (id === transferAccountId) setTransferAccountId("");
+            }}
+          />
         </div>
 
         {type === "TRANSFER" && (
           <div className="space-y-2">
             <Label>Cuenta destino</Label>
-            <Select
+            <AccountSelect
+              accounts={accounts}
               value={transferAccountId}
-              onValueChange={setTransferAccountId}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona cuenta destino" />
-              </SelectTrigger>
-              <SelectContent>
-                {transferOptions.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>
-                    {a.name} ({a.type})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              onChange={setTransferAccountId}
+              placeholder="Selecciona cuenta destino"
+              excludeId={accountId}
+            />
           </div>
         )}
 

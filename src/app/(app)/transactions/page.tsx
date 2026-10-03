@@ -95,6 +95,7 @@ export default async function TransactionsPage({
             id: a.id,
             name: a.name,
             type: a.type,
+            balance: Number(a.balance),
           }))}
           creditAccounts={accounts
             .filter((a) => a.type === "CREDIT")

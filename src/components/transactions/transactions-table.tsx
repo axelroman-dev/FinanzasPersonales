@@ -4,7 +4,7 @@ import {
   Card,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency, formatShortDate } from "@/lib/utils";
+import { formatCurrency, formatShortDate, formatTime } from "@/lib/utils";
 import { ArrowUpRight, ArrowDownRight, ArrowLeftRight } from "lucide-react";
 
 type Tx = {
@@ -60,7 +60,10 @@ export function TransactionsTable({ transactions }: { transactions: Tx[] }) {
               return (
                 <tr key={tx.id} className="border-b last:border-0 hover:bg-secondary/30">
                   <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
-                    {formatShortDate(new Date(tx.date))}
+                    {formatShortDate(tx.date)}
+                    <span className="block text-xs tabular-nums text-muted-foreground/70">
+                      {formatTime(tx.date)}
+                    </span>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
