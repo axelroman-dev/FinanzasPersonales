@@ -41,7 +41,7 @@ export default async function AdminSettingsPage() {
           <CardTitle>Exportar e importar datos</CardTitle>
           <CardDescription>
             Descarga un backup completo del sistema, o restaura datos desde un
-            archivo JSON exportado previamente.
+            archivo exportado previamente (.zip, o .json de versiones anteriores).
           </CardDescription>
         </CardHeader>
         <CardContent>

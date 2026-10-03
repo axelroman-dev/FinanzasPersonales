@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
-import { exportAllData } from "@/lib/export-import";
+import { dropMissingAttachments, exportAllData } from "@/lib/export-import";
+import { backupZipStream } from "@/lib/backup-zip";
 
 // Descarga con datos de la sesión: nunca se renderiza en estático
 export const dynamic = "force-dynamic";
@@ -8,16 +9,23 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     await requireAdmin();
-    const data = await exportAllData();
+    const { json, files } = await exportAllData();
 
-    const filename = `finanzas-global-${new Date().toISOString().split("T")[0]}.json`;
+    const filename = `finanzas-global-${new Date().toISOString().split("T")[0]}.zip`;
 
-    return new NextResponse(JSON.stringify(data, null, 2), {
-      headers: {
-        "Content-Type": "application/json",
-        "Content-Disposition": `attachment; filename="${filename}"`,
-      },
-    });
+    // Zip con los datos y los adjuntos (ver src/lib/backup-file.ts)
+    return new NextResponse(
+      backupZipStream(files, (missing) => {
+        for (const u of json.users) dropMissingAttachments(u.data, missing);
+        return json;
+      }),
+      {
+        headers: {
+          "Content-Type": "application/zip",
+          "Content-Disposition": `attachment; filename="${filename}"`,
+        },
+      }
+    );
   } catch (error: any) {
     if (error.message === "Unauthorized") {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });

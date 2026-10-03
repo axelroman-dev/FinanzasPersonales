@@ -1,13 +1,27 @@
 import { randomInt } from "crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { deleteStoredFiles, processUpload, sanitizeName } from "@/lib/attachments";
+import { MAX_ATTACHMENTS_PER_TRANSACTION } from "@/lib/attachment-rules";
+import { attachmentPath } from "@/lib/backup-file";
+import { encrypt, getAttachmentsKey } from "@/lib/storage/crypto";
+import { newStorageKey } from "@/lib/storage/keys";
+import { getStorage } from "@/lib/storage/storage";
 
 /**
  * Estructura del JSON de export/import.
  * Versionado: si en el futuro cambia el formato, podemos detectar
  * la versión del archivo y migrar/avisar al usuario.
  */
-export type ExportVersion = "1.0";
+export type ExportVersion = "1.0" | "1.1";
+
+/** 1.1 añade los adjuntos de los movimientos (respaldo en .zip) */
+const CURRENT_VERSION = "1.1";
+const SUPPORTED_VERSIONS: string[] = ["1.0", "1.1"];
+
+function isSupportedVersion(version: string): boolean {
+  return SUPPORTED_VERSIONS.includes(version);
+}
 
 export type ExportData = {
   version: ExportVersion;
@@ -54,6 +68,14 @@ export type ExportTransaction = {
   msiInstallments: number | null;
   subscriptionName: string | null;
   createdAt: string;
+  /** Desde 1.1. Los archivos van en el zip, en la ruta `file` */
+  attachments?: ExportAttachment[];
+};
+
+export type ExportAttachment = {
+  file: string;
+  name: string;
+  mimeType: string;
 };
 
 export type ExportSubscription = {
@@ -81,12 +103,20 @@ export type ExportCategory = {
   icon: string | null;
 };
 
+/** Archivo de un adjunto a incluir en el zip: su ruta y dónde está guardado */
+export type BackupFile = { path: string; storageKey: string };
+
 /**
- * Exporta todos los datos de un usuario.
- * Usa los nombres como referencia en lugar de IDs para que el import
- * sea resiliente a cambios de schema.
+ * Exporta todos los datos de un usuario, junto con la lista de adjuntos a
+ * meter en el zip. Usa los nombres como referencia en lugar de IDs para que
+ * el import sea resiliente a cambios de schema.
  */
-export async function exportUserData(userId: string): Promise<ExportData> {
+export async function exportUserData(
+  userId: string
+): Promise<{ json: ExportData; files: BackupFile[] }> {
+  // Sin clave no se pueden descifrar: el respaldo sale sin adjuntos
+  const withAttachments = getAttachmentsKey() !== null;
+  const files: BackupFile[] = [];
   const [accounts, transactions, subscriptions, categories] = await Promise.all([
     prisma.account.findMany({
       where: { userId },
@@ -99,6 +129,12 @@ export async function exportUserData(userId: string): Promise<ExportData> {
         account: { select: { name: true } },
         transferAccount: { select: { name: true } },
         subscription: { select: { name: true } },
+        attachments: withAttachments
+          ? {
+              select: { id: true, originalName: true, mimeType: true, storageKey: true },
+              orderBy: { createdAt: "asc" },
+            }
+          : false,
       },
       orderBy: { date: "asc" },
     }),
@@ -117,8 +153,8 @@ export async function exportUserData(userId: string): Promise<ExportData> {
     }),
   ]);
 
-  return {
-    version: "1.0",
+  const json: ExportData = {
+    version: CURRENT_VERSION,
     exportedAt: new Date().toISOString(),
     scope: "user",
     data: {
@@ -151,6 +187,13 @@ export async function exportUserData(userId: string): Promise<ExportData> {
         msiInstallments: t.msiInstallments,
         subscriptionName: t.subscription?.name ?? null,
         createdAt: t.createdAt.toISOString(),
+        attachments: t.attachments?.length
+          ? t.attachments.map((a) => {
+              const file = attachmentPath(a.id, a.mimeType);
+              files.push({ path: file, storageKey: a.storageKey });
+              return { file, name: a.originalName, mimeType: a.mimeType };
+            })
+          : undefined,
       })),
       subscriptions: subscriptions.map((s) => ({
         id: s.id,
@@ -173,6 +216,20 @@ export async function exportUserData(userId: string): Promise<ExportData> {
       })),
     },
   };
+  return { json, files };
+}
+
+/** Quita del JSON los adjuntos cuyos archivos no se pudieron leer al exportar */
+export function dropMissingAttachments(
+  data: ExportData["data"],
+  missing: Set<string>
+) {
+  if (missing.size === 0) return;
+  for (const t of data.transactions) {
+    if (!t.attachments) continue;
+    t.attachments = t.attachments.filter((a) => !missing.has(a.file));
+    if (t.attachments.length === 0) delete t.attachments;
+  }
 }
 
 /**
@@ -196,14 +253,19 @@ export type GlobalExportData = {
   }>;
 };
 
-export async function exportAllData(): Promise<GlobalExportData> {
+export async function exportAllData(): Promise<{
+  json: GlobalExportData;
+  files: BackupFile[];
+}> {
   const users = await prisma.user.findMany({
     orderBy: { createdAt: "asc" },
   });
 
+  const files: BackupFile[] = [];
   const usersData = await Promise.all(
     users.map(async (u) => {
-      const data = await exportUserData(u.id);
+      const { json, files: userFiles } = await exportUserData(u.id);
+      files.push(...userFiles);
       return {
         id: u.id,
         email: u.email,
@@ -212,16 +274,19 @@ export async function exportAllData(): Promise<GlobalExportData> {
         isActive: u.isActive,
         mustChangePassword: u.mustChangePassword,
         createdAt: u.createdAt.toISOString(),
-        data: data.data,
+        data: json.data,
       };
     })
   );
 
   return {
-    version: "1.0",
-    exportedAt: new Date().toISOString(),
-    scope: "global",
-    users: usersData,
+    json: {
+      version: CURRENT_VERSION,
+      exportedAt: new Date().toISOString(),
+      scope: "global",
+      users: usersData,
+    },
+    files,
   };
 }
 
@@ -235,6 +300,9 @@ export type ImportPreview = {
   totalTransactions: number;
   totalSubscriptions: number;
   totalCategories: number;
+  totalAttachments: number;
+  /** Hay adjuntos en el respaldo pero falta ATTACHMENTS_KEY: no se importarán */
+  attachmentsDisabled: boolean;
   duplicates: {
     accounts: string[]; // nombres de cuentas que ya existen
     subscriptions: string[];
@@ -253,12 +321,13 @@ export async function previewImport(
   json: ExportData
 ): Promise<ImportPreview> {
   const preview = emptyPreview();
-  if (json.version !== "1.0") {
+  if (!isSupportedVersion(json.version)) {
     preview.errors.push(`Versión no soportada: ${json.version}`);
     return preview;
   }
   addTotals(preview, json.data);
   await addDuplicates(preview, userId, json.data);
+  setAttachmentsDisabled(preview);
   return preview;
 }
 
@@ -268,6 +337,8 @@ function emptyPreview(): ImportPreview {
     totalTransactions: 0,
     totalSubscriptions: 0,
     totalCategories: 0,
+    totalAttachments: 0,
+    attachmentsDisabled: false,
     duplicates: { accounts: [], subscriptions: [], categories: [] },
     errors: [],
   };
@@ -278,6 +349,14 @@ function addTotals(preview: ImportPreview, data: ExportData["data"]) {
   preview.totalTransactions += data.transactions.length;
   preview.totalSubscriptions += data.subscriptions.length;
   preview.totalCategories += data.categories.length;
+  for (const t of data.transactions) {
+    preview.totalAttachments += t.attachments?.length ?? 0;
+  }
+}
+
+function setAttachmentsDisabled(preview: ImportPreview) {
+  preview.attachmentsDisabled =
+    preview.totalAttachments > 0 && getAttachmentsKey() === null;
 }
 
 /** Detecta duplicados contra el estado actual del usuario destino */
@@ -346,7 +425,7 @@ export async function previewGlobalImport(
   json: GlobalExportData
 ): Promise<GlobalImportPreview> {
   const preview: GlobalImportPreview = { ...emptyPreview(), users: [] };
-  if (json.version !== "1.0") {
+  if (!isSupportedVersion(json.version)) {
     preview.errors.push(`Versión no soportada: ${json.version}`);
     return preview;
   }
@@ -368,6 +447,7 @@ export async function previewGlobalImport(
       totalTransactions: u.data.transactions.length,
     });
   }
+  setAttachmentsDisabled(preview);
   return preview;
 }
 
@@ -381,25 +461,104 @@ export async function applyImport(params: {
   userId: string;
   json: ExportData;
   strategy: ImportStrategy;
+  /** Archivos del zip (vacío si el respaldo es un .json) */
+  files?: Map<string, Uint8Array>;
 }): Promise<ImportResult> {
   const { userId, json, strategy } = params;
 
-  const result = { created: 0, updated: 0, skipped: 0 };
+  const result: ImportResult = { created: 0, updated: 0, skipped: 0, attachments: 0 };
 
   // Validar versión
-  if (json.version !== "1.0") {
+  if (!isSupportedVersion(json.version)) {
     throw new Error(`Versión no soportada: ${json.version}`);
   }
 
+  const files = await prepareImportFiles(params.files, [json.data]);
+
   // Una sola transacción: cualquier error rollback completo
-  await prisma.$transaction((tx) =>
-    importDataTx(tx, userId, json.data, strategy, result)
+  await runImportTx(files, (tx, att) =>
+    importDataTx(tx, userId, json.data, strategy, result, att)
   );
 
   return result;
 }
 
-export type ImportResult = { created: number; updated: number; skipped: number };
+export type ImportResult = {
+  created: number;
+  updated: number;
+  skipped: number;
+  /** Adjuntos importados (los que no se pudieron cuentan en skipped) */
+  attachments: number;
+};
+
+/** Adjuntos del respaldo ya validados, por su ruta dentro del zip */
+type ImportFiles = Map<string, { data: Buffer; mimeType: string }>;
+
+/**
+ * Valida los archivos del zip igual que una subida normal (tipo real,
+ * tamaño, sin metadatos). Solo los que usa algún movimiento; los inválidos se
+ * descartan. Se hace antes de la transacción porque procesar imágenes tarda.
+ */
+async function prepareImportFiles(
+  raw: Map<string, Uint8Array> | undefined,
+  datas: ExportData["data"][]
+): Promise<ImportFiles> {
+  const files: ImportFiles = new Map();
+  if (!raw?.size || getAttachmentsKey() === null) return files;
+  for (const data of datas) {
+    for (const t of data.transactions) {
+      for (const a of t.attachments ?? []) {
+        const bytes = raw.get(a.file);
+        if (!bytes || files.has(a.file)) continue;
+        try {
+          files.set(a.file, await processUpload(Buffer.from(bytes)));
+        } catch {
+          // Archivo inválido: el adjunto se salta al importar
+        }
+      }
+    }
+  }
+  return files;
+}
+
+/** Estado de los adjuntos durante la transacción de un import */
+type AttachmentImport = {
+  files: ImportFiles;
+  key: Buffer | null;
+  /** Archivos guardados: se borran si la transacción falla */
+  written: string[];
+  /** Archivos de adjuntos reemplazados: se borran si la transacción se confirma */
+  replaced: string[];
+};
+
+// Con adjuntos un import puede tardar bastante más que los 5 s por defecto
+const IMPORT_TX_OPTIONS = { maxWait: 10_000, timeout: 10 * 60_000 };
+
+/**
+ * Ejecuta un import en una transacción. Los archivos no son parte de la base
+ * de datos: si la transacción falla se borran los que se guardaron, y si se
+ * confirma se borran los de los adjuntos reemplazados.
+ */
+async function runImportTx<T>(
+  files: ImportFiles,
+  fn: (tx: TxClient, att: AttachmentImport) => Promise<T>
+): Promise<T> {
+  const att: AttachmentImport = {
+    files,
+    key: getAttachmentsKey(),
+    written: [],
+    replaced: [],
+  };
+  let out: T;
+  try {
+    out = await prisma.$transaction((tx) => fn(tx, att), IMPORT_TX_OPTIONS);
+  } catch (error) {
+    await deleteStoredFiles(att.written);
+    throw error;
+  }
+  await deleteStoredFiles(att.replaced);
+  return out;
+}
 
 export type GlobalImportResult = ImportResult & {
   /** Usuarios que no existían: se crearon con una contraseña temporal */
@@ -426,25 +585,32 @@ function generateTempPassword(): string {
 export async function applyGlobalImport(params: {
   json: GlobalExportData;
   strategy: ImportStrategy;
+  files?: Map<string, Uint8Array>;
 }): Promise<GlobalImportResult> {
   const { json, strategy } = params;
   const result: GlobalImportResult = {
     created: 0,
     updated: 0,
     skipped: 0,
+    attachments: 0,
     createdUsers: [],
   };
 
-  if (json.version !== "1.0") {
+  if (!isSupportedVersion(json.version)) {
     throw new Error(`Versión no soportada: ${json.version}`);
   }
+
+  const files = await prepareImportFiles(
+    params.files,
+    json.users.map((u) => u.data)
+  );
 
   for (const u of json.users) {
     const email = u.email.trim().toLowerCase();
     const tempPassword = generateTempPassword();
     const passwordHash = await bcrypt.hash(tempPassword, 10);
 
-    const created = await prisma.$transaction(async (tx) => {
+    const created = await runImportTx(files, async (tx, att) => {
       let user = await tx.user.findUnique({ where: { email } });
       const isNew = !user;
       if (!user) {
@@ -459,7 +625,7 @@ export async function applyGlobalImport(params: {
           },
         });
       }
-      await importDataTx(tx, user.id, u.data, strategy, result);
+      await importDataTx(tx, user.id, u.data, strategy, result, att);
       return isNew;
     });
 
@@ -474,7 +640,8 @@ async function importDataTx(
   userId: string,
   data: ExportData["data"],
   strategy: ImportStrategy,
-  result: ImportResult
+  result: ImportResult,
+  att: AttachmentImport
 ) {
   // 1. Categorías (padres antes que hijos). Clave "padre|nombre": puede
   // haber subcategorías con el mismo nombre que una raíz u otra subcategoría.
@@ -588,7 +755,7 @@ async function importDataTx(
       result.skipped++;
       continue;
     }
-    await upsertTransactionTx(
+    const saved = await upsertTransactionTx(
       tx,
       userId,
       txData,
@@ -598,6 +765,58 @@ async function importDataTx(
       strategy,
       result
     );
+    if (saved && txData.attachments?.length) {
+      await importAttachmentsTx(tx, userId, saved, txData.attachments, att, result);
+    }
+  }
+}
+
+/**
+ * Adjuntos de un movimiento importado. En uno nuevo se agregan; en uno
+ * sobrescrito reemplazan a los que tenía (si alguno del respaldo es válido).
+ */
+async function importAttachmentsTx(
+  tx: TxClient,
+  userId: string,
+  saved: SavedTransaction,
+  attachments: ExportAttachment[],
+  att: AttachmentImport,
+  result: ImportResult
+) {
+  const valid = att.key
+    ? attachments
+        .filter((a) => att.files.has(a.file))
+        .slice(0, MAX_ATTACHMENTS_PER_TRANSACTION)
+    : [];
+  result.skipped += attachments.length - valid.length;
+  if (!att.key || valid.length === 0) return;
+
+  if (saved.status === "updated") {
+    const old = await tx.attachment.findMany({
+      where: { transactionId: saved.id },
+      select: { storageKey: true },
+    });
+    await tx.attachment.deleteMany({ where: { transactionId: saved.id } });
+    att.replaced.push(...old.map((a) => a.storageKey));
+  }
+
+  const storage = getStorage();
+  for (const a of valid) {
+    const file = att.files.get(a.file)!;
+    const storageKey = newStorageKey(userId);
+    att.written.push(storageKey);
+    await storage.put(storageKey, encrypt(att.key, storageKey, file.data));
+    await tx.attachment.create({
+      data: {
+        userId,
+        transactionId: saved.id,
+        originalName: sanitizeName(a.name, file.mimeType),
+        mimeType: file.mimeType,
+        size: file.data.length,
+        storageKey,
+      },
+    });
+    result.attachments++;
   }
 }
 
@@ -790,7 +1009,7 @@ async function upsertTransactionTx(
   categoryIdMap: Map<string, string>,
   strategy: ImportStrategy,
   result: { created: number; updated: number; skipped: number }
-): Promise<void> {
+): Promise<SavedTransaction | null> {
   const categoryId = resolveCategoryId(categoryIdMap, t);
 
   const duplicate = await tx.transaction.findFirst({
@@ -806,7 +1025,7 @@ async function upsertTransactionTx(
   if (duplicate) {
     if (strategy === "skip") {
       result.skipped++;
-      return;
+      return null;
     }
     if (strategy === "overwrite") {
       await tx.transaction.update({
@@ -822,13 +1041,13 @@ async function upsertTransactionTx(
         },
       });
       result.updated++;
-      return;
+      return { id: duplicate.id, status: "updated" };
     }
     result.skipped++;
-    return;
+    return null;
   }
 
-  await tx.transaction.create({
+  const created = await tx.transaction.create({
     data: {
       userId,
       type: t.type,
@@ -843,6 +1062,10 @@ async function upsertTransactionTx(
       msiTotalAmount: t.msiTotalAmount,
       msiInstallments: t.msiInstallments,
     },
+    select: { id: true },
   });
   result.created++;
+  return { id: created.id, status: "created" };
 }
+
+type SavedTransaction = { id: string; status: "created" | "updated" };
