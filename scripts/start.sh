@@ -18,6 +18,17 @@ if [ -n "$missing" ]; then
   exit 1
 fi
 
+# Adjuntos: si están activos, la carpeta tiene que ser escribible por este
+# usuario (uid 1001). Un volumen creado por Docker queda a nombre de root.
+if [ -n "$ATTACHMENTS_KEY" ]; then
+  dir="${ATTACHMENTS_DIR:-/app/data/uploads}"
+  if ! mkdir -p "$dir" 2>/dev/null || ! [ -w "$dir" ]; then
+    echo "✗ ERROR: no se puede escribir en $dir (carpeta de adjuntos)."
+    echo "  En el host: sudo chown -R 1001:1001 \${DATA_PATH}/finanzas/uploads"
+    exit 1
+  fi
+fi
+
 # Generar cliente Prisma (necesario por si el schema cambió)
 echo "→ Generando cliente Prisma..."
 npx prisma generate

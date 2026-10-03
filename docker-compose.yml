@@ -16,8 +16,9 @@
 #   docker compose pull && docker compose up -d   # traer última imagen + iniciar
 #   docker compose logs -f app                     # ver logs
 #   docker compose down                            # detener (sin borrar datos)
-#   Los datos de PostgreSQL viven en ${DATA_PATH}/finanzas/postgres del host;
-#   para borrarlos hay que eliminar esa carpeta.
+#   Los datos de PostgreSQL viven en ${DATA_PATH}/finanzas/postgres del host y
+#   los adjuntos (cifrados) en ${DATA_PATH}/finanzas/uploads; para borrarlos
+#   hay que eliminar esas carpetas.
 #
 # Comandos npm equivalentes:
 #   npm run prod:up      # pull + iniciar
@@ -42,11 +43,18 @@ services:
             NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
             # Contraseña del admin del sistema (admin@finanzas.local)
             ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD requerido en .env}
+            # Adjuntos (recibos): clave de cifrado; sin ella están desactivados
+            ATTACHMENTS_KEY: ${ATTACHMENTS_KEY:-}
             # Zona horaria: define el inicio de cada mes y la hora de los movimientos
             TZ: ${TZ:-America/Mexico_City}
             # Telemetry
             NEXT_TELEMETRY_DISABLED: "1"
             NODE_ENV: production
+        volumes:
+            # Adjuntos cifrados. Debe pertenecer al uid 1001 en el host:
+            #   sudo mkdir -p ${DATA_PATH}/finanzas/uploads
+            #   sudo chown -R 1001:1001 ${DATA_PATH}/finanzas/uploads
+            - ${DATA_PATH:-/data}/finanzas/uploads:/app/data/uploads
         depends_on:
             db:
                 condition: service_healthy

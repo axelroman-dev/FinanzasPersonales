@@ -31,10 +31,14 @@ El `docker-compose.yml` de referencia está en el [repo del código fuente](http
 | `NEXTAUTH_SECRET` | Generar con `openssl rand -base64 32` |
 | `NEXTAUTH_URL` | URL pública de la app |
 | `ADMIN_PASSWORD` | Contraseña de `admin@finanzas.local` (obligatoria, mínimo 12 caracteres) |
+| `ATTACHMENTS_KEY` | Clave de cifrado de los adjuntos (opcional). Generar con `openssl rand -base64 32` |
+| `TZ` | Zona horaria (opcional, por defecto `America/Mexico_City`) |
 
 Al arrancar, el contenedor corre automáticamente `prisma migrate deploy` y el seed inicial (idempotente).
 
 Para cambiar o recuperar la contraseña del admin, edita `ADMIN_PASSWORD` en el `.env` y reinicia el contenedor.
+
+Los adjuntos se guardan cifrados en `/app/data/uploads`. Monta ahí un volumen que pertenezca al uid 1001. Un respaldo completo es la base de datos, esa carpeta y `ATTACHMENTS_KEY`; sin la clave, los adjuntos no se pueden recuperar.
 
 ## Tags
 

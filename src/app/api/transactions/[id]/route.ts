@@ -9,6 +9,7 @@ import {
   revertEffects,
 } from "@/lib/transaction-balance";
 import { msiParentRevertAmount } from "@/lib/msi-installments";
+import { deleteStoredFiles } from "@/lib/attachments";
 
 const updateSchema = z.object({
   type: z.enum(["INCOME", "EXPENSE", "TRANSFER"]).optional(),
@@ -166,6 +167,15 @@ export async function DELETE(
       return NextResponse.json({ error: "No encontrado" }, { status: 404 });
     }
 
+    // Adjuntos del movimiento (y de sus mensualidades si es MSI padre): los
+    // registros se borran en cascada; los archivos, después del commit
+    const attachments = await prisma.attachment.findMany({
+      where: {
+        OR: [{ transactionId: existing.id }, { transaction: { msiParentId: existing.id } }],
+      },
+      select: { storageKey: true },
+    });
+
     await prisma.$transaction(async (tx) => {
       // Si es MSI padre, eliminar también los hijos y revertir balance
       if (existing.isMsi && existing.msiParentId === null && existing.msiInstallments) {
@@ -212,6 +222,7 @@ export async function DELETE(
 
       await tx.transaction.delete({ where: { id: params.id } });
     });
+    await deleteStoredFiles(attachments.map((a) => a.storageKey));
 
     return NextResponse.json({ ok: true });
   } catch (error) {

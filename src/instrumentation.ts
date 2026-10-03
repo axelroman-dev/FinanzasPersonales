@@ -10,6 +10,13 @@ export async function register() {
     );
     // Sin ADMIN_PASSWORD válida no hay forma de entrar: no arrancar
     const password = getAdminPassword();
+
+    // ATTACHMENTS_KEY es opcional (sin ella no hay adjuntos), pero si está mal
+    // escrita mejor no arrancar que guardar archivos que no se podrán leer
+    const { getAttachmentsKey } = await import("@/lib/storage/crypto");
+    if (!getAttachmentsKey()) {
+      console.log("ℹ️  Adjuntos desactivados: define ATTACHMENTS_KEY para activarlos");
+    }
     try {
       await ensureSystemAdmin(password);
     } catch (error) {

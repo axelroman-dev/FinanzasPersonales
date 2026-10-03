@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { isSystemAdmin } from "@/lib/system-admin";
+import { deleteUserFiles } from "@/lib/attachments";
 
 export async function POST(
   _req: Request,
@@ -43,6 +44,7 @@ export async function POST(
 
     if (params.action === "delete") {
       await prisma.user.delete({ where: { id: params.id } });
+      await deleteUserFiles(params.id);
       return NextResponse.json({ ok: true });
     }
 

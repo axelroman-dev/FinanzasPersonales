@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getCategoryTree } from "@/lib/categories";
+import { attachmentsEnabled } from "@/lib/storage/crypto";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, ArrowLeftRight } from "lucide-react";
@@ -73,6 +74,7 @@ export default async function TransactionsPage({
         transferAccount: true,
         subscription: { select: { name: true } },
         categoryRef: { include: { parent: true } },
+        _count: { select: { attachments: true } },
       },
       orderBy: { date: "desc" },
       take: 500,
@@ -99,6 +101,7 @@ export default async function TransactionsPage({
       })),
     subscriptions: activeSubs.map((s) => ({ ...s, amount: Number(s.amount) })),
     categories,
+    attachmentsEnabled: attachmentsEnabled(),
   };
 
   return (
@@ -158,6 +161,7 @@ export default async function TransactionsPage({
               accountId: t.accountId,
               transferAccountId: t.transferAccountId,
               subscriptionId: t.subscriptionId,
+              attachmentCount: t._count.attachments,
             };
           })}
           formOptions={formOptions}

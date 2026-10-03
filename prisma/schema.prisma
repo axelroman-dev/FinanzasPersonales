@@ -48,6 +48,7 @@ model User {
 
   accounts      Account[]
   transactions  Transaction[]
+  attachments   Attachment[]
   subscriptions Subscription[]
   categories    Category[]
   configUpdates AppConfig[]    @relation("ConfigUpdater")
@@ -117,6 +118,7 @@ model Transaction {
   transferAccount Account?      @relation("TransferAccount", fields: [transferAccountId], references: [id])
   subscription    Subscription? @relation(fields: [subscriptionId], references: [id])
   categoryRef     Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  attachments     Attachment[]
 
   @@index([userId])
   @@index([accountId])
@@ -168,4 +170,27 @@ model Category {
   @@unique([userId, name, parentId])
   @@index([userId])
   @@index([parentId])
+}
+
+// Recibo u otro archivo adjunto a un movimiento. Los bytes viven cifrados en
+// el almacenamiento (ver src/lib/attachments.ts), no en la base de datos.
+model Attachment {
+  id            String   @id @default(cuid())
+  userId        String
+  transactionId String
+  // Solo para mostrar; nunca se usa como ruta
+  originalName  String
+  // Detectado por el servidor, no el que manda el navegador
+  mimeType      String
+  // Bytes del archivo ya procesado, sin cifrar
+  size          Int
+  // "<userId>/<uuid>", generada por el servidor
+  storageKey    String   @unique
+  createdAt     DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([transactionId])
 }

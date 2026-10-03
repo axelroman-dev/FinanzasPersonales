@@ -276,7 +276,7 @@ export function GlobalImportExportPanel() {
         </p>
         <p>
           El export global contiene datos de <strong>todos</strong> los usuarios
-          (sin contraseñas). Al importarlo, los datos de cada usuario van a la
+          (sin contraseñas ni recibos adjuntos). Al importarlo, los datos de cada usuario van a la
           cuenta con su mismo email; si no existe, se crea con una contraseña
           temporal.
         </p>

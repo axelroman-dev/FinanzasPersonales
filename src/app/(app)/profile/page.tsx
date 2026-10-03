@@ -64,7 +64,8 @@ export default async function ProfilePage() {
           <CardTitle>Mis datos</CardTitle>
           <CardDescription>
             Descarga una copia de tus cuentas, movimientos, suscripciones y
-            categorías, o restáurala desde un archivo exportado antes.
+            categorías, o restáurala desde un archivo exportado antes. La copia
+            no incluye los recibos adjuntos.
           </CardDescription>
         </CardHeader>
         <CardContent>
