@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
+  DialogActions,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -22,6 +23,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Trash2, Loader2, Pencil } from "lucide-react";
 import { useFormResetKey } from "@/hooks/use-form-reset-key";
+import { useConfirm } from "@/components/shared/confirm-dialog";
 
 type AccountFormData = {
   id: string;
@@ -76,6 +78,7 @@ function AccountFormDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const confirm = useConfirm();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -148,14 +151,26 @@ function AccountFormDialog({
     if (probe.status === 409) {
       const data = await probe.json();
       const lines = [
-        data.ownTxCount > 0 && `• Se BORRARÁN sus ${data.ownTxCount} movimiento(s)`,
+        data.ownTxCount > 0 && `Se borrarán sus ${data.ownTxCount} movimiento(s).`,
         data.transferCount > 0 &&
-          `• Sus ${data.transferCount} transferencia(s) con otras cuentas se conservan en esas cuentas como ingreso o gasto (sus saldos no cambian)`,
-        data.subCount > 0 && `• Se BORRARÁN sus ${data.subCount} suscripción(es)`,
-      ].filter(Boolean);
-      const force = confirm(
-        `¿Eliminar la cuenta "${account.name}"?\n\n${lines.join("\n")}\n\nEsta acción no se puede deshacer.`
-      );
+          `Sus ${data.transferCount} transferencia(s) con otras cuentas se conservan en esas cuentas como ingreso o gasto (sus saldos no cambian).`,
+        data.subCount > 0 && `Se borrarán sus ${data.subCount} suscripción(es).`,
+      ].filter((l): l is string => !!l);
+      const force = await confirm({
+        title: `¿Eliminar la cuenta "${account.name}"?`,
+        description: (
+          <>
+            <ul className="list-disc space-y-1 pl-4">
+              {lines.map((l) => (
+                <li key={l}>{l}</li>
+              ))}
+            </ul>
+            <p>Esta acción no se puede deshacer.</p>
+          </>
+        ),
+        confirmLabel: "Eliminar cuenta",
+        destructive: true,
+      });
       if (!force) return;
       startTransition(async () => {
         const res = await fetch(`/api/accounts/${account.id}?force=true`, {
@@ -318,7 +333,7 @@ function AccountFormDialog({
           </div>
         )}
 
-        <div className="flex justify-between pt-2">
+        <DialogActions className="justify-between">
           {mode === "edit" ? (
             <Button
               type="button"
@@ -343,7 +358,7 @@ function AccountFormDialog({
               {mode === "create" ? "Crear" : "Guardar"}
             </Button>
           </div>
-        </div>
+        </DialogActions>
       </form>
     </DialogContent>
   );

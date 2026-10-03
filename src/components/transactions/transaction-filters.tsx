@@ -59,7 +59,7 @@ export function TransactionFilters({
 
   return (
     <div className="space-y-3">
-      <div className="grid gap-2 md:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-6">
         <Input
           type="date"
           defaultValue={params.get("from") ?? ""}
@@ -107,7 +107,7 @@ export function TransactionFilters({
             defaultValue={params.get("categoryId") ?? "all"}
             onValueChange={(v) => update("categoryId", v === "all" ? null : v)}
           >
-            <SelectTrigger>
+            <SelectTrigger className="col-span-2 lg:col-span-1">
               <SelectValue placeholder="Categoría" />
             </SelectTrigger>
             <SelectContent>
@@ -135,7 +135,7 @@ export function TransactionFilters({
           </Select>
         )}
         {hasFilters && (
-          <Button variant="outline" onClick={clear}>
+          <Button variant="outline" onClick={clear} className="col-span-2 lg:col-span-1">
             <X className="h-4 w-4" />
             Limpiar
           </Button>

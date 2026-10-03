@@ -18,9 +18,9 @@ export default async function DashboardPage() {
   const totalExpense = flow.reduce((s, d) => s + d.expense, 0);
 
   return (
-    <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Hola, {user.name.split(" ")[0]}</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Hola, {user.name.split(" ")[0]}</h1>
         <p className="text-muted-foreground">
           Resumen de tus finanzas
         </p>
@@ -34,7 +34,7 @@ export default async function DashboardPage() {
               Balance real
             </p>
             <p
-              className={`text-5xl md:text-6xl font-bold tracking-tight ${
+              className={`text-4xl sm:text-5xl xl:text-6xl font-bold tracking-tight tabular-nums break-words ${
                 balancePositive ? "text-emerald-400" : "text-red-400"
               }`}
             >
@@ -50,8 +50,9 @@ export default async function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* KPIs */}
-      <div className="grid gap-4 md:grid-cols-3">
+      {/* KPIs: en tablet (md) la barra lateral deja el contenido más angosto
+          que en un celular grande, así que vuelve a una columna */}
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -59,7 +60,7 @@ export default async function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">
+            <p className="text-2xl font-bold tabular-nums break-words">
               {formatCurrency(balance.cashAvailable)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
@@ -75,7 +76,7 @@ export default async function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-red-400">
+            <p className="text-2xl font-bold tabular-nums break-words text-red-400">
               {formatCurrency(balance.creditUsed)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
@@ -84,14 +85,14 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="sm:col-span-2 md:col-span-1 lg:col-span-2 xl:col-span-1">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Compromisos del mes
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-amber-400">
+            <p className="text-2xl font-bold tabular-nums break-words text-amber-400">
               {formatCurrency(balance.subscriptionsPending + balance.msiMonthlyTotal)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
@@ -101,13 +102,13 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="md:col-span-2">
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="min-w-0 lg:col-span-2">
           <CardHeader>
             <CardTitle>Flujo del mes</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex justify-between text-xs text-muted-foreground mb-2">
+            <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 text-xs text-muted-foreground mb-2">
               <span>Ingresos: {formatCurrency(totalIncome)}</span>
               <span>Gastos: {formatCurrency(totalExpense)}</span>
             </div>
@@ -151,28 +152,28 @@ export default async function DashboardPage() {
           <CardTitle>Subtotales por tipo de cuenta</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+          <div className="grid gap-4 grid-cols-2 xl:grid-cols-4">
             <div>
               <p className="text-xs text-muted-foreground">Débito</p>
-              <p className="text-lg font-semibold">
+              <p className="text-lg font-semibold tabular-nums break-words">
                 {formatCurrency(balance.accountSubtotals.DEBIT)}
               </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Crédito (deuda)</p>
-              <p className="text-lg font-semibold text-red-400">
+              <p className="text-lg font-semibold tabular-nums break-words text-red-400">
                 {formatCurrency(balance.accountSubtotals.CREDIT)}
               </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Ahorro</p>
-              <p className="text-lg font-semibold">
+              <p className="text-lg font-semibold tabular-nums break-words">
                 {formatCurrency(balance.accountSubtotals.SAVINGS)}
               </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Vales</p>
-              <p className="text-lg font-semibold text-muted-foreground">
+              <p className="text-lg font-semibold tabular-nums break-words text-muted-foreground">
                 {formatCurrency(balance.accountSubtotals.VOUCHER)}
               </p>
             </div>

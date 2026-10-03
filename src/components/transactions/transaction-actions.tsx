@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
+  DialogActions,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -26,6 +27,7 @@ import { AccountSelect, type AccountOption } from "@/components/shared/account-s
 import { toDateTimeLocalValue } from "@/lib/utils";
 import { useFormResetKey } from "@/hooks/use-form-reset-key";
 import { AttachmentsField, uploadAttachments } from "./attachments-field";
+import { useAlert, useConfirm } from "@/components/shared/confirm-dialog";
 
 type CreditAccount = { id: string; name: string; creditLimit: number | null };
 type SubOpt = { id: string; name: string; amount: number; categoryId: string | null };
@@ -127,6 +129,8 @@ function TxFormDialog({
   onSaved: () => void;
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
+  const showAlert = useAlert();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   // Archivos elegidos que se suben al guardar
@@ -234,12 +238,14 @@ function TxFormDialog({
         // compra a MSI van en la compra (parent), no en las mensualidades
         const savedId: string = data.parent?.id ?? data.id;
         const uploadError = await uploadAttachments(savedId, pendingFiles);
-        if (uploadError) {
-          alert(`El movimiento se guardó, pero los recibos no: ${uploadError}`);
-        }
-
         onSaved();
         router.refresh();
+        if (uploadError) {
+          showAlert({
+            title: "Los recibos no se subieron",
+            description: `El movimiento se guardó, pero los recibos no: ${uploadError}`,
+          });
+        }
       } catch {
         setError("Error al guardar");
       }
@@ -248,7 +254,13 @@ function TxFormDialog({
 
   async function onDelete() {
     if (!transaction) return;
-    if (!confirm("¿Eliminar este movimiento?")) return;
+    const ok = await confirm({
+      title: "¿Eliminar este movimiento?",
+      description: `"${transaction.description}" se eliminará. Esta acción no se puede deshacer.`,
+      confirmLabel: "Eliminar",
+      destructive: true,
+    });
+    if (!ok) return;
     startTransition(async () => {
       const res = await fetch(`/api/transactions/${transaction.id}`, {
         method: "DELETE",
@@ -283,7 +295,7 @@ function TxFormDialog({
           </Select>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="amount">Monto</Label>
             <Input
@@ -437,7 +449,7 @@ function TxFormDialog({
           </div>
         )}
 
-        <div className="flex justify-between pt-2">
+        <DialogActions className="justify-between">
           {mode === "edit" ? (
             <Button
               type="button"
@@ -462,7 +474,7 @@ function TxFormDialog({
               {mode === "create" ? "Crear" : "Guardar"}
             </Button>
           </div>
-        </div>
+        </DialogActions>
       </form>
     </DialogContent>
   );

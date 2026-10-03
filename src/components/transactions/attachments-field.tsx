@@ -10,6 +10,7 @@ import {
   MAX_ATTACHMENTS_PER_TRANSACTION,
   type AttachmentInfo,
 } from "@/lib/attachment-rules";
+import { useConfirm } from "@/components/shared/confirm-dialog";
 
 /**
  * Sección "Recibos" del formulario de movimiento. Los archivos nuevos quedan
@@ -26,6 +27,7 @@ export function AttachmentsField({
   pending: File[];
   onPendingChange: (files: File[]) => void;
 }) {
+  const confirm = useConfirm();
   const [existing, setExisting] = useState<AttachmentInfo[]>([]);
   const [loading, setLoading] = useState(!!transactionId);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -58,7 +60,13 @@ export function AttachmentsField({
   }
 
   async function removeExisting(attachment: AttachmentInfo) {
-    if (!confirm(`¿Eliminar "${attachment.originalName}"?`)) return;
+    const ok = await confirm({
+      title: "¿Eliminar este recibo?",
+      description: `"${attachment.originalName}" se borrará del movimiento.`,
+      confirmLabel: "Eliminar",
+      destructive: true,
+    });
+    if (!ok) return;
     setDeletingId(attachment.id);
     const res = await fetch(`/api/attachments/${attachment.id}`, { method: "DELETE" });
     setDeletingId(null);

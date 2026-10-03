@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
+  DialogActions,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -19,6 +20,7 @@ import {
   type CategoryOption,
 } from "@/components/shared/category-select";
 import { useFormResetKey } from "@/hooks/use-form-reset-key";
+import { useConfirm } from "@/components/shared/confirm-dialog";
 import { AccountSelect, type AccountOption } from "@/components/shared/account-select";
 
 type SubFormData = {
@@ -78,6 +80,7 @@ function SubFormDialog({
   onSaved: () => void;
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState(subscription?.name ?? "");
@@ -129,7 +132,13 @@ function SubFormDialog({
 
   async function onDelete() {
     if (!subscription) return;
-    if (!confirm("¿Eliminar esta suscripción?")) return;
+    const ok = await confirm({
+      title: "¿Eliminar esta suscripción?",
+      description: `"${subscription.name}" dejará de contarse en tus pagos recurrentes. Los movimientos ya registrados se conservan.`,
+      confirmLabel: "Eliminar",
+      destructive: true,
+    });
+    if (!ok) return;
     startTransition(async () => {
       const res = await fetch(`/api/subscriptions/${subscription.id}`, {
         method: "DELETE",
@@ -231,7 +240,7 @@ function SubFormDialog({
           </div>
         )}
 
-        <div className="flex justify-between pt-2">
+        <DialogActions className="justify-between">
           {mode === "edit" ? (
             <Button
               type="button"
@@ -256,7 +265,7 @@ function SubFormDialog({
               {mode === "create" ? "Crear" : "Guardar"}
             </Button>
           </div>
-        </div>
+        </DialogActions>
       </form>
     </DialogContent>
   );

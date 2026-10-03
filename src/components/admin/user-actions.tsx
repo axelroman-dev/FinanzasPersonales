@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Loader2, MoreHorizontal, Shield, ShieldOff, Power, Trash2 } from "lucide-react";
+import { useConfirm } from "@/components/shared/confirm-dialog";
 
 type UserActionsData = {
   id: string;
@@ -23,6 +24,7 @@ type UserActionsData = {
 
 export function UserActions({ user }: { user: UserActionsData }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [isPending, startTransition] = useTransition();
   const locked = user.isSelf || user.isSystem;
 
@@ -75,9 +77,15 @@ export function UserActions({ user }: { user: UserActionsData }) {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onClick={() => {
-            if (!confirm("¿Eliminar este usuario y todos sus datos?")) return;
-            call("delete", {});
+          onClick={async () => {
+            const ok = await confirm({
+              title: "¿Eliminar este usuario?",
+              description:
+                "Se borrarán el usuario y todos sus datos: cuentas, movimientos, suscripciones y categorías. Esta acción no se puede deshacer.",
+              confirmLabel: "Eliminar usuario",
+              destructive: true,
+            });
+            if (ok) call("delete", {});
           }}
           disabled={locked}
           className="text-destructive focus:text-destructive"

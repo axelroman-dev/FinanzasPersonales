@@ -75,50 +75,53 @@ export function ReportFilters({
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Desde</span>
+    <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center">
+      {/* Móvil: fechas en dos columnas con la etiqueta arriba */}
+      <div className="grid grid-cols-2 gap-2 lg:flex lg:items-center">
+        <label className="flex flex-col gap-1 lg:flex-row lg:items-center lg:gap-2">
+          <span className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Calendar className="hidden h-4 w-4 lg:block" />
+            Desde
+          </span>
           <Input
             type="date"
-            className="w-auto"
+            className="lg:w-auto"
             value={from}
             onChange={(e) => onFromChange(e.target.value)}
           />
-        </div>
-        <div className="flex items-center gap-2">
+        </label>
+        <label className="flex flex-col gap-1 lg:flex-row lg:items-center lg:gap-2">
           <span className="text-sm text-muted-foreground">Hasta</span>
           <Input
             type="date"
-            className="w-auto"
+            className="lg:w-auto"
             value={to}
             onChange={(e) => onToChange(e.target.value)}
           />
-        </div>
-        <div className="flex gap-1 ml-auto">
-          {PRESETS.map((preset) => {
-            const isActive = activeMonths === preset.months;
-            return (
-              <Button
-                key={preset.months}
-                size="sm"
-                onClick={() => setRange(preset.months)}
-                className={cn(
-                  // Por defecto lucen neutros (sin relleno)
-                  "bg-transparent text-muted-foreground border border-border",
-                  // En hover se muestran destacados (feedback visual)
-                  "hover:bg-secondary hover:text-foreground hover:border-border",
-                  // El seleccionado se ve siempre destacado (aunque sin hover)
-                  isActive &&
-                    "bg-primary text-primary-foreground border-primary hover:bg-primary/90 hover:text-primary-foreground"
-                )}
-              >
-                {preset.label}
-              </Button>
-            );
-          })}
-        </div>
+        </label>
+      </div>
+      <div className="grid grid-cols-4 gap-1 lg:ml-auto lg:flex">
+        {PRESETS.map((preset) => {
+          const isActive = activeMonths === preset.months;
+          return (
+            <Button
+              key={preset.months}
+              size="sm"
+              onClick={() => setRange(preset.months)}
+              className={cn(
+                // Por defecto lucen neutros (sin relleno)
+                "bg-transparent px-2 text-muted-foreground border border-border lg:px-3",
+                // En hover se muestran destacados (feedback visual)
+                "hover:bg-secondary hover:text-foreground hover:border-border",
+                // El seleccionado se ve siempre destacado (aunque sin hover)
+                isActive &&
+                  "bg-primary text-primary-foreground border-primary hover:bg-primary/90 hover:text-primary-foreground"
+              )}
+            >
+              {preset.label}
+            </Button>
+          );
+        })}
       </div>
     </div>
   );

@@ -32,11 +32,13 @@ const DialogContent = React.forwardRef<
   <DialogPortal>
     <DialogOverlay />
     {/* Anclado arriba, no centrado: si el contenido crece (p. ej. aparece un
-        campo al elegir una opción) se extiende hacia abajo sin mover el resto */}
+        campo al elegir una opción) se extiende hacia abajo sin mover el resto.
+        La altura usa dvh (viewport visible): en móvil 100vh incluye la zona
+        de las barras del navegador y los botones del final quedaban tapados */}
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50%] top-[8vh] z-50 grid max-h-[84vh] w-full max-w-lg translate-x-[-50%] gap-4 overflow-y-auto border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg",
+        "fixed left-[50%] top-3 z-50 grid max-h-[calc(100dvh-1.5rem)] w-[calc(100%-1.5rem)] max-w-lg translate-x-[-50%] gap-4 overflow-y-auto overscroll-contain rounded-lg border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:top-[8dvh] sm:max-h-[84dvh] sm:w-full has-[[data-dialog-actions]]:pb-0",
         className
       )}
       {...props}
@@ -69,6 +71,23 @@ const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivEleme
   />
 );
 DialogFooter.displayName = "DialogFooter";
+
+/**
+ * Botones al final de un formulario largo: quedan fijos abajo mientras se
+ * hace scroll dentro del dialog, así siempre se pueden pulsar en móvil.
+ * DialogContent quita su padding inferior para que queden pegados al borde
+ */
+const DialogActions = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    data-dialog-actions=""
+    className={cn(
+      "sticky bottom-0 z-10 -mx-6 flex items-center gap-2 border-t bg-background px-6 py-4",
+      className
+    )}
+    {...props}
+  />
+);
+DialogActions.displayName = "DialogActions";
 
 const DialogTitle = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Title>,
@@ -103,6 +122,7 @@ export {
   DialogContent,
   DialogHeader,
   DialogFooter,
+  DialogActions,
   DialogTitle,
   DialogDescription,
 };

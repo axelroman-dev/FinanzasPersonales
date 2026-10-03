@@ -44,9 +44,9 @@ export default async function ReportsPage({
   const net = totalIncome - totalExpense;
 
   return (
-    <div className="p-6 md:p-8 space-y-6 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 md:p-8 space-y-6 max-w-6xl mx-auto">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Reportes</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Reportes</h1>
         <p className="text-muted-foreground">
           En qué se va y de dónde viene tu dinero
         </p>
@@ -54,7 +54,7 @@ export default async function ReportsPage({
 
       <ReportFilters defaultFrom={defaultFromStr} defaultTo={defaultToStr} />
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -79,7 +79,7 @@ export default async function ReportsPage({
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="sm:col-span-2 md:col-span-1 lg:col-span-2 xl:col-span-1">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Balance del período
