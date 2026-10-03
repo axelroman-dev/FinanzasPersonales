@@ -78,7 +78,7 @@ Sobre los archivos:
 - **Cifrado:** se guardan cifrados. Quien copie la carpeta o un respaldo sin la clave no puede abrirlos.
 - **Respaldo:** un respaldo completo es **la base de datos + la carpeta `uploads` + `ATTACHMENTS_KEY`**. Si se pierde la clave, los adjuntos no se pueden recuperar.
 - **Formatos:** las fotos HEIC no se aceptan. En iPhone, Safari normalmente las convierte a JPEG al subirlas; si no, usa Ajustes › Cámara › Formatos › Más compatible.
-- **Export JSON:** el export e import en JSON no incluyen los adjuntos.
+- **Exportar / importar:** el export es un `.zip` con `datos.json` y la carpeta `adjuntos/`, con los recibos **descifrados** (para poder restaurarlos en otro servidor con otra clave): guárdalo en un lugar seguro. Al importar, los adjuntos se validan igual que una subida normal. Los `.json` de versiones anteriores se siguen pudiendo importar.
 - **Huérfanos:** para limpiar archivos que quedaron sin registro (por ejemplo, tras una caída del servidor):
   ```bash
   docker compose exec app npx tsx scripts/cleanup-attachments.ts          # lista

@@ -8,9 +8,15 @@ import {
   applyGlobalImport,
 } from "@/lib/export-import";
 import type { ExportData, GlobalExportData } from "@/lib/export-import";
+import { readBackup } from "@/lib/backup-file";
 
-// POST /api/import/preview — analiza el JSON y devuelve qué se importaría
-// POST /api/import/apply — aplica el import con la estrategia elegida
+// POST /api/import?mode=preview — analiza el JSON y devuelve qué se importaría
+// POST /api/import?mode=apply — aplica el import con la estrategia elegida
+//
+// El cuerpo es JSON ({ json, strategy, isGlobal }) o un formulario con el
+// archivo de respaldo (file, strategy, isGlobal). El preview se manda como
+// JSON (el navegador extrae los datos del zip); el apply, con el archivo,
+// porque lleva los adjuntos.
 
 const strategySchema = z.enum(["create", "overwrite", "skip"]);
 
@@ -19,12 +25,33 @@ export async function POST(req: Request) {
     const url = new URL(req.url);
     const mode = url.searchParams.get("mode"); // "preview" | "apply"
 
-    const body = await req.json();
-    const { json, strategy, isGlobal } = body as {
-      json: ExportData | GlobalExportData;
-      strategy?: "create" | "overwrite" | "skip";
-      isGlobal?: boolean;
-    };
+    // Antes de leer el cuerpo: un respaldo con adjuntos puede ser grande
+    const user = await requireUser();
+
+    let json: ExportData | GlobalExportData;
+    let strategy: unknown;
+    let isGlobal: boolean;
+    let files: Map<string, Uint8Array> | undefined;
+    if (req.headers.get("content-type")?.startsWith("multipart/form-data")) {
+      const form = await req.formData();
+      const file = form.get("file");
+      if (!(file instanceof File)) {
+        return NextResponse.json({ error: "Falta el archivo" }, { status: 400 });
+      }
+      try {
+        const backup = readBackup(new Uint8Array(await file.arrayBuffer()));
+        json = backup.json as ExportData | GlobalExportData;
+        files = backup.files;
+      } catch {
+        return NextResponse.json({ error: "Archivo de respaldo inválido" }, { status: 400 });
+      }
+      strategy = form.get("strategy") ?? undefined;
+      isGlobal = form.get("isGlobal") === "true";
+    } else {
+      const body = await req.json();
+      ({ json, strategy } = body);
+      isGlobal = body.isGlobal === true;
+    }
 
     if (!json || typeof json !== "object") {
       return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
@@ -43,7 +70,6 @@ export async function POST(req: Request) {
 
     // Global (solo admin): cada usuario del backup va a su propia cuenta,
     // buscada por email. Por usuario: los datos van al usuario actual.
-    const user = await requireUser();
     if (isGlobal || json.scope === "global") {
       if (user.role !== "ADMIN") {
         return NextResponse.json({ error: "No autorizado" }, { status: 403 });
@@ -59,6 +85,7 @@ export async function POST(req: Request) {
       const result = await applyGlobalImport({
         json: globalJson,
         strategy: parsedStrategy.data!,
+        files,
       });
       return NextResponse.json({ ok: true, ...result });
     }
@@ -72,6 +99,7 @@ export async function POST(req: Request) {
       userId: user.id,
       json: userJson,
       strategy: parsedStrategy.data!,
+      files,
     });
     return NextResponse.json({ ok: true, ...result });
   } catch (error: any) {

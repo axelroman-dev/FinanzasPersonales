@@ -10,6 +10,7 @@ import type {
   ImportResult,
   ImportStrategy,
 } from "@/lib/export-import";
+import { readBackup } from "@/lib/backup-file";
 
 /**
  * Export/import de los datos del usuario actual. Versión por usuario del
@@ -20,7 +21,7 @@ export function UserImportExportPanel() {
   const [step, setStep] = useState<"idle" | "preview" | "done">("idle");
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [strategy, setStrategy] = useState<ImportStrategy>("skip");
-  const [json, setJson] = useState<ExportData | null>(null);
+  const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [isPending, setIsPending] = useState(false);
@@ -39,7 +40,7 @@ export function UserImportExportPanel() {
     a.download =
       res.headers
         .get("Content-Disposition")
-        ?.match(/filename="([^"]+)"/)?.[1] ?? "finanzas.json";
+        ?.match(/filename="([^"]+)"/)?.[1] ?? "finanzas.zip";
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -48,7 +49,10 @@ export function UserImportExportPanel() {
     setError(null);
     setResult(null);
     try {
-      const parsed = JSON.parse(await file.text()) as ExportData;
+      // Del zip solo se leen los datos: los adjuntos viajan al importar
+      const parsed = readBackup(new Uint8Array(await file.arrayBuffer()), {
+        withFiles: false,
+      }).json as ExportData;
       if (!parsed.version || !parsed.data || parsed.scope !== "user") {
         setError(
           "Archivo inválido. Debe ser un export de tus datos (el export global se importa desde Administración)."
@@ -69,23 +73,22 @@ export function UserImportExportPanel() {
         setError(data.errors.join(". "));
         return;
       }
-      setJson(parsed);
+      setFile(file);
       setPreview(data);
       setStep("preview");
     } catch {
-      setError("Archivo JSON inválido");
+      setError("Archivo de respaldo inválido");
     }
   }
 
   async function handleApply() {
-    if (!json) return;
+    if (!file) return;
     setError(null);
     setIsPending(true);
-    const res = await fetch("/api/import?mode=apply", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ json, strategy }),
-    });
+    const form = new FormData();
+    form.append("file", file);
+    form.append("strategy", strategy);
+    const res = await fetch("/api/import?mode=apply", { method: "POST", body: form });
     setIsPending(false);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -100,7 +103,7 @@ export function UserImportExportPanel() {
   function reset() {
     setStep("idle");
     setPreview(null);
-    setJson(null);
+    setFile(null);
     setResult(null);
     setError(null);
   }
@@ -140,7 +143,17 @@ export function UserImportExportPanel() {
               <p className="text-muted-foreground">Categorías</p>
               <p className="font-semibold">{preview.totalCategories}</p>
             </div>
+            <div>
+              <p className="text-muted-foreground">Adjuntos</p>
+              <p className="font-semibold">{preview.totalAttachments}</p>
+            </div>
           </div>
+          {preview.attachmentsDisabled && (
+            <p className="text-xs text-amber-400">
+              Los adjuntos no se importarán: este servidor no tiene configurada
+              ATTACHMENTS_KEY.
+            </p>
+          )}
           {duplicates > 0 && (
             <p className="text-xs text-muted-foreground">
               {duplicates} elemento(s) ya existen en tu cuenta (mismo nombre).
@@ -189,6 +202,7 @@ export function UserImportExportPanel() {
             <li>{result.created} creado(s)</li>
             <li>{result.updated} actualizado(s)</li>
             <li>{result.skipped} saltado(s)</li>
+            {result.attachments > 0 && <li>{result.attachments} adjunto(s)</li>}
           </ul>
         </div>
         <Button variant="outline" onClick={reset}>
@@ -214,7 +228,7 @@ export function UserImportExportPanel() {
           </Button>
           <input
             type="file"
-            accept=".json,application/json"
+            accept=".zip,.json,application/zip,application/json"
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];

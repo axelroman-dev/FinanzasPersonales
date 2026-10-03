@@ -9,6 +9,7 @@ import type {
   GlobalImportResult,
   ImportStrategy,
 } from "@/lib/export-import";
+import { readBackup } from "@/lib/backup-file";
 
 /**
  * Variante del ImportExportPanel pero para export/import global (solo admin).
@@ -18,7 +19,7 @@ export function GlobalImportExportPanel() {
   const [step, setStep] = useState<"idle" | "preview" | "done">("idle");
   const [preview, setPreview] = useState<GlobalImportPreview | null>(null);
   const [strategy, setStrategy] = useState<ImportStrategy>("create");
-  const [json, setJson] = useState<GlobalExportData | null>(null);
+  const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<GlobalImportResult | null>(null);
 
@@ -36,7 +37,7 @@ export function GlobalImportExportPanel() {
     a.download =
       res.headers
         .get("Content-Disposition")
-        ?.match(/filename="([^"]+)"/)?.[1] ?? "finanzas-global.json";
+        ?.match(/filename="([^"]+)"/)?.[1] ?? "finanzas-global.zip";
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -45,15 +46,17 @@ export function GlobalImportExportPanel() {
     setError(null);
     setResult(null);
     try {
-      const text = await file.text();
-      const parsed = JSON.parse(text) as GlobalExportData;
+      // Del zip solo se leen los datos: los adjuntos viajan al importar
+      const parsed = readBackup(new Uint8Array(await file.arrayBuffer()), {
+        withFiles: false,
+      }).json as GlobalExportData;
       if (!parsed.version || !parsed.users || parsed.scope !== "global") {
         setError(
           "Archivo inválido. Debe ser un export global (scope: 'global')."
         );
         return;
       }
-      setJson(parsed);
+      setFile(file);
       setStep("preview");
       const res = await fetch("/api/import?mode=preview", {
         method: "POST",
@@ -68,21 +71,21 @@ export function GlobalImportExportPanel() {
       const data = await res.json();
       setPreview(data);
     } catch (err) {
-      setError("Archivo JSON inválido");
+      setError("Archivo de respaldo inválido");
       setStep("idle");
     }
   }
 
   async function handleApply() {
-    if (!json || !preview) return;
+    if (!file || !preview) return;
     setError(null);
-    const res = await fetch("/api/import?mode=apply", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ json, strategy, isGlobal: true }),
-    });
+    const form = new FormData();
+    form.append("file", file);
+    form.append("strategy", strategy);
+    form.append("isGlobal", "true");
+    const res = await fetch("/api/import?mode=apply", { method: "POST", body: form });
     if (!res.ok) {
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       setError(data.error || "Error al importar");
       return;
     }
@@ -94,7 +97,7 @@ export function GlobalImportExportPanel() {
   function reset() {
     setStep("idle");
     setPreview(null);
-    setJson(null);
+    setFile(null);
     setResult(null);
     setError(null);
   }
@@ -162,7 +165,17 @@ export function GlobalImportExportPanel() {
               <p className="text-muted-foreground">Categorías</p>
               <p className="font-semibold">{preview.totalCategories}</p>
             </div>
+            <div>
+              <p className="text-muted-foreground">Adjuntos</p>
+              <p className="font-semibold">{preview.totalAttachments}</p>
+            </div>
           </div>
+          {preview.attachmentsDisabled && (
+            <p className="text-xs text-amber-400">
+              Los adjuntos no se importarán: este servidor no tiene configurada
+              ATTACHMENTS_KEY.
+            </p>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -208,6 +221,7 @@ export function GlobalImportExportPanel() {
             <li>{result.created} creado(s)</li>
             <li>{result.updated} actualizado(s)</li>
             <li>{result.skipped} saltado(s)</li>
+            {result.attachments > 0 && <li>{result.attachments} adjunto(s)</li>}
           </ul>
         </div>
         {result.createdUsers.length > 0 && (
@@ -253,7 +267,7 @@ export function GlobalImportExportPanel() {
           </Button>
           <input
             type="file"
-            accept=".json,application/json"
+            accept=".zip,.json,application/zip,application/json"
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -276,7 +290,7 @@ export function GlobalImportExportPanel() {
         </p>
         <p>
           El export global contiene datos de <strong>todos</strong> los usuarios
-          (sin contraseñas ni recibos adjuntos). Al importarlo, los datos de cada usuario van a la
+          (sin contraseñas; con los recibos adjuntos, descifrados). Al importarlo, los datos de cada usuario van a la
           cuenta con su mismo email; si no existe, se crea con una contraseña
           temporal.
         </p>
