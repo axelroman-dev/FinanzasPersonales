@@ -7,13 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { AccountActions, AccountEditButton } from "@/components/accounts/account-actions";
 import { Button } from "@/components/ui/button";
 import { Plus, Wallet } from "lucide-react";
-
-const typeLabels: Record<string, string> = {
-  DEBIT: "Débito",
-  CREDIT: "Crédito",
-  SAVINGS: "Ahorro",
-  VOUCHER: "Vales de despensa",
-};
+import { ACCOUNT_TYPE_LABEL, ACCOUNT_TYPE_ORDER } from "@/lib/account-types";
 
 export default async function AccountsPage() {
   const user = await requireUser();
@@ -32,7 +26,7 @@ export default async function AccountsPage() {
     {} as Record<string, typeof accounts>
   );
 
-  const typeOrder: Array<keyof typeof typeLabels> = ["DEBIT", "CREDIT", "SAVINGS", "VOUCHER"];
+  const typeOrder = ACCOUNT_TYPE_ORDER;
 
   return (
     <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
@@ -81,7 +75,7 @@ export default async function AccountsPage() {
         return (
           <div key={type} className="space-y-3">
             <div className="flex items-baseline justify-between border-b pb-2">
-              <h2 className="text-lg font-semibold">{typeLabels[type]}</h2>
+              <h2 className="text-lg font-semibold">{ACCOUNT_TYPE_LABEL[type]}</h2>
               <div className="text-sm">
                 <span className="text-muted-foreground">Subtotal: </span>
                 <span className="font-semibold">{formatCurrency(subtotal)}</span>

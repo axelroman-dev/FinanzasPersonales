@@ -12,13 +12,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Trash2 } from "lucide-react";
 import {
@@ -26,8 +19,8 @@ import {
   type CategoryOption,
 } from "@/components/shared/category-select";
 import { useFormResetKey } from "@/hooks/use-form-reset-key";
+import { AccountSelect, type AccountOption } from "@/components/shared/account-select";
 
-type AccountOpt = { id: string; name: string; type: string };
 type SubFormData = {
   id: string;
   name: string;
@@ -46,7 +39,7 @@ export function SubscriptionActions({
   children,
 }: {
   mode: "create" | "edit";
-  accounts: AccountOpt[];
+  accounts: AccountOption[];
   categories: CategoryOption[];
   subscription?: SubFormData;
   children?: React.ReactNode;
@@ -78,7 +71,7 @@ function SubFormDialog({
   onSaved,
 }: {
   mode: "create" | "edit";
-  accounts: AccountOpt[];
+  accounts: AccountOption[];
   categories: CategoryOption[];
   subscription?: SubFormData;
   onClose: () => void;
@@ -202,18 +195,11 @@ function SubFormDialog({
 
         <div className="space-y-2">
           <Label>Cuenta donde se cobra</Label>
-          <Select value={accountId} onValueChange={setAccountId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecciona cuenta" />
-            </SelectTrigger>
-            <SelectContent>
-              {accounts.map((a) => (
-                <SelectItem key={a.id} value={a.id}>
-                  {a.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <AccountSelect
+            accounts={accounts}
+            value={accountId}
+            onChange={setAccountId}
+          />
         </div>
 
         <div className="space-y-2">
