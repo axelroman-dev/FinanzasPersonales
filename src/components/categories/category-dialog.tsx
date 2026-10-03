@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
+  DialogActions,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -222,7 +223,7 @@ function CatFormDialog({
           </div>
         )}
 
-        <div className="flex justify-end gap-2 pt-2">
+        <DialogActions className="justify-end">
           <Button type="button" variant="outline" onClick={onClose}>
             Cancelar
           </Button>
@@ -230,7 +231,7 @@ function CatFormDialog({
             {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
             {mode === "create" ? "Crear" : "Guardar"}
           </Button>
-        </div>
+        </DialogActions>
       </form>
     </DialogContent>
   );

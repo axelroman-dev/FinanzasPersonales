@@ -1,13 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { cn, formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Plus, FolderTree } from "lucide-react";
-import { CategoryDialog } from "./category-dialog";
-import { useEffect, useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type CatNode = {
   id: string;
@@ -34,21 +39,77 @@ export function CategorySidebar({
   const incomes = categories.filter((c) => c.kind === "INCOME");
 
   return (
-    <div className="space-y-6">
-      <SidebarGroup
-        title="Gastos"
-        badgeVariant="destructive"
-        categories={expenses}
+    <>
+      {/* Móvil y tablet: selector compacto; la lista completa empujaba el detalle
+          hacia abajo o, junto a la barra lateral, lo dejaba sin espacio */}
+      <MobilePicker
+        expenses={expenses}
+        incomes={incomes}
         selectedId={selectedId}
-        monthlyTotals={monthlyTotals}
       />
-      <SidebarGroup
-        title="Ingresos"
-        badgeVariant="success"
-        categories={incomes}
-        selectedId={selectedId}
-        monthlyTotals={monthlyTotals}
-      />
+      <div className="hidden space-y-6 xl:block">
+        <SidebarGroup
+          title="Gastos"
+          badgeVariant="destructive"
+          categories={expenses}
+          selectedId={selectedId}
+          monthlyTotals={monthlyTotals}
+        />
+        <SidebarGroup
+          title="Ingresos"
+          badgeVariant="success"
+          categories={incomes}
+          selectedId={selectedId}
+          monthlyTotals={monthlyTotals}
+        />
+      </div>
+    </>
+  );
+}
+
+function MobilePicker({
+  expenses,
+  incomes,
+  selectedId,
+}: {
+  expenses: CatNode[];
+  incomes: CatNode[];
+  selectedId: string | null;
+}) {
+  const router = useRouter();
+  const groups = [
+    { label: "Gastos", items: expenses },
+    { label: "Ingresos", items: incomes },
+  ].filter((g) => g.items.length > 0);
+
+  return (
+    <div className="xl:hidden">
+      <Select
+        value={selectedId ?? undefined}
+        onValueChange={(id) => router.push(`/categories?selected=${id}`)}
+      >
+        <SelectTrigger aria-label="Categoría">
+          <SelectValue placeholder="Elige una categoría" />
+        </SelectTrigger>
+        <SelectContent>
+          {groups.map((group) => (
+            <SelectGroup key={group.label}>
+              <SelectLabel>{group.label}</SelectLabel>
+              {group.items.map((cat) => (
+                <SelectItem key={cat.id} value={cat.id}>
+                  <span className="flex items-center gap-2">
+                    <span
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: cat.color ?? "#71717a" }}
+                    />
+                    {cat.name}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }

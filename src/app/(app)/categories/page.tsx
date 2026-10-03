@@ -46,10 +46,10 @@ export default async function CategoriesPage({
   // Sin categorías → estado vacío
   if (tree.length === 0) {
     return (
-      <div className="p-6 md:p-8 max-w-5xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
+      <div className="p-4 sm:p-6 md:p-8 max-w-5xl mx-auto">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Categorías</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Categorías</h1>
             <p className="text-muted-foreground">
               Organiza tus ingresos y gastos para entender mejor tus finanzas
             </p>
@@ -101,10 +101,10 @@ export default async function CategoriesPage({
     : [];
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Categorías</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Categorías</h1>
           <p className="text-muted-foreground">
             Selecciona una categoría para ver y editar sus subcategorías
           </p>
@@ -117,9 +117,10 @@ export default async function CategoriesPage({
         </CategoryDialog>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-[260px_1fr]">
-        {/* Sidebar */}
-        <aside className="md:sticky md:top-6 md:self-start">
+      {/* minmax(0,…): sin él, la tabla ancha estira la columna más allá de la pantalla */}
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[260px_minmax(0,1fr)]">
+        {/* Sidebar (en móvil y tablet, selector desplegable) */}
+        <aside className="min-w-0 xl:sticky xl:top-6 xl:self-start">
           <CategorySidebar
             categories={tree}
             selectedId={selectedId}

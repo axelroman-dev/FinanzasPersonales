@@ -13,9 +13,9 @@ export default async function ProfilePage() {
   const isSystem = isSystemAdmin(user);
 
   return (
-    <div className="p-6 md:p-8 max-w-3xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 md:p-8 max-w-3xl mx-auto space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Mi perfil</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Mi perfil</h1>
         <p className="text-muted-foreground">
           Administra tu información personal, contraseña y datos
         </p>

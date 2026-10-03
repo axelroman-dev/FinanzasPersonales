@@ -30,6 +30,7 @@ import {
 import { cn, formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { CategoryDialog } from "./category-dialog";
+import { useAlert, useConfirm } from "@/components/shared/confirm-dialog";
 
 export type Subcategory = {
   id: string;
@@ -84,8 +85,8 @@ export function SubcategoryTable({
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between gap-4">
+      <CardHeader className="p-4 sm:p-6">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between lg:gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <div
               className="h-10 w-10 rounded-md shrink-0"
@@ -117,7 +118,7 @@ export function SubcategoryTable({
 
           <div className="flex items-center gap-2 shrink-0">
             <CategoryDialog mode="create" parentId={category.id}>
-              <Button size="sm">
+              <Button size="sm" className="flex-1 lg:flex-none">
                 <Plus className="h-4 w-4" />
                 Nueva subcategoría
               </Button>
@@ -131,8 +132,9 @@ export function SubcategoryTable({
         </div>
 
         {/* KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-4">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 pt-4">
           <Kpi
+            className="col-span-2 lg:col-span-1"
             label={category.kind === "EXPENSE" ? "Gasto del mes" : "Ingreso del mes"}
             value={formatCurrency(expenseTotal + incomeTotal)}
             color={category.kind === "EXPENSE" ? "text-red-400" : "text-emerald-400"}
@@ -149,21 +151,21 @@ export function SubcategoryTable({
         </div>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
         {subcategories.length === 0 ? (
           <EmptyState categoryName={category.name} categoryId={category.id} />
         ) : (
-          <div className="rounded-md border">
+          <div className="overflow-x-auto rounded-md border">
             <table className="w-full">
               <thead>
                 <tr className="border-b text-left text-xs font-medium text-muted-foreground">
-                  <th className="px-4 py-2.5">Subcategoría</th>
-                  <th className="px-4 py-2.5 text-right">Movimientos</th>
-                  <th className="px-4 py-2.5 text-right">
+                  <th className="px-3 py-2.5 sm:px-4">Subcategoría</th>
+                  <th className="hidden px-4 py-2.5 text-right lg:table-cell">Movimientos</th>
+                  <th className="px-3 py-2.5 text-right sm:px-4">
                     {category.kind === "EXPENSE" ? "Gasto del mes" : "Ingreso del mes"}
                   </th>
-                  <th className="px-4 py-2.5 text-right">Uso total</th>
-                  <th className="px-4 py-2.5 w-12"></th>
+                  <th className="hidden px-4 py-2.5 text-right lg:table-cell">Uso total</th>
+                  <th className="w-10 px-1 py-2.5 sm:w-12 sm:px-4"></th>
                 </tr>
               </thead>
               <tbody>
@@ -182,19 +184,19 @@ export function SubcategoryTable({
               {monthlyStats.length > 0 && (
                 <tfoot>
                   <tr className="border-t bg-secondary/30 font-medium">
-                    <td className="px-4 py-2.5 text-sm">Total del mes</td>
-                    <td className="px-4 py-2.5 text-sm text-right tabular-nums">
+                    <td className="px-3 py-2.5 text-sm sm:px-4">Total del mes</td>
+                    <td className="hidden px-4 py-2.5 text-sm text-right tabular-nums lg:table-cell">
                       {totalMovements}
                     </td>
                     <td
                       className={cn(
-                        "px-4 py-2.5 text-sm text-right tabular-nums font-semibold",
+                        "px-3 py-2.5 text-sm text-right tabular-nums font-semibold sm:px-4",
                         category.kind === "EXPENSE" ? "text-red-400" : "text-emerald-400"
                       )}
                     >
                       {formatCurrency(expenseTotal + incomeTotal)}
                     </td>
-                    <td></td>
+                    <td className="hidden lg:table-cell"></td>
                     <td></td>
                   </tr>
                 </tfoot>
@@ -212,16 +214,18 @@ function Kpi({
   value,
   sublabel,
   color,
+  className,
 }: {
   label: string;
   value: string;
   sublabel?: string;
   color?: string;
+  className?: string;
 }) {
   return (
-    <div className="rounded-md border bg-card p-3 space-y-1">
+    <div className={cn("rounded-md border bg-card p-3 space-y-1", className)}>
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={cn("text-lg font-bold tabular-nums", color)}>{value}</p>
+      <p className={cn("text-lg font-bold tabular-nums break-words", color)}>{value}</p>
       {sublabel && <p className="text-xs text-muted-foreground">{sublabel}</p>}
     </div>
   );
@@ -264,23 +268,32 @@ function CategoryMenu({
   subcategoryCount: number;
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
+  const showAlert = useAlert();
   const [isPending, startTransition] = useTransition();
   const [editOpen, setEditOpen] = useState(false);
 
-  function onDelete() {
+  async function onDelete() {
     const details = [
       subcategoryCount > 0 &&
         `Se eliminarán también sus ${subcategoryCount} subcategoría(s).`,
       category.usageCount > 0 &&
-        `${category.usageCount} movimiento(s) quedarán SIN categoría.`,
-    ].filter(Boolean);
-    if (
-      !confirm(
-        [`¿Eliminar la categoría "${category.name}"?`, ...details].join("\n\n")
-      )
-    ) {
-      return;
-    }
+        `${category.usageCount} movimiento(s) quedarán sin categoría.`,
+    ].filter((d): d is string => !!d);
+    const ok = await confirm({
+      title: `¿Eliminar la categoría "${category.name}"?`,
+      description: (
+        <>
+          {details.map((d) => (
+            <p key={d}>{d}</p>
+          ))}
+          <p>Esta acción no se puede deshacer.</p>
+        </>
+      ),
+      confirmLabel: "Eliminar categoría",
+      destructive: true,
+    });
+    if (!ok) return;
     startTransition(async () => {
       // force: el usuario ya confirmó desvincular los movimientos
       const res = await fetch(`/api/categories/${category.id}?force=true`, {
@@ -288,7 +301,10 @@ function CategoryMenu({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        alert(data.error || "Error al eliminar");
+        showAlert({
+          title: "No se pudo eliminar",
+          description: data.error || "Error al eliminar",
+        });
         return;
       }
       router.push("/categories");
@@ -363,6 +379,8 @@ function SubcategoryRow({
   category: { id: string; kind: CategoryKind };
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
+  const showAlert = useAlert();
   const [isPending, startTransition] = useTransition();
   const [editOpen, setEditOpen] = useState(false);
   const [hidden, setHidden] = useState(false);
@@ -370,14 +388,22 @@ function SubcategoryRow({
 
   async function onDelete() {
     if (isProtected) return;
+    const ok = await confirm({
+      title: `¿Eliminar la subcategoría "${sub.name}"?`,
+      description: "Esta acción no se puede deshacer.",
+      confirmLabel: "Eliminar",
+      destructive: true,
+    });
+    if (!ok) return;
     const probe = await fetch(`/api/categories/${sub.id}`, { method: "DELETE" });
     if (probe.status === 409) {
       const data = await probe.json();
-      const force = confirm(
-        `"${sub.name}" tiene ${data.usageCount ?? 0} movimiento(s) vinculado(s).\n\n` +
-          `Si la eliminas con "force", esos movimientos quedarán SIN categoría.\n\n` +
-          `¿Continuar?`
-      );
+      const force = await confirm({
+        title: `¿Eliminar "${sub.name}"?`,
+        description: `Tiene ${data.usageCount ?? 0} movimiento(s) vinculado(s). Si la eliminas, esos movimientos quedarán sin categoría.`,
+        confirmLabel: "Eliminar",
+        destructive: true,
+      });
       if (!force) return;
       startTransition(async () => {
         const res = await fetch(`/api/categories/${sub.id}?force=true`, {
@@ -385,7 +411,10 @@ function SubcategoryRow({
         });
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
-          alert(errData.error || "Error al eliminar");
+          showAlert({
+            title: "No se pudo eliminar",
+            description: errData.error || "Error al eliminar",
+          });
           return;
         }
         router.refresh();
@@ -393,7 +422,7 @@ function SubcategoryRow({
       return;
     }
     if (!probe.ok) {
-      alert("Error al eliminar");
+      showAlert({ title: "No se pudo eliminar", description: "Error al eliminar" });
       return;
     }
     router.refresh();
@@ -406,23 +435,29 @@ function SubcategoryRow({
 
   return (
     <tr className={cn("border-b last:border-0 hover:bg-secondary/30", hidden && "opacity-50")}>
-      <td className="px-4 py-2.5">
+      <td className="px-3 py-2.5 sm:px-4">
         <div className="flex items-center gap-2">
           <div
             className="h-2.5 w-2.5 rounded-full shrink-0"
             style={{ backgroundColor: sub.color ?? "#71717a" }}
           />
-          <span className={cn("text-sm font-medium", hidden && "line-through")}>
-            {sub.name}
-          </span>
+          <div className="min-w-0">
+            <span className={cn("text-sm font-medium", hidden && "line-through")}>
+              {sub.name}
+            </span>
+            {/* En móvil y tablet las columnas de conteo se ocultan: resumen bajo el nombre */}
+            <p className="text-xs text-muted-foreground lg:hidden">
+              {stat?.count ?? 0} este mes · {sub.usageCount} en total
+            </p>
+          </div>
         </div>
       </td>
-      <td className="px-4 py-2.5 text-sm text-right tabular-nums text-muted-foreground">
+      <td className="hidden px-4 py-2.5 text-sm text-right tabular-nums text-muted-foreground lg:table-cell">
         {stat?.count ?? 0}
       </td>
       <td
         className={cn(
-          "px-4 py-2.5 text-sm text-right tabular-nums font-medium",
+          "px-3 py-2.5 text-sm text-right tabular-nums font-medium whitespace-nowrap sm:px-4",
           singleColor
         )}
       >
@@ -430,10 +465,10 @@ function SubcategoryRow({
           <span className="text-muted-foreground">$0.00</span>
         )}
       </td>
-      <td className="px-4 py-2.5 text-sm text-right tabular-nums text-muted-foreground">
+      <td className="hidden px-4 py-2.5 text-sm text-right tabular-nums text-muted-foreground lg:table-cell">
         {sub.usageCount > 0 ? sub.usageCount : <span className="text-xs">—</span>}
       </td>
-      <td className="px-4 py-2.5">
+      <td className="px-1 py-2.5 sm:px-4">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
