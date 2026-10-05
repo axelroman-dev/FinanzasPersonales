@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.7.0...v0.8.0) (2026-10-05)
+
+
+### Nuevas funciones
+
+* **reports:** mostrar lo que quedó sin registrar según los ajustes de cuenta ([#40](https://github.com/axelroman-dev/FinanzasPersonales/issues/40)) ([0f3723c](https://github.com/axelroman-dev/FinanzasPersonales/commit/0f3723cca0a1a19d243fa45b47be8154f0b3ea06))
+
+
+### Correcciones
+
+* **transactions:** mostrar el balance inicial en blanco y con guion ([#39](https://github.com/axelroman-dev/FinanzasPersonales/issues/39)) ([737cbe1](https://github.com/axelroman-dev/FinanzasPersonales/commit/737cbe1e893b380313d8c47eecefab84029defee))
+
 ## [0.7.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.6.1...v0.7.0) (2026-10-03)
 
 
