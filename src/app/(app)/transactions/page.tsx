@@ -2,6 +2,7 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getCategoryTree } from "@/lib/categories";
 import { attachmentsEnabled } from "@/lib/storage/crypto";
+import { INTERNAL_CATEGORIES } from "@/lib/internal-categories";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, ArrowLeftRight } from "lucide-react";
@@ -151,6 +152,8 @@ export default async function TransactionsPage({
               categoryName: cat ? `${rootCat?.name ?? ""}${cat.parent ? ` › ${cat.name}` : ""}` : null,
               categoryColor: cat?.color ?? null,
               isAdjustment: cat?.kind === "INTERNAL",
+              isInitialBalance:
+                cat?.kind === "INTERNAL" && cat.name === INTERNAL_CATEGORIES.INITIAL_BALANCE,
               accountName: t.account.name,
               transferAccountName: t.transferAccount?.name ?? null,
               isMsi: t.isMsi,
