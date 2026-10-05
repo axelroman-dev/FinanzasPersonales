@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.8.0...v0.8.1) (2026-10-05)
+
+
+### Correcciones
+
+* **transactions:** limpiar también los select y las fechas de los filtros ([#42](https://github.com/axelroman-dev/FinanzasPersonales/issues/42)) ([352990a](https://github.com/axelroman-dev/FinanzasPersonales/commit/352990afea30240a291f38c8c8f427ed1205dc88))
+
 ## [0.8.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.7.0...v0.8.0) (2026-10-05)
 
 
