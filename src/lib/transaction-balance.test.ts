@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   adjustmentMovement,
+  adjustmentsNet,
   balanceEffects,
   editEffects,
   revertEffects,
@@ -176,5 +177,21 @@ describe("adjustmentMovement", () => {
     ["CREDIT", 4000, 3500.5],
   ] as const)("en %s lleva el balance de %d a %d", (type, from, to) => {
     expect(apply(type, from, to)).toBe(to);
+  });
+});
+
+describe("adjustmentsNet", () => {
+  it("suma los ajustes que suben y resta los que bajan", () => {
+    expect(
+      adjustmentsNet([
+        { type: "EXPENSE", amount: 2000 },
+        { type: "INCOME", amount: "500.50" },
+        { type: "EXPENSE", amount: 0.5 },
+      ])
+    ).toBe(-1500);
+  });
+
+  it("sin ajustes es cero", () => {
+    expect(adjustmentsNet([])).toBe(0);
   });
 });

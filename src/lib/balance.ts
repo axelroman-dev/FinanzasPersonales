@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { Decimal } from "@prisma/client/runtime/library";
-import { excludeInternal } from "@/lib/internal-categories";
+import { INTERNAL_CATEGORIES, excludeInternal } from "@/lib/internal-categories";
+import { adjustmentsNet } from "@/lib/transaction-balance";
 import { getPaidSubscriptionIds, summarizeSubscriptions } from "@/lib/subscriptions";
 
 export type BalanceSummary = {
@@ -221,4 +222,21 @@ export async function getMonthlyFlow(userId: string) {
   });
 
   return cumulative;
+}
+
+/**
+ * Dinero sin registrar en un periodo: el neto de los «Ajuste de cuenta», que
+ * aparecen cuando se corrige a mano el balance de una cuenta. Negativo indica
+ * gastos que no se registraron. No incluye el «Balance inicial».
+ */
+export async function getUnrecordedTotal(userId: string, from: Date, to: Date) {
+  const adjustments = await prisma.transaction.findMany({
+    where: {
+      userId,
+      date: { gte: from, lte: to },
+      categoryRef: { kind: "INTERNAL", name: INTERNAL_CATEGORIES.ADJUSTMENT },
+    },
+    select: { type: true, amount: true },
+  });
+  return { net: adjustmentsNet(adjustments), count: adjustments.length };
 }

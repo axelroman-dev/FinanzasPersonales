@@ -1,5 +1,10 @@
 import { requireUser } from "@/lib/auth";
-import { calculateBalance, getUpcomingCreditEvents, getMonthlyFlow } from "@/lib/balance";
+import {
+  calculateBalance,
+  getUpcomingCreditEvents,
+  getMonthlyFlow,
+  getUnrecordedTotal,
+} from "@/lib/balance";
 import { formatCurrency, formatShortDate } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,10 +12,16 @@ import { MonthlyFlowChart } from "@/components/dashboard/monthly-flow-chart";
 
 export default async function DashboardPage() {
   const user = await requireUser();
-  const [balance, events, flow] = await Promise.all([
+  const now = new Date();
+  const [balance, events, flow, unrecorded] = await Promise.all([
     calculateBalance(user.id),
     getUpcomingCreditEvents(user.id),
     getMonthlyFlow(user.id),
+    getUnrecordedTotal(
+      user.id,
+      new Date(now.getFullYear(), now.getMonth(), 1),
+      new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+    ),
   ]);
 
   const balancePositive = balance.realBalance >= 0;
@@ -111,6 +122,15 @@ export default async function DashboardPage() {
             <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 text-xs text-muted-foreground mb-2">
               <span>Ingresos: {formatCurrency(totalIncome)}</span>
               <span>Gastos: {formatCurrency(totalExpense)}</span>
+              {/* Ajustes de cuenta: no son ingreso ni gasto, pero muestran lo que faltó registrar */}
+              {unrecorded.count > 0 && (
+                <span
+                  className="text-amber-400"
+                  title="Neto de los ajustes de cuenta del mes; no se suma a ingresos ni gastos"
+                >
+                  Sin registrar: {formatCurrency(unrecorded.net)}
+                </span>
+              )}
             </div>
             <MonthlyFlowChart data={flow} />
           </CardContent>
