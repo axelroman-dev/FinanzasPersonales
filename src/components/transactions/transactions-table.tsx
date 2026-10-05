@@ -12,6 +12,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   ArrowLeftRight,
+  Minus,
   Loader2,
   Pencil,
   Trash2,
@@ -35,6 +36,8 @@ type Tx = {
   categoryColor: string | null;
   /** Movimiento con categoría interna (balance inicial o ajuste de cuenta) */
   isAdjustment: boolean;
+  /** Movimiento de «Balance inicial»: se muestra neutro, no es ingreso ni gasto */
+  isInitialBalance: boolean;
   accountName: string;
   transferAccountName: string | null;
   isMsi: boolean;
@@ -126,14 +129,16 @@ export function TransactionsTable({
 }
 
 function txVisuals(tx: Tx) {
-  const Icon =
-    tx.type === "INCOME"
+  const Icon = tx.isInitialBalance
+    ? Minus
+    : tx.type === "INCOME"
       ? ArrowUpRight
       : tx.type === "EXPENSE"
       ? ArrowDownRight
       : ArrowLeftRight;
-  const color =
-    tx.type === "INCOME"
+  const color = tx.isInitialBalance
+    ? "text-foreground"
+    : tx.type === "INCOME"
       ? "text-emerald-400"
       : tx.type === "EXPENSE"
       ? "text-red-400"
