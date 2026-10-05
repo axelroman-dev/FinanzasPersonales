@@ -112,3 +112,20 @@ export function adjustmentMovement(
   const increases = accountType === "CREDIT" ? delta.isNeg() : delta.isPos();
   return { type: increases ? "INCOME" : "EXPENSE", amount: delta.abs() };
 }
+
+/**
+ * Efecto neto de varios ajustes de cuenta: positivo si en total apareció
+ * dinero que no estaba registrado, negativo si faltaba (gastos sin registrar).
+ * Cada ajuste ya trae su dirección en el tipo, también los de crédito.
+ */
+export function adjustmentsNet(
+  adjustments: { type: TransactionType; amount: Prisma.Decimal | number | string }[]
+): number {
+  return adjustments
+    .reduce(
+      (net, a) =>
+        a.type === "INCOME" ? net.add(a.amount) : a.type === "EXPENSE" ? net.sub(a.amount) : net,
+      new Prisma.Decimal(0)
+    )
+    .toNumber();
+}

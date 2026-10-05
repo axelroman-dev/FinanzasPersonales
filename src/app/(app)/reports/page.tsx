@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/auth";
 import { getCategoryTotals } from "@/lib/categories";
+import { getUnrecordedTotal } from "@/lib/balance";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
@@ -34,9 +35,10 @@ export default async function ReportsPage({
   const from = new Date(fromStr + "T00:00:00");
   const to = new Date(toStr + "T23:59:59.999");
 
-  const [expenses, incomes] = await Promise.all([
+  const [expenses, incomes, unrecorded] = await Promise.all([
     getCategoryTotals({ userId: user.id, type: "EXPENSE", from, to }),
     getCategoryTotals({ userId: user.id, type: "INCOME", from, to }),
+    getUnrecordedTotal(user.id, from, to),
   ]);
 
   const totalExpense = expenses.reduce((s, e) => s + e.total, 0);
@@ -96,6 +98,26 @@ export default async function ReportsPage({
           </CardContent>
         </Card>
       </div>
+
+      {/* Ajustes de cuenta: no entran en los totales, pero muestran lo que faltó registrar */}
+      {unrecorded.count > 0 && (
+        <Card>
+          <CardContent className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 p-4">
+            <div>
+              <p className="text-sm font-medium">Sin registrar</p>
+              <p className="text-xs text-muted-foreground">
+                {unrecorded.count === 1
+                  ? "1 ajuste de cuenta"
+                  : `${unrecorded.count} ajustes de cuenta`}{" "}
+                en el período; no se suman a ingresos ni gastos
+              </p>
+            </div>
+            <p className="text-xl font-bold tabular-nums text-amber-400">
+              {formatCurrency(unrecorded.net)}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <CategoryList
