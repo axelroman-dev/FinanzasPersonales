@@ -150,7 +150,9 @@ export default async function TransactionsPage({
               description: t.description,
               category: t.category,
               categoryName: cat ? `${rootCat?.name ?? ""}${cat.parent ? ` › ${cat.name}` : ""}` : null,
-              categoryColor: cat?.color ?? null,
+              // Las subcategorías usan el color de su principal
+              categoryColor: rootCat?.color ?? null,
+              categoryIcon: cat ? cat.icon ?? rootCat?.icon ?? null : null,
               isAdjustment: cat?.kind === "INTERNAL",
               isInitialBalance:
                 cat?.kind === "INTERNAL" && cat.name === INTERNAL_CATEGORIES.INITIAL_BALANCE,

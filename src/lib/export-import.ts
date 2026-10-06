@@ -7,6 +7,7 @@ import { attachmentPath } from "@/lib/backup-file";
 import { encrypt, getAttachmentsKey } from "@/lib/storage/crypto";
 import { newStorageKey } from "@/lib/storage/keys";
 import { getStorage } from "@/lib/storage/storage";
+import { normalizeCategoryIcon } from "@/lib/category-icons";
 
 /**
  * Estructura del JSON de export/import.
@@ -690,6 +691,13 @@ async function importDataTx(
     );
     if (id) categoryIdMap.set(categoryKey(cat.parentName, cat.name), id);
   }
+  // Las subcategorías usan el color de su principal (un respaldo viejo puede
+  // traer otro)
+  await tx.$executeRaw`
+    UPDATE "Category" c SET "color" = p."color"
+    FROM "Category" p
+    WHERE c."parentId" = p."id" AND c."userId" = ${userId}
+  `;
 
   // 2. Cuentas: batch lookup
   const accountIdMap = new Map<string, string>();
@@ -871,7 +879,11 @@ async function upsertCategoryTx(
     if (strategy === "overwrite") {
       await tx.category.update({
         where: { id: existingId },
-        data: { kind: importKind(cat.kind), color: cat.color, icon: cat.icon },
+        data: {
+          kind: importKind(cat.kind),
+          color: cat.color,
+          icon: normalizeCategoryIcon(cat.icon),
+        },
       });
       result.updated++;
       return existingId;
@@ -888,7 +900,7 @@ async function upsertCategoryTx(
       parentId,
       kind: importKind(cat.kind),
       color: cat.color,
-      icon: cat.icon,
+      icon: normalizeCategoryIcon(cat.icon),
     },
   });
   existingKeys.add(key);

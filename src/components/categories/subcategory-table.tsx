@@ -30,6 +30,7 @@ import {
 import { cn, formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { CategoryDialog } from "./category-dialog";
+import { CategoryIcon } from "@/components/shared/category-icon";
 import { useAlert, useConfirm } from "@/components/shared/confirm-dialog";
 
 export type Subcategory = {
@@ -88,17 +89,7 @@ export function SubcategoryTable({
       <CardHeader className="p-4 sm:p-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between lg:gap-4">
           <div className="flex items-center gap-3 min-w-0">
-            <div
-              className="h-10 w-10 rounded-md shrink-0"
-              style={{ backgroundColor: (category.color ?? "#71717a") + "30" }}
-            >
-              <div
-                className="h-full w-full rounded-md flex items-center justify-center text-sm font-bold"
-                style={{ color: category.color ?? "#71717a" }}
-              >
-                {category.name.slice(0, 2).toUpperCase()}
-              </div>
-            </div>
+            <CategoryIcon icon={category.icon} color={category.color} size="lg" />
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <CardTitle className="truncate">{category.name}</CardTitle>
@@ -117,7 +108,7 @@ export function SubcategoryTable({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <CategoryDialog mode="create" parentId={category.id}>
+            <CategoryDialog mode="create" parentId={category.id} parent={category}>
               <Button size="sm" className="flex-1 lg:flex-none">
                 <Plus className="h-4 w-4" />
                 Nueva subcategoría
@@ -153,7 +144,7 @@ export function SubcategoryTable({
 
       <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
         {subcategories.length === 0 ? (
-          <EmptyState categoryName={category.name} categoryId={category.id} />
+          <EmptyState category={category} />
         ) : (
           <div className="overflow-x-auto rounded-md border">
             <table className="w-full">
@@ -232,18 +223,19 @@ function Kpi({
 }
 
 function EmptyState({
-  categoryName,
-  categoryId,
+  category,
 }: {
-  categoryName: string;
-  categoryId: string;
+  category: { id: string; name: string; color: string | null; icon: string | null };
 }) {
   return (
     <div className="rounded-md border border-dashed p-8 text-center">
-      <p className="text-sm text-muted-foreground mb-3">
-        {categoryName} aún no tiene subcategorías
+      <p className="text-sm text-muted-foreground mb-1">
+        {category.name} aún no tiene subcategorías
       </p>
-      <CategoryDialog mode="create" parentId={categoryId}>
+      <p className="text-xs text-muted-foreground mb-3">
+        Los movimientos se asignan a una subcategoría; la categoría solo las agrupa
+      </p>
+      <CategoryDialog mode="create" parentId={category.id} parent={category}>
         <Button size="sm" variant="outline">
           <Plus className="h-4 w-4" />
           Crear primera subcategoría
@@ -376,7 +368,7 @@ function SubcategoryRow({
 }: {
   sub: Subcategory;
   stat: SubcategoryStat | undefined;
-  category: { id: string; kind: CategoryKind };
+  category: { id: string; kind: CategoryKind; color: string | null; icon: string | null };
 }) {
   const router = useRouter();
   const confirm = useConfirm();
@@ -437,10 +429,8 @@ function SubcategoryRow({
     <tr className={cn("border-b last:border-0 hover:bg-secondary/30", hidden && "opacity-50")}>
       <td className="px-3 py-2.5 sm:px-4">
         <div className="flex items-center gap-2">
-          <div
-            className="h-2.5 w-2.5 rounded-full shrink-0"
-            style={{ backgroundColor: sub.color ?? "#71717a" }}
-          />
+          {/* Las subcategorías usan siempre el color de su principal */}
+          <CategoryIcon icon={sub.icon ?? category.icon} color={category.color} />
           <div className="min-w-0">
             <span className={cn("text-sm font-medium", hidden && "line-through")}>
               {sub.name}
@@ -534,6 +524,7 @@ function SubcategoryRow({
             icon: sub.icon,
             parentId: category.id,
           }}
+          parent={category}
         />
       )}
     </tr>

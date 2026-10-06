@@ -50,8 +50,8 @@ export async function POST(req: Request) {
     const categoryId = parsed.data.categoryId ?? null;
     if (!(await isValidSubscriptionCategory(user.id, categoryId))) {
       return NextResponse.json(
-        { error: "Categoría no encontrada" },
-        { status: 404 }
+        { error: "Elige una subcategoría de gasto" },
+        { status: 400 }
       );
     }
 

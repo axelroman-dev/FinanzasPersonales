@@ -106,6 +106,11 @@ export async function PATCH(
       if (!cat) {
         return NextResponse.json({ error: "Categoría no encontrada" }, { status: 404 });
       }
+      // La principal solo agrupa; los que ya estaban en una (p. ej. de un
+      // respaldo viejo) se pueden seguir guardando sin cambiarla
+      if (!cat.parentId && data.categoryId !== existing.categoryId) {
+        return NextResponse.json({ error: "Elige una subcategoría" }, { status: 400 });
+      }
     }
 
     if (data.subscriptionId) {

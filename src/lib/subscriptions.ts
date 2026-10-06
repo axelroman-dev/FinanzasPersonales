@@ -10,7 +10,8 @@ export async function isValidSubscriptionCategory(
 ): Promise<boolean> {
   if (!categoryId) return true;
   const category = await prisma.category.findFirst({
-    where: { id: categoryId, userId, kind: "EXPENSE" },
+    // Solo subcategorías: la principal agrupa, no se asigna
+    where: { id: categoryId, userId, kind: "EXPENSE", parentId: { not: null } },
     select: { id: true },
   });
   return !!category;

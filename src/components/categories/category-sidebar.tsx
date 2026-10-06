@@ -13,11 +13,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CategoryIcon } from "@/components/shared/category-icon";
 
 type CatNode = {
   id: string;
   name: string;
   color: string | null;
+  icon: string | null;
   kind: "INCOME" | "EXPENSE" | "INTERNAL";
   usageCount: number;
   children: CatNode[];
@@ -98,10 +100,7 @@ function MobilePicker({
               {group.items.map((cat) => (
                 <SelectItem key={cat.id} value={cat.id}>
                   <span className="flex items-center gap-2">
-                    <span
-                      className="h-2.5 w-2.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: cat.color ?? "#71717a" }}
-                    />
+                    <CategoryIcon icon={cat.icon} color={cat.color} size="sm" />
                     {cat.name}
                   </span>
                 </SelectItem>
@@ -154,10 +153,7 @@ function SidebarGroup({
                   : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
               )}
             >
-              <div
-                className="h-2.5 w-2.5 rounded-full shrink-0"
-                style={{ backgroundColor: cat.color ?? "#71717a" }}
-              />
+              <CategoryIcon icon={cat.icon} color={cat.color} size="sm" />
               <span className="font-medium flex-1 truncate">{cat.name}</span>
               {total > 0 && (
                 <span

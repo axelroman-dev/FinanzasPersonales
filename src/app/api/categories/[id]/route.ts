@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { isCategoryIcon } from "@/lib/category-icons";
 
 const updateSchema = z.object({
   name: z.string().min(1).max(50).optional(),
   kind: z.enum(["INCOME", "EXPENSE"]).optional(),
   color: z.string().nullable().optional(),
-  icon: z.string().nullable().optional(),
+  icon: z.string().refine(isCategoryIcon, "Icono no válido").nullable().optional(),
 });
 
 async function findOwned(id: string, userId: string) {
@@ -53,21 +54,25 @@ export async function PATCH(
       );
     }
 
-    // Si cambian el kind y la categoría es padre, propagamos a los hijos
-    // (mantener consistencia: hijos heredan kind del padre)
     const data = parsed.data;
-    // Las subcategorías heredan el tipo del padre: no se cambia por separado
-    if (existing.parentId) delete data.kind;
-    if (data.kind && existing.children.length > 0) {
-      await prisma.category.updateMany({
-        where: { id: { in: existing.children.map((c) => c.id) } },
-        data: { kind: data.kind },
-      });
+    // Las subcategorías heredan tipo y color del padre: no se cambian por separado
+    if (existing.parentId) {
+      delete data.kind;
+      delete data.color;
     }
 
-    const category = await prisma.category.update({
-      where: { id: params.id },
-      data,
+    const category = await prisma.$transaction(async (tx) => {
+      // Si cambian el tipo o el color de una principal, se propagan a los hijos
+      if ((data.kind || data.color !== undefined) && existing.children.length > 0) {
+        await tx.category.updateMany({
+          where: { parentId: existing.id },
+          data: {
+            ...(data.kind && { kind: data.kind }),
+            ...(data.color !== undefined && { color: data.color }),
+          },
+        });
+      }
+      return tx.category.update({ where: { id: params.id }, data });
     });
     return NextResponse.json(category);
   } catch (error: any) {

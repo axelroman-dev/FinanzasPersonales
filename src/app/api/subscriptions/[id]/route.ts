@@ -40,11 +40,13 @@ export async function PATCH(
     }
     if (
       parsed.data.categoryId !== undefined &&
+      // Las que ya estaban asignadas a una principal se pueden seguir guardando
+      parsed.data.categoryId !== existing.categoryId &&
       !(await isValidSubscriptionCategory(user.id, parsed.data.categoryId))
     ) {
       return NextResponse.json(
-        { error: "Categoría no encontrada" },
-        { status: 404 }
+        { error: "Elige una subcategoría de gasto" },
+        { status: 400 }
       );
     }
     const sub = await prisma.subscription.update({
