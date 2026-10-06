@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.9.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.8.1...v0.9.0) (2026-10-06)
+
+
+### Nuevas funciones
+
+* **categories:** iconos de Tabler y subcategorías que heredan el color ([#45](https://github.com/axelroman-dev/FinanzasPersonales/issues/45)) ([547fc88](https://github.com/axelroman-dev/FinanzasPersonales/commit/547fc88e80f45be917ae8638465580c59a911910))
+* **reports:** desglosar los gastos e ingresos por subcategoría ([#44](https://github.com/axelroman-dev/FinanzasPersonales/issues/44)) ([83be152](https://github.com/axelroman-dev/FinanzasPersonales/commit/83be1525acc158a3b4626ba80cecdfedf8643c40))
+* **ui:** mostrar la versión de la app en el menú lateral ([#47](https://github.com/axelroman-dev/FinanzasPersonales/issues/47)) ([7596b03](https://github.com/axelroman-dev/FinanzasPersonales/commit/7596b038d3ca22b6cd40a8b326dd751f727f479f))
+
 ## [0.8.1](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.8.0...v0.8.1) (2026-10-05)
 
 
