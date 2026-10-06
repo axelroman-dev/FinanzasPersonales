@@ -1,11 +1,11 @@
 import { requireUser } from "@/lib/auth";
-import { getCategoryTotals } from "@/lib/categories";
+import { getCategoryTotals, type CategoryTotal } from "@/lib/categories";
 import { getUnrecordedTotal } from "@/lib/balance";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Calendar, ArrowLeftRight } from "lucide-react";
+import { Calendar, ArrowLeftRight, ChevronRight } from "lucide-react";
 import { ReportFilters } from "@/components/reports/report-filters";
 
 function formatLocalDate(d: Date): string {
@@ -147,11 +147,12 @@ function CategoryList({
   negative,
 }: {
   title: string;
-  items: { categoryId: string; categoryName: string; color: string | null; total: number; count: number; percent: number }[];
+  items: CategoryTotal[];
   total: number;
   emptyText: string;
   negative: boolean;
 }) {
+  const amountColor = negative ? "text-red-400" : "text-emerald-400";
   return (
     <Card>
       <CardHeader>
@@ -161,40 +162,87 @@ function CategoryList({
         {items.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4">{emptyText}</p>
         ) : (
-          items.map((item) => (
-            <div key={item.categoryId} className="space-y-1.5">
-              <div className="flex items-baseline justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span
-                    className="h-2.5 w-2.5 rounded-full shrink-0"
-                    style={{ backgroundColor: item.color ?? "#71717a" }}
-                  />
-                  <span className="text-sm font-medium truncate">
-                    {item.categoryName}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    ({item.count})
-                  </span>
+          items.map((item) => {
+            const row = (
+              <div className="space-y-1.5">
+                <div className="flex items-baseline justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: item.color ?? "#71717a" }}
+                    />
+                    <span className="text-sm font-medium truncate">
+                      {item.categoryName}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      ({item.count})
+                    </span>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className={`text-sm font-semibold tabular-nums ${amountColor}`}>
+                      {formatCurrency(item.total)}
+                    </span>
+                    <span className="text-xs text-muted-foreground ml-2">
+                      {item.percent.toFixed(1)}%
+                    </span>
+                  </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <span
-                    className={`text-sm font-semibold tabular-nums ${
-                      negative ? "text-red-400" : "text-emerald-400"
-                    }`}
-                  >
-                    {formatCurrency(item.total)}
-                  </span>
-                  <span className="text-xs text-muted-foreground ml-2">
-                    {item.percent.toFixed(1)}%
-                  </span>
-                </div>
+                <Progress
+                  value={item.percent}
+                  indicatorClassName={negative ? "bg-red-500" : "bg-emerald-500"}
+                />
               </div>
-              <Progress
-                value={item.percent}
-                indicatorClassName={negative ? "bg-red-500" : "bg-emerald-500"}
-              />
-            </div>
-          ))
+            );
+
+            // Solo se despliega si hay subcategorías: una sola fila «Sin
+            // subcategoría» repetiría el total de la raíz
+            const hasBreakdown = item.children.some((c) => !c.isRootOnly);
+            if (!hasBreakdown) return <div key={item.categoryId}>{row}</div>;
+
+            return (
+              <details key={item.categoryId} className="group">
+                <summary className="flex cursor-pointer list-none items-start gap-1 [&::-webkit-details-marker]:hidden">
+                  <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
+                  <div className="min-w-0 flex-1">{row}</div>
+                </summary>
+                <ul className="mt-2 ml-5 space-y-1.5 border-l pl-3">
+                  {item.children.map((child) => (
+                    <li
+                      key={child.categoryId}
+                      className="flex items-baseline justify-between gap-2"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className="h-2 w-2 rounded-full shrink-0"
+                          style={{ backgroundColor: child.color ?? "#71717a" }}
+                        />
+                        <span
+                          className={`text-sm truncate ${
+                            child.isRootOnly
+                              ? "italic text-muted-foreground"
+                              : ""
+                          }`}
+                        >
+                          {child.categoryName}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          ({child.count})
+                        </span>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-sm tabular-nums">
+                          {formatCurrency(child.total)}
+                        </span>
+                        <span className="text-xs text-muted-foreground ml-2">
+                          {child.percent.toFixed(1)}%
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            );
+          })
         )}
       </CardContent>
     </Card>
