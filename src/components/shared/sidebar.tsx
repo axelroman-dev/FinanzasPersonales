@@ -257,6 +257,15 @@ function SidebarContent({
             </button>
           </WithTooltip>
         </div>
+
+        <p
+          className={cn(
+            "px-3 text-xs tabular-nums text-muted-foreground/60",
+            collapsed && "px-0 text-center text-[10px]"
+          )}
+        >
+          {collapsed ? "" : "Versión "}v{process.env.NEXT_PUBLIC_APP_VERSION}
+        </p>
       </div>
     </>
   );
