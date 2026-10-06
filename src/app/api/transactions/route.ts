@@ -131,6 +131,10 @@ export async function POST(req: Request) {
           { status: 404 }
         );
       }
+      // La principal solo agrupa: el movimiento va a una subcategoría
+      if (!cat.parentId) {
+        return NextResponse.json({ error: "Elige una subcategoría" }, { status: 400 });
+      }
     }
 
     if (data.subscriptionId) {

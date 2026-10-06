@@ -3,13 +3,14 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getCategoryTree } from "@/lib/categories";
+import { isCategoryIcon } from "@/lib/category-icons";
 
 const createSchema = z.object({
   name: z.string().min(1).max(50),
   parentId: z.string().nullable().optional(),
   kind: z.enum(["INCOME", "EXPENSE"]).default("EXPENSE"),
   color: z.string().nullable().optional(),
-  icon: z.string().nullable().optional(),
+  icon: z.string().refine(isCategoryIcon, "Icono no válido").nullable().optional(),
 });
 
 export async function GET() {
@@ -37,8 +38,9 @@ export async function POST(req: Request) {
     const data = parsed.data;
 
     // Si tiene parentId, validar que pertenece al usuario y que es raíz.
-    // La subcategoría hereda el tipo del padre.
+    // La subcategoría hereda el tipo y el color del padre.
     let kind = data.kind;
+    let color = data.color ?? null;
     if (data.parentId) {
       const parent = await prisma.category.findFirst({
         where: { id: data.parentId, userId: user.id },
@@ -62,6 +64,7 @@ export async function POST(req: Request) {
         );
       }
       kind = parent.kind;
+      color = parent.color;
     }
 
     const category = await prisma.category.create({
@@ -70,7 +73,7 @@ export async function POST(req: Request) {
         name: data.name,
         parentId: data.parentId ?? null,
         kind,
-        color: data.color ?? null,
+        color,
         icon: data.icon ?? null,
       },
     });

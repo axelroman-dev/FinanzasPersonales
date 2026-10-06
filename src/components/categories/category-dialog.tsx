@@ -23,6 +23,8 @@ import {
 import { Loader2 } from "lucide-react";
 import { useFormResetKey } from "@/hooks/use-form-reset-key";
 import { CATEGORY_KIND_LABEL, type CategoryKind } from "@/lib/category-kind";
+import { CategoryIcon } from "@/components/shared/category-icon";
+import { IconPicker } from "./icon-picker";
 
 type CatFormData = {
   id: string;
@@ -48,10 +50,14 @@ const COLOR_PRESETS = [
   "#ef4444",
 ];
 
+/** Color e icono de la principal: la subcategoría usa ese color */
+type ParentInfo = { color: string | null; icon: string | null };
+
 export function CategoryDialog({
   mode,
   category,
   parentId,
+  parent,
   children,
   open: controlledOpen,
   onOpenChange: controlledOnChange,
@@ -59,6 +65,8 @@ export function CategoryDialog({
   mode: "create" | "edit";
   category?: CatFormData;
   parentId?: string | null;
+  /** Solo para subcategorías */
+  parent?: ParentInfo;
   children?: React.ReactNode;
   /** Si se pasa, el dialog se controla externamente (sin trigger interno) */
   open?: boolean;
@@ -85,6 +93,7 @@ export function CategoryDialog({
         mode={mode}
         category={category}
         parentId={parentId}
+        parent={parent}
         onClose={() => setOpen(false)}
         onSaved={() => setOpen(false)}
       />
@@ -96,12 +105,14 @@ function CatFormDialog({
   mode,
   category,
   parentId,
+  parent,
   onClose,
   onSaved,
 }: {
   mode: "create" | "edit";
   category?: CatFormData;
   parentId?: string | null;
+  parent?: ParentInfo;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -115,22 +126,26 @@ function CatFormDialog({
     category?.color ?? COLOR_PRESETS[0]
   );
 
-  // Las subcategorías heredan el tipo del padre: no se elige
+  // Las subcategorías heredan el tipo y el color del padre: no se eligen
   const isSubcategory =
     mode === "create" ? !!parentId : !!category?.parentId;
+  // Una subcategoría nueva arranca con el icono de su principal
+  const [icon, setIcon] = useState<string | null>(
+    category?.icon ?? (isSubcategory ? parent?.icon ?? null : null) ?? "category"
+  );
+  const shownColor = (isSubcategory ? parent?.color : color) ?? "#71717a";
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     startTransition(async () => {
       try {
-        const body: any = { name, color };
-        if (!isSubcategory) body.kind = kind;
-        // Al editar no se manda el icono: el diálogo no lo cambia
-        if (mode === "create") {
-          body.parentId = parentId ?? null;
-          body.icon = null;
+        const body: any = { name, icon };
+        if (!isSubcategory) {
+          body.kind = kind;
+          body.color = color;
         }
+        if (mode === "create") body.parentId = parentId ?? null;
 
         const url =
           mode === "create"
@@ -172,14 +187,17 @@ function CatFormDialog({
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="name">Nombre</Label>
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={isSubcategory ? "Ej. Restaurantes" : "Ej. Alimentación"}
-            required
-            autoFocus
-          />
+          <div className="flex items-center gap-2">
+            <CategoryIcon icon={icon} color={shownColor} size="lg" />
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={isSubcategory ? "Ej. Restaurantes" : "Ej. Alimentación"}
+              required
+              autoFocus
+            />
+          </div>
         </div>
 
         {!isSubcategory && (
@@ -197,24 +215,36 @@ function CatFormDialog({
           </div>
         )}
 
-        <div className="space-y-2">
-          <Label>Color</Label>
-          <div className="flex flex-wrap gap-2">
-            {COLOR_PRESETS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setColor(c)}
-                className={`h-7 w-7 rounded-full border-2 transition-all ${
-                  color === c
-                    ? "border-foreground scale-110"
-                    : "border-transparent"
-                }`}
-                style={{ backgroundColor: c }}
-                aria-label={`Color ${c}`}
-              />
-            ))}
+        {!isSubcategory && (
+          <div className="space-y-2">
+            <Label>Color</Label>
+            <div className="flex flex-wrap gap-2">
+              {COLOR_PRESETS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setColor(c)}
+                  className={`h-7 w-7 rounded-full border-2 transition-all ${
+                    color === c
+                      ? "border-foreground scale-110"
+                      : "border-transparent"
+                  }`}
+                  style={{ backgroundColor: c }}
+                  aria-label={`Color ${c}`}
+                />
+              ))}
+            </div>
+            {mode === "edit" && (
+              <p className="text-xs text-muted-foreground">
+                Sus subcategorías usan este mismo color
+              </p>
+            )}
           </div>
+        )}
+
+        <div className="space-y-2">
+          <Label>Icono</Label>
+          <IconPicker value={icon} onChange={setIcon} color={shownColor} />
         </div>
 
         {error && (

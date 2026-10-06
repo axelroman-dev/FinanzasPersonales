@@ -24,19 +24,18 @@ export async function seedDefaultCategories(userId: string): Promise<void> {
       },
     });
 
-    if (cat.children) {
-      for (const child of cat.children) {
-        await prisma.category.create({
-          data: {
-            userId,
-            name: child.name,
-            kind: cat.kind, // heredamos del padre
-            color: child.color ?? cat.color,
-            icon: child.icon ?? cat.icon,
-            parentId: parent.id,
-          },
-        });
-      }
+    for (const child of cat.children) {
+      await prisma.category.create({
+        data: {
+          userId,
+          name: child.name,
+          // Tipo y color se heredan de la principal
+          kind: cat.kind,
+          color: cat.color,
+          icon: child.icon ?? cat.icon,
+          parentId: parent.id,
+        },
+      });
     }
   }
 }

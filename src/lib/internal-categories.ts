@@ -6,7 +6,7 @@ import { adjustmentMovement, applyBalanceDeltas, balanceEffects } from "@/lib/tr
  * cambios de balance que no son un ingreso o gasto real. Se agrupan bajo una
  * categoría raíz y se crean la primera vez que se necesitan.
  */
-const INTERNAL_ROOT = { name: "Ajustes", color: "#94a3b8", icon: "SlidersHorizontal" };
+const INTERNAL_ROOT = { name: "Ajustes", color: "#94a3b8", icon: "adjustments-horizontal" };
 
 export const INTERNAL_CATEGORIES = {
   INITIAL_BALANCE: "Balance inicial",

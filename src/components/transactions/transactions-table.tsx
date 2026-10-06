@@ -23,6 +23,7 @@ import {
   type TransactionFormOptions,
 } from "./transaction-actions";
 import { AttachmentsViewer } from "./attachments-viewer";
+import { CategoryIcon } from "@/components/shared/category-icon";
 import { useAlert, useConfirm } from "@/components/shared/confirm-dialog";
 
 type Tx = {
@@ -34,6 +35,7 @@ type Tx = {
   category: string | null;
   categoryName: string | null;
   categoryColor: string | null;
+  categoryIcon: string | null;
   /** Movimiento con categoría interna (balance inicial o ajuste de cuenta) */
   isAdjustment: boolean;
   /** Movimiento de «Balance inicial»: se muestra neutro, no es ingreso ni gasto */
@@ -93,8 +95,8 @@ export function TransactionsTable({
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <Icon className={`h-4 w-4 ${color}`} />
+                      <div className="flex items-center gap-3">
+                        <TxIcon tx={tx} Icon={Icon} color={color} />
                         <div>
                           <p className="text-sm font-medium">{tx.description}</p>
                           <TxTags tx={tx} className="mt-0.5" />
@@ -154,6 +156,37 @@ function txVisuals(tx: Tx) {
   return { Icon, color, sign, label };
 }
 
+/**
+ * Icono del movimiento: el de su categoría si tiene una; si no (o si es una
+ * transferencia o un ajuste), el de su tipo.
+ */
+function TxIcon({
+  tx,
+  Icon,
+  color,
+  className,
+}: {
+  tx: Tx;
+  Icon: ReturnType<typeof txVisuals>["Icon"];
+  color: string;
+  className?: string;
+}) {
+  if (tx.categoryName && !tx.isAdjustment && tx.type !== "TRANSFER") {
+    return (
+      <CategoryIcon icon={tx.categoryIcon} color={tx.categoryColor} className={className} />
+    );
+  }
+  return (
+    <div
+      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary ${
+        className ?? ""
+      }`}
+    >
+      <Icon className={`h-4 w-4 ${color}`} />
+    </div>
+  );
+}
+
 /** Movimiento en una tarjeta compacta (vista móvil) */
 function TransactionCard({
   tx,
@@ -165,9 +198,7 @@ function TransactionCard({
   const { Icon, color, sign, label } = txVisuals(tx);
   return (
     <div className="flex gap-3 p-3">
-      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary">
-        <Icon className={`h-4 w-4 ${color}`} />
-      </div>
+      <TxIcon tx={tx} Icon={Icon} color={color} className="mt-0.5" />
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex items-start justify-between gap-2">
           <p className="min-w-0 break-words text-sm font-medium">{tx.description}</p>
