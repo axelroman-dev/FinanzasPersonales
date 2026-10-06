@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.1](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.9.0...v0.9.1) (2026-10-06)
+
+
+### Correcciones
+
+* **categories:** selector de iconos en un cuadro con scroll agrupado por tema ([#48](https://github.com/axelroman-dev/FinanzasPersonales/issues/48)) ([25788a6](https://github.com/axelroman-dev/FinanzasPersonales/commit/25788a64d1f4858b30ff04b2238f65188eb107aa))
+
 ## [0.9.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.8.1...v0.9.0) (2026-10-06)
 
 
