@@ -128,7 +128,111 @@ export type CategoryTotal = {
   total: number;
   count: number;
   percent: number;
+  /** Desglose por subcategoría; `percent` es sobre el total de la raíz */
+  children: CategoryTotalChild[];
 };
+
+export type CategoryTotalChild = {
+  categoryId: string;
+  categoryName: string;
+  color: string | null;
+  total: number;
+  count: number;
+  percent: number;
+  /** Movimientos asignados directo a la raíz, sin subcategoría */
+  isRootOnly: boolean;
+};
+
+type CategoryRefWithParent = {
+  id: string;
+  name: string;
+  color: string | null;
+  icon: string | null;
+  parent: { id: string; name: string; color: string | null; icon: string | null } | null;
+} | null;
+
+/** Nombre de la fila para los movimientos asignados directo a la categoría raíz */
+export const ROOT_ONLY_LABEL = "Sin subcategoría";
+
+/**
+ * Agrupa movimientos por categoría raíz y, dentro de cada una, por
+ * subcategoría. Los asignados directo a la raíz van en «Sin subcategoría».
+ */
+export function groupByRootCategory(
+  txs: { amount: number | string | { toString(): string }; categoryRef: CategoryRefWithParent }[]
+): CategoryTotal[] {
+  type Bucket = { name: string; color: string | null; total: number; count: number };
+  type ChildBucket = Bucket & { isRootOnly: boolean };
+  const byRoot = new Map<
+    string,
+    Bucket & { icon: string | null; children: Map<string, ChildBucket> }
+  >();
+
+  for (const tx of txs) {
+    const cat = tx.categoryRef;
+    // Si es subcategoría, subir al padre
+    const rootCat = cat ? cat.parent ?? cat : null;
+    const key = rootCat?.id ?? "__uncategorized__";
+    const amount = Number(tx.amount);
+
+    let root = byRoot.get(key);
+    if (!root) {
+      root = {
+        name: rootCat?.name ?? "Sin categoría",
+        color: rootCat?.color ?? null,
+        icon: rootCat?.icon ?? null,
+        total: 0,
+        count: 0,
+        children: new Map(),
+      };
+      byRoot.set(key, root);
+    }
+    root.total += amount;
+    root.count += 1;
+
+    if (!cat) continue;
+    const isSub = cat.parent !== null;
+    const childKey = isSub ? cat.id : `${cat.id}:root`;
+    let child = root.children.get(childKey);
+    if (!child) {
+      child = {
+        name: isSub ? cat.name : ROOT_ONLY_LABEL,
+        color: isSub ? cat.color ?? root.color : root.color,
+        total: 0,
+        count: 0,
+        isRootOnly: !isSub,
+      };
+      root.children.set(childKey, child);
+    }
+    child.total += amount;
+    child.count += 1;
+  }
+
+  const totalSum = Array.from(byRoot.values()).reduce((s, x) => s + x.total, 0);
+
+  return Array.from(byRoot.entries())
+    .map(([categoryId, v]) => ({
+      categoryId,
+      categoryName: v.name,
+      color: v.color,
+      icon: v.icon,
+      total: v.total,
+      count: v.count,
+      percent: totalSum > 0 ? (v.total / totalSum) * 100 : 0,
+      children: Array.from(v.children.entries())
+        .map(([childId, c]) => ({
+          categoryId: childId,
+          categoryName: c.name,
+          color: c.color,
+          total: c.total,
+          count: c.count,
+          percent: v.total > 0 ? (c.total / v.total) * 100 : 0,
+          isRootOnly: c.isRootOnly,
+        }))
+        .sort((a, b) => b.total - a.total),
+    }))
+    .sort((a, b) => b.total - a.total);
+}
 
 export async function getCategoryTotals(params: {
   userId: string;
@@ -148,52 +252,10 @@ export async function getCategoryTotals(params: {
 
   const txs = await prisma.transaction.findMany({
     where,
-    include: { categoryRef: { include: { parent: true } } },
+    select: { amount: true, categoryRef: { include: { parent: true } } },
   });
 
-  // Agrupar por categoría raíz
-  const byRoot = new Map<
-    string,
-    { name: string; color: string | null; icon: string | null; total: number; count: number }
-  >();
-
-  for (const tx of txs) {
-    // Determinar la categoría raíz (si es subcategoría, subir al padre)
-    const rootCat = tx.categoryRef
-      ? tx.categoryRef.parent ?? tx.categoryRef
-      : null;
-
-    const key = rootCat?.id ?? "__uncategorized__";
-    const existing = byRoot.get(key);
-    const amount = Number(tx.amount);
-
-    if (existing) {
-      existing.total += amount;
-      existing.count += 1;
-    } else {
-      byRoot.set(key, {
-        name: rootCat?.name ?? "Sin categoría",
-        color: rootCat?.color ?? null,
-        icon: rootCat?.icon ?? null,
-        total: amount,
-        count: 1,
-      });
-    }
-  }
-
-  const totalSum = Array.from(byRoot.values()).reduce((s, x) => s + x.total, 0);
-
-  return Array.from(byRoot.entries())
-    .map(([categoryId, v]) => ({
-      categoryId,
-      categoryName: v.name,
-      color: v.color,
-      icon: v.icon,
-      total: v.total,
-      count: v.count,
-      percent: totalSum > 0 ? (v.total / totalSum) * 100 : 0,
-    }))
-    .sort((a, b) => b.total - a.total);
+  return groupByRootCategory(txs);
 }
 
 /**
