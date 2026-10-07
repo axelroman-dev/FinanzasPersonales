@@ -6,21 +6,27 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Combobox, type ComboboxGroup } from "@/components/ui/combobox";
+import { CategoryIcon } from "@/components/shared/category-icon";
+import {
+  ACCOUNT_TYPE_LABEL,
+  ACCOUNT_TYPE_ORDER,
+  type AccountType,
+} from "@/lib/account-types";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 
-type Account = { id: string; name: string; type: string };
+type Account = { id: string; name: string; type: AccountType };
 
 type CategoryNode = {
   id: string;
   name: string;
   color: string | null;
+  icon: string | null;
   kind: "INCOME" | "EXPENSE" | "INTERNAL";
   parentId: string | null;
   children: CategoryNode[];
@@ -93,53 +99,26 @@ export function TransactionFilters({
             <SelectItem value="TRANSFER">Transferencia</SelectItem>
           </SelectContent>
         </Select>
-        <Select
-          value={params.get("accountId") ?? "all"}
-          onValueChange={(v) => update("accountId", v === "all" ? null : v)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Cuenta" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas las cuentas</SelectItem>
-            {accounts.map((a) => (
-              <SelectItem key={a.id} value={a.id}>
-                {a.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Combobox
+          groups={accountGroups(accounts)}
+          value={params.get("accountId") ?? ""}
+          onChange={(v) => update("accountId", v || null)}
+          placeholder="Todas las cuentas"
+          searchPlaceholder="Buscar cuenta…"
+          emptyText="Ninguna cuenta coincide"
+        />
         {categories && categories.length > 0 && (
-          <Select
-            value={params.get("categoryId") ?? "all"}
-            onValueChange={(v) => update("categoryId", v === "all" ? null : v)}
-          >
-            <SelectTrigger className="col-span-2 lg:col-span-1">
-              <SelectValue placeholder="Categoría" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas las categorías</SelectItem>
-              {categories.map((cat) => (
-                <SelectGroup key={cat.id}>
-                  <SelectLabel className="flex items-center gap-2">
-                    <span
-                      className="h-2 w-2 rounded-full"
-                      style={{ backgroundColor: cat.color ?? "#71717a" }}
-                    />
-                    {cat.name}
-                  </SelectLabel>
-                  <SelectItem value={cat.id} className="pl-4">
-                    (Todas)
-                  </SelectItem>
-                  {cat.children.map((sub) => (
-                    <SelectItem key={sub.id} value={sub.id} className="pl-8">
-                      {sub.name}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="col-span-2 lg:col-span-1">
+            <Combobox
+              groups={categoryGroups(categories)}
+              value={params.get("categoryId") ?? ""}
+              onChange={(v) => update("categoryId", v || null)}
+              placeholder="Todas las categorías"
+              searchPlaceholder="Buscar categoría…"
+              emptyText="Ninguna categoría coincide"
+              selected={selectedCategoryLabel(categories, params.get("categoryId"))}
+            />
+          </div>
         )}
         {hasFilters && (
           <Button variant="outline" onClick={clear} className="col-span-2 lg:col-span-1">
@@ -150,4 +129,73 @@ export function TransactionFilters({
       </div>
     </div>
   );
+}
+
+/** Cuentas agrupadas por tipo, con «Todas» al inicio */
+function accountGroups(accounts: Account[]): ComboboxGroup[] {
+  return [
+    { key: "all", options: [{ value: "", label: "Todas las cuentas" }] },
+    ...ACCOUNT_TYPE_ORDER.map((type) => ({
+      key: type,
+      heading: (
+        <span className="text-[11px] uppercase tracking-wide">{ACCOUNT_TYPE_LABEL[type]}</span>
+      ),
+      className: "border-t mt-1 pt-1",
+      options: accounts
+        .filter((a) => a.type === type)
+        .map((a) => ({ value: a.id, label: a.name, keywords: [ACCOUNT_TYPE_LABEL[type]] })),
+    })).filter((g) => g.options.length > 0),
+  ];
+}
+
+/**
+ * Categorías agrupadas por principal. Para filtrar, la principal sí se
+ * puede elegir: muestra los movimientos de todas sus subcategorías.
+ */
+function categoryGroups(categories: CategoryNode[]): ComboboxGroup[] {
+  return [
+    { key: "all", options: [{ value: "", label: "Todas las categorías" }] },
+    ...categories.map((cat) => ({
+      key: cat.id,
+      className: "border-t mt-1 pt-1",
+      options: [
+        {
+          value: cat.id,
+          label: cat.name,
+          keywords: cat.children.map((c) => c.name),
+          className: "font-medium",
+          content: (
+            <span className="flex items-center gap-2">
+              <CategoryIcon icon={cat.icon} color={cat.color} size="sm" />
+              {cat.name}
+              <span className="text-xs font-normal text-muted-foreground">(todas)</span>
+            </span>
+          ),
+        },
+        ...cat.children.map((sub) => ({
+          value: sub.id,
+          label: sub.name,
+          keywords: [cat.name],
+          className: "pl-10",
+          content: (
+            <span className="flex items-center gap-2">
+              <CategoryIcon icon={sub.icon ?? cat.icon} color={cat.color} size="sm" />
+              {sub.name}
+            </span>
+          ),
+        })),
+      ],
+    })),
+  ];
+}
+
+/** "Principal › Sub" para la subcategoría elegida; la principal sola si es ella */
+function selectedCategoryLabel(categories: CategoryNode[], id: string | null) {
+  if (!id) return undefined;
+  for (const cat of categories) {
+    if (cat.id === id) return `${cat.name} (todas)`;
+    const sub = cat.children.find((c) => c.id === id);
+    if (sub) return `${cat.name} › ${sub.name}`;
+  }
+  return undefined;
 }
