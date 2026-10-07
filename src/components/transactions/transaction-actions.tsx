@@ -24,6 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Trash2, Tag } from "lucide-react";
 import { isCardPayment } from "@/lib/account-types";
 import { CategorySelect } from "@/components/shared/category-select";
+import { CategoryIcon } from "@/components/shared/category-icon";
 import { AccountSelect, type AccountOption } from "@/components/shared/account-select";
 import { formatCurrency, toDateTimeLocalValue } from "@/lib/utils";
 import { DateTimePicker } from "@/components/ui/date-picker";
@@ -149,6 +150,8 @@ function TxFormDialog({
       : transaction.type;
   });
   const isTransferLike = type === "TRANSFER" || type === "CARD_PAYMENT";
+  // Un pago de tarjeta ya guardado solo deja cambiar el monto y la fecha
+  const lockedCardPayment = mode === "edit" && type === "CARD_PAYMENT";
   // En un pago de tarjeta: se paga desde una cuenta que no es de crédito, a una tarjeta
   const payFromAccounts = accounts.filter((a) => a.type !== "CREDIT");
   const cardAccounts = accounts.filter((a) => a.type === "CREDIT");
@@ -309,7 +312,11 @@ function TxFormDialog({
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label>Tipo</Label>
-          <Select value={type} onValueChange={(v) => onTypeChange(v as any)}>
+          <Select
+            value={type}
+            onValueChange={(v) => onTypeChange(v as any)}
+            disabled={lockedCardPayment}
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -353,6 +360,7 @@ function TxFormDialog({
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Ej. Comida, salario, etc."
             required
+            disabled={lockedCardPayment}
           />
         </div>
 
@@ -371,6 +379,7 @@ function TxFormDialog({
               setAccountId(id);
               if (id === transferAccountId) setTransferAccountId("");
             }}
+            disabled={lockedCardPayment}
           />
         </div>
 
@@ -395,11 +404,15 @@ function TxFormDialog({
               value={transferAccountId}
               onChange={setTransferAccountId}
               placeholder="Selecciona la tarjeta"
+              disabled={lockedCardPayment}
             />
-            <CardDebtHint
-              debt={cardAccounts.find((a) => a.id === transferAccountId)?.balance}
-              onPayAll={setAmount}
-            />
+            {/* Al editar, la deuda ya incluye este pago: no tiene caso */}
+            {!lockedCardPayment && (
+              <CardDebtHint
+                debt={cardAccounts.find((a) => a.id === transferAccountId)?.balance}
+                onPayAll={setAmount}
+              />
+            )}
           </div>
         )}
 
@@ -441,19 +454,37 @@ function TxFormDialog({
           </div>
         )}
 
-        <div className="space-y-2">
-          <Label className="flex items-center gap-1">
-            <Tag className="h-3 w-3" />
-            Categoría (opcional)
-          </Label>
-          <CategorySelect
-            categories={categories ?? []}
-            kind={type === "INCOME" ? "INCOME" : "EXPENSE"}
-            value={categoryId}
-            onChange={setCategoryId}
-            disabled={isTransferLike}
-          />
-        </div>
+        {type === "CARD_PAYMENT" ? (
+          // La categoría la pone el sistema
+          <div className="flex items-center gap-2 rounded-md border border-dashed px-3 py-2 text-sm">
+            <CategoryIcon icon="credit-card" color="#60a5fa" size="sm" />
+            <span>
+              Categoría: <span className="font-medium">Pago de tarjeta</span>
+            </span>
+            <span className="ml-auto text-xs text-muted-foreground">automática</span>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1">
+              <Tag className="h-3 w-3" />
+              Categoría (opcional)
+            </Label>
+            <CategorySelect
+              categories={categories ?? []}
+              kind={type === "INCOME" ? "INCOME" : "EXPENSE"}
+              value={categoryId}
+              onChange={setCategoryId}
+              disabled={isTransferLike}
+            />
+          </div>
+        )}
+
+        {lockedCardPayment && (
+          <p className="text-xs text-muted-foreground">
+            En un pago de tarjeta solo puedes cambiar el monto y la fecha. Para usar otras
+            cuentas, elimínalo y regístralo de nuevo.
+          </p>
+        )}
 
         {attachmentsEnabled && (
           <AttachmentsField

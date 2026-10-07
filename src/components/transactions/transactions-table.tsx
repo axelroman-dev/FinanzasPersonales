@@ -177,7 +177,7 @@ function TxIcon({
   color: string;
   className?: string;
 }) {
-  if (tx.categoryName && !tx.isAdjustment && tx.type !== "TRANSFER") {
+  if (tx.categoryName && !tx.isAdjustment && (tx.type !== "TRANSFER" || tx.isCardPayment)) {
     return (
       <CategoryIcon icon={tx.categoryIcon} color={tx.categoryColor} className={className} />
     );

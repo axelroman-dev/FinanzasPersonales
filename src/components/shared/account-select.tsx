@@ -27,6 +27,7 @@ export function AccountSelect({
   onChange,
   placeholder = "Selecciona cuenta",
   excludeId,
+  disabled,
 }: {
   accounts: AccountOption[];
   value: string;
@@ -34,6 +35,7 @@ export function AccountSelect({
   placeholder?: string;
   /** Cuenta que no se puede elegir (p. ej. el origen de una transferencia) */
   excludeId?: string;
+  disabled?: boolean;
 }) {
   const groups = ACCOUNT_TYPE_ORDER.map((type, i) => ({
     key: type,
@@ -68,6 +70,7 @@ export function AccountSelect({
       placeholder={placeholder}
       searchPlaceholder="Buscar cuenta…"
       emptyText="Ninguna cuenta coincide"
+      disabled={disabled}
     />
   );
 }

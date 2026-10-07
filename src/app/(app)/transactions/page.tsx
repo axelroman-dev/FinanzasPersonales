@@ -153,6 +153,8 @@ export default async function TransactionsPage({
         <TransactionsTable
           transactions={transactions.map((t) => {
             const cat = t.categoryRef;
+            const cardPayment =
+              t.type === "TRANSFER" && isCardPayment(t.account.type, t.transferAccount?.type);
             const rootCat = cat?.parent ?? cat;
             return {
               id: t.id,
@@ -165,14 +167,13 @@ export default async function TransactionsPage({
               // Las subcategorías usan el color de su principal
               categoryColor: rootCat?.color ?? null,
               categoryIcon: cat ? cat.icon ?? rootCat?.icon ?? null : null,
-              isAdjustment: cat?.kind === "INTERNAL",
+              // El pago de tarjeta también tiene categoría interna, pero no es un ajuste
+              isAdjustment: cat?.kind === "INTERNAL" && !cardPayment,
               isInitialBalance:
                 cat?.kind === "INTERNAL" && cat.name === INTERNAL_CATEGORIES.INITIAL_BALANCE,
               accountName: t.account.name,
               transferAccountName: t.transferAccount?.name ?? null,
-              isCardPayment:
-                t.type === "TRANSFER" &&
-                isCardPayment(t.account.type, t.transferAccount?.type),
+              isCardPayment: cardPayment,
               isMsi: t.isMsi,
               msiParentId: t.msiParentId,
               msiInstallments: t.msiInstallments,

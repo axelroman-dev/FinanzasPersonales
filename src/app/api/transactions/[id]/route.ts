@@ -10,6 +10,8 @@ import {
 } from "@/lib/transaction-balance";
 import { msiParentRevertAmount } from "@/lib/msi-installments";
 import { deleteStoredFiles } from "@/lib/attachments";
+import { isCardPayment } from "@/lib/account-types";
+import { ensureInternalCategory } from "@/lib/internal-categories";
 
 const updateSchema = z.object({
   type: z.enum(["INCOME", "EXPENSE", "TRANSFER"]).optional(),
@@ -58,7 +60,14 @@ export async function PATCH(
       );
     }
 
-    const data = parsed.data;
+    // En un pago de tarjeta solo se cambian el monto y la fecha: cuentas,
+    // descripción y categoría las fija el sistema
+    const wasCardPayment =
+      existing.type === "TRANSFER" &&
+      isCardPayment(existing.account.type, existing.transferAccount?.type);
+    const data: typeof parsed.data = wasCardPayment
+      ? { amount: parsed.data.amount, date: parsed.data.date }
+      : parsed.data;
     const type = data.type ?? existing.type;
     const accountId = data.accountId ?? existing.accountId;
     const transferAccountId =
@@ -111,6 +120,10 @@ export async function PATCH(
       if (!cat.parentId && data.categoryId !== existing.categoryId) {
         return NextResponse.json({ error: "Elige una subcategoría" }, { status: 400 });
       }
+      // Las internas (ajustes, pago de tarjeta) solo las asigna el sistema
+      if (cat.kind === "INTERNAL" && data.categoryId !== existing.categoryId) {
+        return NextResponse.json({ error: "Categoría no disponible" }, { status: 400 });
+      }
     }
 
     if (data.subscriptionId) {
@@ -147,9 +160,18 @@ export async function PATCH(
 
     const updated = await prisma.$transaction(async (tx) => {
       await applyBalanceDeltas(tx, deltas);
+      // Si queda como pago de tarjeta (o lo era sin categoría), lleva la suya
+      const cardPaymentCategory =
+        type === "TRANSFER" && isCardPayment(account.type, transferAccountType)
+          ? await ensureInternalCategory(tx, user.id, "CARD_PAYMENT")
+          : undefined;
       return tx.transaction.update({
         where: { id: params.id },
-        data: { ...data, transferAccountId },
+        data: {
+          ...data,
+          transferAccountId,
+          ...(cardPaymentCategory && { categoryId: cardPaymentCategory }),
+        },
       });
     });
     return NextResponse.json(updated);

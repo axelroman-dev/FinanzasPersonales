@@ -2,35 +2,52 @@ import type { Account, Prisma } from "@prisma/client";
 import { adjustmentMovement, applyBalanceDeltas, balanceEffects } from "@/lib/transaction-balance";
 
 /**
- * Categorías internas (kind INTERNAL): las crea el sistema para registrar los
- * cambios de balance que no son un ingreso o gasto real. Se agrupan bajo una
- * categoría raíz y se crean la primera vez que se necesitan.
+ * Categorías internas (kind INTERNAL): las crea el sistema para movimientos
+ * que no son un ingreso o gasto real (ajustes de saldo, pagos de tarjeta). Se
+ * agrupan bajo una categoría raíz y se crean la primera vez que se necesitan.
  */
-const INTERNAL_ROOT = { name: "Ajustes", color: "#94a3b8", icon: "adjustments-horizontal" };
+const INTERNAL_ROOTS = {
+  ADJUSTMENTS: { name: "Ajustes", color: "#94a3b8", icon: "adjustments-horizontal" },
+  CARDS: { name: "Tarjetas de crédito", color: "#60a5fa", icon: "credit-card" },
+} as const;
 
 export const INTERNAL_CATEGORIES = {
   INITIAL_BALANCE: "Balance inicial",
   ADJUSTMENT: "Ajuste de cuenta",
+  CARD_PAYMENT: "Pago de tarjeta",
 } as const;
 
 export type InternalCategory = keyof typeof INTERNAL_CATEGORIES;
+
+/** Raíz e icono de cada categoría interna */
+const INTERNAL_PLACEMENT: Record<
+  InternalCategory,
+  { root: keyof typeof INTERNAL_ROOTS; icon: string }
+> = {
+  INITIAL_BALANCE: { root: "ADJUSTMENTS", icon: "adjustments-horizontal" },
+  ADJUSTMENT: { root: "ADJUSTMENTS", icon: "adjustments-horizontal" },
+  CARD_PAYMENT: { root: "CARDS", icon: "credit-card" },
+};
 
 /** Filtro de Prisma para dejar fuera los movimientos con categoría interna. */
 export const excludeInternal = {
   OR: [{ categoryId: null }, { categoryRef: { kind: { not: "INTERNAL" } } }],
 } satisfies Prisma.TransactionWhereInput;
 
-async function ensureInternalCategory(
+/** Id de la categoría interna `key` del usuario; la crea si no existe */
+export async function ensureInternalCategory(
   tx: Prisma.TransactionClient,
   userId: string,
   key: InternalCategory
 ): Promise<string> {
+  const { root: rootKey, icon } = INTERNAL_PLACEMENT[key];
+  const rootDef = INTERNAL_ROOTS[rootKey];
   const root =
     (await tx.category.findFirst({
-      where: { userId, kind: "INTERNAL", parentId: null, name: INTERNAL_ROOT.name },
+      where: { userId, kind: "INTERNAL", parentId: null, name: rootDef.name },
     })) ??
     (await tx.category.create({
-      data: { userId, kind: "INTERNAL", parentId: null, ...INTERNAL_ROOT },
+      data: { userId, kind: "INTERNAL", parentId: null, ...rootDef },
     }));
 
   const name = INTERNAL_CATEGORIES[key];
@@ -42,8 +59,8 @@ async function ensureInternalCategory(
       name,
       parentId: root.id,
       kind: "INTERNAL",
-      color: INTERNAL_ROOT.color,
-      icon: INTERNAL_ROOT.icon,
+      color: rootDef.color,
+      icon,
     },
   });
   return child.id;
@@ -59,7 +76,7 @@ export async function recordBalanceChange(
     account: Pick<Account, "id" | "userId" | "type">;
     from: Prisma.Decimal | number;
     to: Prisma.Decimal | number;
-    key: InternalCategory;
+    key: "INITIAL_BALANCE" | "ADJUSTMENT";
   }
 ) {
   const { account, from, to, key } = params;
