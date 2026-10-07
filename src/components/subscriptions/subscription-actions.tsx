@@ -110,13 +110,19 @@ function SubFormDialog({
   );
   const [categoryId, setCategoryId] = useState(subscription?.categoryId ?? "");
   const [isActive, setIsActive] = useState(subscription?.isActive ?? true);
+  // Igual que en movimientos: con una sola cuenta se elige sola; con varias
+  // hay que seleccionarla
   const [accountId, setAccountId] = useState(
-    subscription?.accountId ?? accounts[0]?.id ?? ""
+    subscription?.accountId ?? (accounts.length === 1 ? accounts[0].id : "")
   );
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!accountId) {
+      setError("Selecciona la cuenta donde se cobra");
+      return;
+    }
     startTransition(async () => {
       try {
         const body = {
