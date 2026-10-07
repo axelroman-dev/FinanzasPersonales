@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.10.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.9.1...v0.10.0) (2026-10-07)
+
+
+### Nuevas funciones
+
+* **reports:** dona también en ingresos y categorías desplegadas ([#56](https://github.com/axelroman-dev/FinanzasPersonales/issues/56)) ([61b3d22](https://github.com/axelroman-dev/FinanzasPersonales/commit/61b3d2272ef6efb155c9e2d481ab8956b84a0c46))
+* **reports:** gráfica de dona en los gastos por categoría ([#53](https://github.com/axelroman-dev/FinanzasPersonales/issues/53)) ([68a0d98](https://github.com/axelroman-dev/FinanzasPersonales/commit/68a0d980c252a2caa6972077d174236f10620f33))
+* **subscriptions:** cobro automático y suscripciones mensuales o anuales ([#54](https://github.com/axelroman-dev/FinanzasPersonales/issues/54)) ([cc5a7ff](https://github.com/axelroman-dev/FinanzasPersonales/commit/cc5a7fff1544a8374bd78b8a54d46d758d70e900))
+* **transactions:** buscar cuentas y categorías en los filtros de movimientos ([#52](https://github.com/axelroman-dev/FinanzasPersonales/issues/52)) ([f1250c1](https://github.com/axelroman-dev/FinanzasPersonales/commit/f1250c127a7a7d6a658ceb207577a43e588f4f4e))
+* **transactions:** nuevo movimiento con los filtros activos y selectores con búsqueda ([#50](https://github.com/axelroman-dev/FinanzasPersonales/issues/50)) ([2b60a04](https://github.com/axelroman-dev/FinanzasPersonales/commit/2b60a0465deb80efcf691d88a5aa5e9c13b1266c))
+
+
+### Correcciones
+
+* **categories:** icono propio en subcategorías importadas de respaldos viejos ([#55](https://github.com/axelroman-dev/FinanzasPersonales/issues/55)) ([954f056](https://github.com/axelroman-dev/FinanzasPersonales/commit/954f056ff6d2dc644906b4647ed4c006cb30393b))
+
 ## [0.9.1](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.9.0...v0.9.1) (2026-10-06)
 
 
