@@ -4,6 +4,7 @@ import { getCategoryTree } from "@/lib/categories";
 import { attachmentsEnabled } from "@/lib/storage/crypto";
 import { INTERNAL_CATEGORIES } from "@/lib/internal-categories";
 import { newTransactionDefaults } from "@/lib/transaction-defaults";
+import { getKnownDescriptions } from "@/lib/known-descriptions";
 import { isCardPayment } from "@/lib/account-types";
 import { chargeDueSubscriptions } from "@/lib/subscription-charges";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,12 +33,13 @@ export default async function TransactionsPage({
   const user = await requireUser();
   // Registra antes los cobros de suscripciones que ya tocan
   await chargeDueSubscriptions(user.id);
-  const [accounts, categories] = await Promise.all([
+  const [accounts, categories, descriptions] = await Promise.all([
     prisma.account.findMany({
       where: { userId: user.id },
       orderBy: { name: "asc" },
     }),
     getCategoryTree(user.id),
+    getKnownDescriptions(user.id),
   ]);
 
   // Construir filtros
@@ -108,6 +110,7 @@ export default async function TransactionsPage({
       })),
     categories,
     attachmentsEnabled: attachmentsEnabled(),
+    descriptions,
   };
 
   // El movimiento nuevo arranca con los filtros activos (cuenta, tipo, categoría)

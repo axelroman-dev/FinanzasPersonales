@@ -30,6 +30,7 @@ import { formatCurrency, toDateTimeLocalValue } from "@/lib/utils";
 import { DateTimePicker } from "@/components/ui/date-picker";
 import { useFormResetKey } from "@/hooks/use-form-reset-key";
 import { AttachmentsField, uploadAttachments } from "./attachments-field";
+import { DescriptionInput } from "./description-input";
 import { useAlert, useConfirm } from "@/components/shared/confirm-dialog";
 import type { NewTransactionDefaults } from "@/lib/transaction-defaults";
 
@@ -52,6 +53,8 @@ export type TransactionFormOptions = {
   accounts: AccountOption[];
   creditAccounts: CreditAccount[];
   categories?: CategoryNode[];
+  /** Descripciones ya usadas, para sugerirlas al escribir */
+  descriptions?: string[];
   /** false si falta ATTACHMENTS_KEY: no se muestra la sección de recibos */
   attachmentsEnabled?: boolean;
 };
@@ -76,6 +79,7 @@ export function TransactionActions({
   creditAccounts,
   categories,
   attachmentsEnabled,
+  descriptions,
   transaction,
   defaults,
   children,
@@ -85,6 +89,7 @@ export function TransactionActions({
   creditAccounts: CreditAccount[];
   categories?: CategoryNode[];
   attachmentsEnabled?: boolean;
+  descriptions?: string[];
   transaction?: EditableTransaction;
   /** Solo al crear: valores iniciales (p. ej. los filtros de la lista) */
   defaults?: NewTransactionDefaults;
@@ -102,6 +107,7 @@ export function TransactionActions({
         creditAccounts={creditAccounts}
         categories={categories}
         attachmentsEnabled={attachmentsEnabled}
+        descriptions={descriptions}
         transaction={transaction}
         defaults={defaults}
         onClose={() => setOpen(false)}
@@ -117,6 +123,7 @@ function TxFormDialog({
   creditAccounts,
   categories,
   attachmentsEnabled,
+  descriptions,
   transaction,
   defaults,
   onClose,
@@ -127,6 +134,7 @@ function TxFormDialog({
   creditAccounts: CreditAccount[];
   categories?: CategoryNode[];
   attachmentsEnabled?: boolean;
+  descriptions?: string[];
   transaction?: EditableTransaction;
   defaults?: NewTransactionDefaults;
   onClose: () => void;
@@ -354,10 +362,11 @@ function TxFormDialog({
 
         <div className="space-y-2">
           <Label htmlFor="description">Descripción</Label>
-          <Input
+          <DescriptionInput
             id="description"
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={setDescription}
+            known={descriptions ?? []}
             placeholder="Ej. Comida, salario, etc."
             required
             disabled={lockedCardPayment}
