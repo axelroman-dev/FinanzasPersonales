@@ -12,6 +12,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   ArrowLeftRight,
+  CreditCard,
   Minus,
   Loader2,
   Pencil,
@@ -42,6 +43,8 @@ type Tx = {
   isInitialBalance: boolean;
   accountName: string;
   transferAccountName: string | null;
+  /** Transferencia de débito/ahorro a una tarjeta de crédito */
+  isCardPayment: boolean;
   isMsi: boolean;
   msiParentId: string | null;
   msiInstallments: number | null;
@@ -136,6 +139,8 @@ function txVisuals(tx: Tx) {
       ? ArrowUpRight
       : tx.type === "EXPENSE"
       ? ArrowDownRight
+      : tx.isCardPayment
+      ? CreditCard
       : ArrowLeftRight;
   const color = tx.isInitialBalance
     ? "text-foreground"
@@ -151,6 +156,8 @@ function txVisuals(tx: Tx) {
     ? "Ingreso"
     : tx.type === "EXPENSE"
     ? "Gasto"
+    : tx.isCardPayment
+    ? "Pago de tarjeta"
     : "Transferencia";
   return { Icon, color, sign, label };
 }
@@ -209,7 +216,7 @@ function TransactionCard({
         <p className="text-xs text-muted-foreground">
           {formatShortDate(tx.date)} · {formatTime(tx.date)} · {tx.accountName}
           {tx.transferAccountName && <> → {tx.transferAccountName}</>}
-          {tx.isAdjustment && <> · {label}</>}
+          {(tx.isAdjustment || tx.isCardPayment) && <> · {label}</>}
         </p>
         <TxTags tx={tx} />
       </div>

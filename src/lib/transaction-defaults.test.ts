@@ -66,3 +66,11 @@ describe("newTransactionDefaults", () => {
     });
   });
 });
+
+describe("newTransactionDefaults con pago de tarjeta", () => {
+  it("acepta el tipo pago de tarjeta del filtro", () => {
+    expect(
+      newTransactionDefaults({ type: "CARD_PAYMENT", accountId: "tarjeta" }, accounts, categories)
+    ).toEqual({ type: "CARD_PAYMENT", accountId: "tarjeta" });
+  });
+});

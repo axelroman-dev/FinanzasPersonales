@@ -22,9 +22,10 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Trash2, Tag } from "lucide-react";
+import { isCardPayment } from "@/lib/account-types";
 import { CategorySelect } from "@/components/shared/category-select";
 import { AccountSelect, type AccountOption } from "@/components/shared/account-select";
-import { toDateTimeLocalValue } from "@/lib/utils";
+import { formatCurrency, toDateTimeLocalValue } from "@/lib/utils";
 import { DateTimePicker } from "@/components/ui/date-picker";
 import { useFormResetKey } from "@/hooks/use-form-reset-key";
 import { AttachmentsField, uploadAttachments } from "./attachments-field";
@@ -32,6 +33,8 @@ import { useAlert, useConfirm } from "@/components/shared/confirm-dialog";
 import type { NewTransactionDefaults } from "@/lib/transaction-defaults";
 
 type CreditAccount = { id: string; name: string; creditLimit: number | null };
+/** Tipo en el formulario: el pago de tarjeta se guarda como TRANSFER */
+type FormType = "INCOME" | "EXPENSE" | "TRANSFER" | "CARD_PAYMENT";
 
 type CategoryNode = {
   id: string;
@@ -136,9 +139,19 @@ function TxFormDialog({
   // Archivos elegidos que se suben al guardar
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
-  const [type, setType] = useState<"INCOME" | "EXPENSE" | "TRANSFER">(
-    transaction?.type ?? defaults?.type ?? "EXPENSE"
-  );
+  const typeOf = (id: string | null | undefined) => accounts.find((a) => a.id === id)?.type;
+  const [type, setType] = useState<FormType>(() => {
+    if (!transaction) return defaults?.type ?? "EXPENSE";
+    // Una transferencia a una tarjeta se edita como pago de tarjeta
+    return transaction.type === "TRANSFER" &&
+      isCardPayment(typeOf(transaction.accountId), typeOf(transaction.transferAccountId))
+      ? "CARD_PAYMENT"
+      : transaction.type;
+  });
+  const isTransferLike = type === "TRANSFER" || type === "CARD_PAYMENT";
+  // En un pago de tarjeta: se paga desde una cuenta que no es de crédito, a una tarjeta
+  const payFromAccounts = accounts.filter((a) => a.type !== "CREDIT");
+  const cardAccounts = accounts.filter((a) => a.type === "CREDIT");
   const [amount, setAmount] = useState<number | "">(
     transaction ? Math.abs(Number(transaction.amount)) : ""
   );
@@ -152,13 +165,16 @@ function TxFormDialog({
   );
   // Sin cuenta preseleccionada: con varias hay que elegirla (salvo que venga
   // del filtro); con una sola no hay nada que elegir
+  // En un pago de tarjeta, una tarjeta del filtro es el destino, no el origen
+  const defaultIsCard = type === "CARD_PAYMENT" && typeOf(defaults?.accountId) === "CREDIT";
+  const originChoices = type === "CARD_PAYMENT" ? payFromAccounts : accounts;
   const [accountId, setAccountId] = useState(
     transaction?.accountId ??
-      defaults?.accountId ??
-      (accounts.length === 1 ? accounts[0].id : "")
+      (defaultIsCard ? undefined : defaults?.accountId) ??
+      (originChoices.length === 1 ? originChoices[0].id : "")
   );
   const [transferAccountId, setTransferAccountId] = useState(
-    transaction?.transferAccountId ?? ""
+    transaction?.transferAccountId ?? (defaultIsCard ? defaults!.accountId! : "")
   );
 
   // MSI
@@ -171,8 +187,17 @@ function TxFormDialog({
   const canMsi = type === "EXPENSE" && creditAccounts.some((c) => c.id === accountId);
 
   // Las categorías dependen del tipo: al cambiarlo, la elegida ya no aplica
-  function onTypeChange(next: "INCOME" | "EXPENSE" | "TRANSFER") {
+  function onTypeChange(next: FormType) {
     if (next !== type) setCategoryId("");
+    if (next === "CARD_PAYMENT") {
+      // Quitar lo que no aplica: origen de crédito o destino que no es tarjeta
+      if (typeOf(accountId) === "CREDIT") {
+        setAccountId(payFromAccounts.length === 1 ? payFromAccounts[0].id : "");
+      }
+      if (typeOf(transferAccountId) !== "CREDIT") {
+        setTransferAccountId(cardAccounts.length === 1 ? cardAccounts[0].id : "");
+      }
+    }
     setType(next);
   }
 
@@ -182,14 +207,20 @@ function TxFormDialog({
 
     // Validaciones
     if (!accountId) {
-      setError(type === "TRANSFER" ? "Selecciona la cuenta origen" : "Selecciona la cuenta");
+      setError(
+        type === "CARD_PAYMENT"
+          ? "Selecciona la cuenta desde la que pagas"
+          : type === "TRANSFER"
+            ? "Selecciona la cuenta origen"
+            : "Selecciona la cuenta"
+      );
       return;
     }
-    if (type === "TRANSFER" && !transferAccountId) {
-      setError("Selecciona la cuenta destino");
+    if (isTransferLike && !transferAccountId) {
+      setError(type === "CARD_PAYMENT" ? "Selecciona la tarjeta a pagar" : "Selecciona la cuenta destino");
       return;
     }
-    if (type === "TRANSFER" && transferAccountId === accountId) {
+    if (isTransferLike && transferAccountId === accountId) {
       setError("Las cuentas deben ser distintas");
       return;
     }
@@ -197,14 +228,14 @@ function TxFormDialog({
     startTransition(async () => {
       try {
         const body: any = {
-          type,
+          type: isTransferLike ? "TRANSFER" : type,
           amount: Number(amount),
           // Instante exacto (con zona): el servidor no sabe la hora local
           date: new Date(date).toISOString(),
           description,
-          categoryId: type === "TRANSFER" ? null : (categoryId || null),
+          categoryId: isTransferLike ? null : (categoryId || null),
           accountId,
-          transferAccountId: type === "TRANSFER" ? transferAccountId : null,
+          transferAccountId: isTransferLike ? transferAccountId : null,
         };
 
         if (mode === "create" && isMsi && canMsi) {
@@ -286,6 +317,10 @@ function TxFormDialog({
               <SelectItem value="EXPENSE">Gasto</SelectItem>
               <SelectItem value="INCOME">Ingreso</SelectItem>
               <SelectItem value="TRANSFER">Transferencia</SelectItem>
+              {/* Sin tarjetas no hay nada que pagar */}
+              {cardAccounts.length > 0 && payFromAccounts.length > 0 && (
+                <SelectItem value="CARD_PAYMENT">Pago de tarjeta</SelectItem>
+              )}
             </SelectContent>
           </Select>
         </div>
@@ -322,9 +357,15 @@ function TxFormDialog({
         </div>
 
         <div className="space-y-2">
-          <Label>Cuenta {type === "TRANSFER" ? "origen" : ""}</Label>
+          <Label>
+            {type === "CARD_PAYMENT"
+              ? "Pagar desde"
+              : type === "TRANSFER"
+                ? "Cuenta origen"
+                : "Cuenta"}
+          </Label>
           <AccountSelect
-            accounts={accounts}
+            accounts={type === "CARD_PAYMENT" ? payFromAccounts : accounts}
             value={accountId}
             onChange={(id) => {
               setAccountId(id);
@@ -342,6 +383,22 @@ function TxFormDialog({
               onChange={setTransferAccountId}
               placeholder="Selecciona cuenta destino"
               excludeId={accountId}
+            />
+          </div>
+        )}
+
+        {type === "CARD_PAYMENT" && (
+          <div className="space-y-2">
+            <Label>Tarjeta a pagar</Label>
+            <AccountSelect
+              accounts={cardAccounts}
+              value={transferAccountId}
+              onChange={setTransferAccountId}
+              placeholder="Selecciona la tarjeta"
+            />
+            <CardDebtHint
+              debt={cardAccounts.find((a) => a.id === transferAccountId)?.balance}
+              onPayAll={setAmount}
             />
           </div>
         )}
@@ -394,7 +451,7 @@ function TxFormDialog({
             kind={type === "INCOME" ? "INCOME" : "EXPENSE"}
             value={categoryId}
             onChange={setCategoryId}
-            disabled={type === "TRANSFER"}
+            disabled={isTransferLike}
           />
         </div>
 
@@ -440,5 +497,31 @@ function TxFormDialog({
         </DialogActions>
       </form>
     </DialogContent>
+  );
+}
+
+/** Deuda de la tarjeta elegida y un atajo para pagarla completa */
+function CardDebtHint({
+  debt,
+  onPayAll,
+}: {
+  debt: number | undefined;
+  onPayAll: (amount: number) => void;
+}) {
+  if (debt === undefined) return null;
+  if (debt <= 0) {
+    return <p className="text-xs text-muted-foreground">Esta tarjeta no tiene deuda</p>;
+  }
+  return (
+    <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+      Deuda actual: <span className="tabular-nums text-red-400">{formatCurrency(debt)}</span>
+      <button
+        type="button"
+        onClick={() => onPayAll(debt)}
+        className="text-primary hover:underline"
+      >
+        Pagar todo
+      </button>
+    </p>
   );
 }
