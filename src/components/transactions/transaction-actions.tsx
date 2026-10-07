@@ -25,6 +25,7 @@ import { Loader2, Trash2, Tag } from "lucide-react";
 import { CategorySelect } from "@/components/shared/category-select";
 import { AccountSelect, type AccountOption } from "@/components/shared/account-select";
 import { toDateTimeLocalValue } from "@/lib/utils";
+import { DateTimePicker } from "@/components/ui/date-picker";
 import { useFormResetKey } from "@/hooks/use-form-reset-key";
 import { AttachmentsField, uploadAttachments } from "./attachments-field";
 import { useAlert, useConfirm } from "@/components/shared/confirm-dialog";
@@ -305,13 +306,7 @@ function TxFormDialog({
           </div>
           <div className="space-y-2">
             <Label htmlFor="date">Fecha y hora</Label>
-            <Input
-              id="date"
-              type="datetime-local"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              required
-            />
+            <DateTimePicker id="date" value={date} onChange={setDate} />
           </div>
         </div>
 

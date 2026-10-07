@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -41,9 +40,6 @@ export function TransactionFilters({
 }) {
   const router = useRouter();
   const params = useSearchParams();
-  // Las fechas no se controlan (se escriben por partes), así que al limpiar se
-  // vuelven a montar para que tomen el valor vacío
-  const [dateKey, setDateKey] = useState(0);
 
   function update(key: string, value: string | null) {
     const next = new URLSearchParams(params.toString());
@@ -56,7 +52,6 @@ export function TransactionFilters({
   }
 
   function clear() {
-    setDateKey((k) => k + 1);
     router.push("/transactions");
   }
 
@@ -71,19 +66,17 @@ export function TransactionFilters({
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-6">
-        <Input
-          key={`from-${dateKey}`}
-          type="date"
-          defaultValue={params.get("from") ?? ""}
-          onChange={(e) => update("from", e.target.value || null)}
+        <DatePicker
+          value={params.get("from") ?? ""}
+          onChange={(v) => update("from", v || null)}
           placeholder="Desde"
+          clearable
         />
-        <Input
-          key={`to-${dateKey}`}
-          type="date"
-          defaultValue={params.get("to") ?? ""}
-          onChange={(e) => update("to", e.target.value || null)}
+        <DatePicker
+          value={params.get("to") ?? ""}
+          onChange={(v) => update("to", v || null)}
           placeholder="Hasta"
+          clearable
         />
         <Select
           value={params.get("type") ?? "all"}
