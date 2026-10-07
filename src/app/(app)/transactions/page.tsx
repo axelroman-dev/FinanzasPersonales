@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getCategoryTree } from "@/lib/categories";
 import { attachmentsEnabled } from "@/lib/storage/crypto";
 import { INTERNAL_CATEGORIES } from "@/lib/internal-categories";
+import { newTransactionDefaults } from "@/lib/transaction-defaults";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, ArrowLeftRight } from "lucide-react";
@@ -105,6 +106,13 @@ export default async function TransactionsPage({
     attachmentsEnabled: attachmentsEnabled(),
   };
 
+  // El movimiento nuevo arranca con los filtros activos (cuenta, tipo, categoría)
+  const createDefaults = newTransactionDefaults(
+    searchParams,
+    accounts.map((a) => a.id),
+    categories
+  );
+
   return (
     <div className="p-4 sm:p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -114,7 +122,7 @@ export default async function TransactionsPage({
             Todos tus gastos, ingresos y transferencias
           </p>
         </div>
-        <TransactionActions mode="create" {...formOptions}>
+        <TransactionActions mode="create" {...formOptions} defaults={createDefaults}>
           <Button>
             <Plus className="h-4 w-4" />
             Nuevo movimiento

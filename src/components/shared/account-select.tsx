@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { cn, formatCurrency } from "@/lib/utils";
 import {
   ACCOUNT_TYPE_LABEL,
@@ -25,8 +17,9 @@ export type AccountOption = {
 };
 
 /**
- * Selector de cuenta con las cuentas agrupadas por tipo (Débito, Crédito,
- * Ahorro, Vales) y su saldo a la derecha.
+ * Selector de cuenta con búsqueda: las cuentas van agrupadas por tipo
+ * (Débito, Crédito, Ahorro, Vales) con su saldo a la derecha, y se puede
+ * escribir para filtrarlas por nombre o tipo.
  */
 export function AccountSelect({
   accounts,
@@ -42,43 +35,39 @@ export function AccountSelect({
   /** Cuenta que no se puede elegir (p. ej. el origen de una transferencia) */
   excludeId?: string;
 }) {
-  const groups = ACCOUNT_TYPE_ORDER.map((type) => ({
-    type,
-    accounts: accounts.filter((a) => a.type === type && a.id !== excludeId),
-  })).filter((g) => g.accounts.length > 0);
+  const groups = ACCOUNT_TYPE_ORDER.map((type, i) => ({
+    key: type,
+    heading: (
+      <span className="text-[11px] uppercase tracking-wide">{ACCOUNT_TYPE_LABEL[type]}</span>
+    ),
+    className: cn(i > 0 && "border-t mt-1 pt-1"),
+    options: accounts
+      .filter((a) => a.type === type && a.id !== excludeId)
+      .map((a) => ({
+        value: a.id,
+        label: a.name,
+        keywords: [ACCOUNT_TYPE_LABEL[type]],
+        aside: (
+          <span
+            className={cn(
+              "text-xs tabular-nums text-muted-foreground",
+              a.type === "CREDIT" && a.balance > 0 && "text-red-400"
+            )}
+          >
+            {formatCurrency(a.balance)}
+          </span>
+        ),
+      })),
+  })).filter((g) => g.options.length > 0);
 
   return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger>
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        {groups.map((group, i) => (
-          <SelectGroup key={group.type} className={cn(i > 0 && "border-t mt-1 pt-1")}>
-            <SelectLabel className="text-[11px] uppercase tracking-wide">
-              {ACCOUNT_TYPE_LABEL[group.type]}
-            </SelectLabel>
-            {group.accounts.map((a) => (
-              <SelectItem
-                key={a.id}
-                value={a.id}
-                aside={
-                  <span
-                    className={cn(
-                      "text-xs tabular-nums text-muted-foreground",
-                      a.type === "CREDIT" && a.balance > 0 && "text-red-400"
-                    )}
-                  >
-                    {formatCurrency(a.balance)}
-                  </span>
-                }
-              >
-                {a.name}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        ))}
-      </SelectContent>
-    </Select>
+    <Combobox
+      groups={groups}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      searchPlaceholder="Buscar cuenta…"
+      emptyText="Ninguna cuenta coincide"
+    />
   );
 }
