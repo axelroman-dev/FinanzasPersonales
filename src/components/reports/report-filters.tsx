@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "lucide-react";
 import { useState, useEffect, useTransition } from "react";
@@ -83,21 +83,11 @@ export function ReportFilters({
             <Calendar className="hidden h-4 w-4 lg:block" />
             Desde
           </span>
-          <Input
-            type="date"
-            className="lg:w-auto"
-            value={from}
-            onChange={(e) => onFromChange(e.target.value)}
-          />
+          <DatePicker className="lg:w-44" value={from} onChange={onFromChange} />
         </label>
         <label className="flex flex-col gap-1 lg:flex-row lg:items-center lg:gap-2">
           <span className="text-sm text-muted-foreground">Hasta</span>
-          <Input
-            type="date"
-            className="lg:w-auto"
-            value={to}
-            onChange={(e) => onToChange(e.target.value)}
-          />
+          <DatePicker className="lg:w-44" value={to} onChange={onToChange} />
         </label>
       </div>
       <div className="grid grid-cols-4 gap-1 lg:ml-auto lg:flex">
