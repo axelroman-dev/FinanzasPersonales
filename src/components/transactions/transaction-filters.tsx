@@ -90,6 +90,7 @@ export function TransactionFilters({
             <SelectItem value="INCOME">Ingreso</SelectItem>
             <SelectItem value="EXPENSE">Gasto</SelectItem>
             <SelectItem value="TRANSFER">Transferencia</SelectItem>
+            <SelectItem value="CARD_PAYMENT">Pago de tarjeta</SelectItem>
           </SelectContent>
         </Select>
         <Combobox

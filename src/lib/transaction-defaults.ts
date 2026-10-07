@@ -1,4 +1,5 @@
-type TxType = "INCOME" | "EXPENSE" | "TRANSFER";
+/** CARD_PAYMENT: pago de tarjeta, una transferencia a una tarjeta de crédito */
+type TxType = "INCOME" | "EXPENSE" | "TRANSFER" | "CARD_PAYMENT";
 
 type CategoryNode = {
   id: string;
@@ -14,7 +15,7 @@ export type NewTransactionDefaults = {
   isMsi?: boolean;
 };
 
-const TX_TYPES: TxType[] = ["INCOME", "EXPENSE", "TRANSFER"];
+const TX_TYPES: TxType[] = ["INCOME", "EXPENSE", "TRANSFER", "CARD_PAYMENT"];
 
 /**
  * Traduce los filtros de la lista de movimientos a valores iniciales del

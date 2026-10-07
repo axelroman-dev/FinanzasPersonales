@@ -4,6 +4,7 @@ import { getCategoryTree } from "@/lib/categories";
 import { attachmentsEnabled } from "@/lib/storage/crypto";
 import { INTERNAL_CATEGORIES } from "@/lib/internal-categories";
 import { newTransactionDefaults } from "@/lib/transaction-defaults";
+import { isCardPayment } from "@/lib/account-types";
 import { chargeDueSubscriptions } from "@/lib/subscription-charges";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -50,7 +51,14 @@ export default async function TransactionsPage({
       where.date.lte = to;
     }
   }
-  if (searchParams.type) where.type = searchParams.type;
+  if (searchParams.type === "CARD_PAYMENT") {
+    // Pago de tarjeta: transferencia de una cuenta que no es de crédito a una que sí
+    where.type = "TRANSFER";
+    where.transferAccount = { type: "CREDIT" };
+    where.account = { type: { not: "CREDIT" } };
+  } else if (searchParams.type) {
+    where.type = searchParams.type;
+  }
   if (searchParams.accountId) {
     where.OR = [
       { accountId: searchParams.accountId },
@@ -145,6 +153,8 @@ export default async function TransactionsPage({
         <TransactionsTable
           transactions={transactions.map((t) => {
             const cat = t.categoryRef;
+            const cardPayment =
+              t.type === "TRANSFER" && isCardPayment(t.account.type, t.transferAccount?.type);
             const rootCat = cat?.parent ?? cat;
             return {
               id: t.id,
@@ -157,11 +167,13 @@ export default async function TransactionsPage({
               // Las subcategorías usan el color de su principal
               categoryColor: rootCat?.color ?? null,
               categoryIcon: cat ? cat.icon ?? rootCat?.icon ?? null : null,
-              isAdjustment: cat?.kind === "INTERNAL",
+              // El pago de tarjeta también tiene categoría interna, pero no es un ajuste
+              isAdjustment: cat?.kind === "INTERNAL" && !cardPayment,
               isInitialBalance:
                 cat?.kind === "INTERNAL" && cat.name === INTERNAL_CATEGORIES.INITIAL_BALANCE,
               accountName: t.account.name,
               transferAccountName: t.transferAccount?.name ?? null,
+              isCardPayment: cardPayment,
               isMsi: t.isMsi,
               msiParentId: t.msiParentId,
               msiInstallments: t.msiInstallments,

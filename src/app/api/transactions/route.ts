@@ -5,6 +5,8 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { createMsiPurchase } from "@/lib/msi";
 import { applyBalanceDeltas, balanceEffects } from "@/lib/transaction-balance";
+import { isCardPayment } from "@/lib/account-types";
+import { ensureInternalCategory } from "@/lib/internal-categories";
 
 const baseSchema = {
   type: z.enum(["INCOME", "EXPENSE", "TRANSFER"]),
@@ -135,6 +137,10 @@ export async function POST(req: Request) {
       if (!cat.parentId) {
         return NextResponse.json({ error: "Elige una subcategoría" }, { status: 400 });
       }
+      // Las internas (ajustes, pago de tarjeta) solo las asigna el sistema
+      if (cat.kind === "INTERNAL") {
+        return NextResponse.json({ error: "Categoría no disponible" }, { status: 400 });
+      }
     }
 
     if (data.subscriptionId) {
@@ -174,6 +180,11 @@ export async function POST(req: Request) {
 
     // Transacción normal
     const tx = await prisma.$transaction(async (tx) => {
+      // Un pago de tarjeta lleva siempre su categoría interna
+      const categoryId =
+        data.type === "TRANSFER" && isCardPayment(account.type, transferAccountType)
+          ? await ensureInternalCategory(tx, user.id, "CARD_PAYMENT")
+          : (data.categoryId ?? null);
       const created = await tx.transaction.create({
         data: {
           userId: user.id,
@@ -182,7 +193,7 @@ export async function POST(req: Request) {
           date: data.date,
           description: data.description,
           category: data.category ?? null,
-          categoryId: data.categoryId ?? null,
+          categoryId,
           accountId: data.accountId,
           transferAccountId: data.transferAccountId ?? null,
           subscriptionId: data.subscriptionId ?? null,
