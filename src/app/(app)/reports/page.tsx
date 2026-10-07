@@ -147,6 +147,19 @@ export default async function ReportsPage({
           total={totalIncome}
           emptyText="No hay ingresos en este período"
           negative={false}
+          chart={
+            incomes.length > 0 && (
+              <CategoryPieChart
+                items={incomes.map((i) => ({
+                  id: i.categoryId,
+                  name: i.categoryName,
+                  color: i.color,
+                  total: i.total,
+                }))}
+                total={totalIncome}
+              />
+            )
+          }
         />
       </div>
     </div>
@@ -221,7 +234,7 @@ function CategoryList({
             if (!hasBreakdown) return <div key={item.categoryId}>{row}</div>;
 
             return (
-              <details key={item.categoryId} className="group">
+              <details key={item.categoryId} className="group" open>
                 <summary className="flex cursor-pointer list-none items-start gap-1 [&::-webkit-details-marker]:hidden">
                   <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
                   <div className="min-w-0 flex-1">{row}</div>
