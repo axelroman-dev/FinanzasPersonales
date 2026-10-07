@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Calendar, ArrowLeftRight, ChevronRight } from "lucide-react";
 import { ReportFilters } from "@/components/reports/report-filters";
+import { CategoryPieChart } from "@/components/reports/category-pie-chart";
 
 function formatLocalDate(d: Date): string {
   // Formato YYYY-MM-DD usando componentes locales (no UTC)
@@ -126,6 +127,19 @@ export default async function ReportsPage({
           total={totalExpense}
           emptyText="No hay gastos en este período"
           negative
+          chart={
+            expenses.length > 0 && (
+              <CategoryPieChart
+                items={expenses.map((e) => ({
+                  id: e.categoryId,
+                  name: e.categoryName,
+                  color: e.color,
+                  total: e.total,
+                }))}
+                total={totalExpense}
+              />
+            )
+          }
         />
         <CategoryList
           title="Ingresos por categoría"
@@ -145,12 +159,15 @@ function CategoryList({
   total,
   emptyText,
   negative,
+  chart,
 }: {
   title: string;
   items: CategoryTotal[];
   total: number;
   emptyText: string;
   negative: boolean;
+  /** Gráfica opcional sobre el desglose */
+  chart?: React.ReactNode;
 }) {
   const amountColor = negative ? "text-red-400" : "text-emerald-400";
   return (
@@ -159,6 +176,7 @@ function CategoryList({
         <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {chart && <div className="pb-2">{chart}</div>}
         {items.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4">{emptyText}</p>
         ) : (
@@ -190,6 +208,9 @@ function CategoryList({
                 <Progress
                   value={item.percent}
                   indicatorClassName={negative ? "bg-red-500" : "bg-emerald-500"}
+                  // Con gráfica, la barra lleva el color de la categoría para
+                  // relacionarla con su rebanada
+                  indicatorColor={chart ? item.color ?? undefined : undefined}
                 />
               </div>
             );
