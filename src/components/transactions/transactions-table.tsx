@@ -50,7 +50,6 @@ type Tx = {
   categoryId: string | null;
   accountId: string;
   transferAccountId: string | null;
-  subscriptionId: string | null;
   attachmentCount: number;
 };
 
@@ -304,7 +303,6 @@ function RowActions({
     categoryId: tx.categoryId,
     accountId: tx.accountId,
     transferAccountId: tx.transferAccountId,
-    subscriptionId: tx.subscriptionId,
     isMsi: tx.isMsi,
     msiInstallments: tx.msiInstallments,
   };

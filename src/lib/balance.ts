@@ -59,7 +59,14 @@ export async function calculateBalance(userId: string): Promise<BalanceSummary> 
   const [activeSubs, paidSubIds] = await Promise.all([
     prisma.subscription.findMany({
       where: { userId, isActive: true },
-      select: { id: true, amount: true, isActive: true },
+      select: {
+        id: true,
+        amount: true,
+        isActive: true,
+        frequency: true,
+        billingDay: true,
+        billingMonth: true,
+      },
     }),
     getPaidSubscriptionIds(userId),
   ]);

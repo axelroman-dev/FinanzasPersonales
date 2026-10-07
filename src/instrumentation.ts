@@ -1,6 +1,7 @@
 /**
  * Hook de arranque de Next.js: crea o sincroniza el admin del sistema con la
- * contraseña de ADMIN_PASSWORD (ver src/lib/system-admin.ts).
+ * contraseña de ADMIN_PASSWORD (ver src/lib/system-admin.ts) y arranca los
+ * cobros automáticos de suscripciones.
  */
 export async function register() {
   // El import va dentro del if para que no se incluya en el bundle edge
@@ -23,5 +24,9 @@ export async function register() {
       // Sin DB no se puede verificar; no impedir que el servidor arranque
       console.error("No se pudo preparar el admin del sistema:", error);
     }
+
+    // Cobros automáticos de suscripciones: al arrancar y cada hora
+    const { startSubscriptionScheduler } = await import("@/lib/subscription-charges");
+    startSubscriptionScheduler();
   }
 }

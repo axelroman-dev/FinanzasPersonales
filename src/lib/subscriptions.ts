@@ -1,4 +1,9 @@
 import { prisma } from "@/lib/db";
+import {
+  isDueInMonth,
+  monthlyEquivalent,
+  type SubscriptionSchedule,
+} from "@/lib/subscription-schedule";
 
 /**
  * Valida la categoría de una suscripción: debe ser del usuario y de gasto
@@ -26,27 +31,30 @@ export function monthRange(now: Date): { start: Date; end: Date } {
 }
 
 export type SubscriptionMonthSummary = {
-  /** Suma de las suscripciones activas */
+  /** Lo que cuestan al mes las activas (las anuales, repartidas en 12) */
   activeTotal: number;
-  /** Activas que ya tienen un movimiento ligado este mes */
+  /** Activas que tocan este mes y ya tienen un movimiento ligado */
   paidTotal: number;
-  /** Activas sin pago este mes: lo que falta descontar */
+  /** Activas que tocan este mes y aún no se cobran: lo que falta descontar */
   pendingTotal: number;
 };
 
 /**
  * Una suscripción activa cuenta como pagada si tiene algún movimiento ligado
  * en el mes. Ese pago ya bajó el saldo de la cuenta, así que solo las
- * pendientes se restan del balance real.
+ * pendientes se restan del balance real. Las anuales solo cuentan como
+ * pagadas o pendientes en su mes.
  */
 export function summarizeSubscriptions(
-  subs: { id: string; amount: number; isActive: boolean }[],
-  paidIds: Set<string>
+  subs: (SubscriptionSchedule & { id: string; amount: number; isActive: boolean })[],
+  paidIds: Set<string>,
+  now: Date = new Date()
 ): SubscriptionMonthSummary {
   const summary = { activeTotal: 0, paidTotal: 0, pendingTotal: 0 };
   for (const s of subs) {
     if (!s.isActive) continue;
-    summary.activeTotal += s.amount;
+    summary.activeTotal += monthlyEquivalent(s);
+    if (!isDueInMonth(s, now)) continue;
     if (paidIds.has(s.id)) summary.paidTotal += s.amount;
     else summary.pendingTotal += s.amount;
   }

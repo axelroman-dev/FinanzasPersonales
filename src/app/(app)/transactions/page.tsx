@@ -4,6 +4,7 @@ import { getCategoryTree } from "@/lib/categories";
 import { attachmentsEnabled } from "@/lib/storage/crypto";
 import { INTERNAL_CATEGORIES } from "@/lib/internal-categories";
 import { newTransactionDefaults } from "@/lib/transaction-defaults";
+import { chargeDueSubscriptions } from "@/lib/subscription-charges";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, ArrowLeftRight } from "lucide-react";
@@ -28,6 +29,8 @@ export default async function TransactionsPage({
   };
 }) {
   const user = await requireUser();
+  // Registra antes los cobros de suscripciones que ya tocan
+  await chargeDueSubscriptions(user.id);
   const [accounts, categories] = await Promise.all([
     prisma.account.findMany({
       where: { userId: user.id },
@@ -68,24 +71,18 @@ export default async function TransactionsPage({
   if (searchParams.msi === "true") where.isMsi = true;
   if (searchParams.msi === "false") where.isMsi = false;
 
-  const [transactions, activeSubs] = await Promise.all([
-    prisma.transaction.findMany({
-      where,
-      include: {
-        account: true,
-        transferAccount: true,
-        subscription: { select: { name: true } },
-        categoryRef: { include: { parent: true } },
-        _count: { select: { attachments: true } },
-      },
-      orderBy: { date: "desc" },
-      take: 500,
-    }),
-    prisma.subscription.findMany({
-      where: { userId: user.id, isActive: true },
-      select: { id: true, name: true, amount: true, categoryId: true },
-    }),
-  ]);
+  const transactions = await prisma.transaction.findMany({
+    where,
+    include: {
+      account: true,
+      transferAccount: true,
+      subscription: { select: { name: true } },
+      categoryRef: { include: { parent: true } },
+      _count: { select: { attachments: true } },
+    },
+    orderBy: { date: "desc" },
+    take: 500,
+  });
 
   const formOptions: TransactionFormOptions = {
     accounts: accounts.map((a) => ({
@@ -101,7 +98,6 @@ export default async function TransactionsPage({
         name: a.name,
         creditLimit: a.creditLimit ? Number(a.creditLimit) : null,
       })),
-    subscriptions: activeSubs.map((s) => ({ ...s, amount: Number(s.amount) })),
     categories,
     attachmentsEnabled: attachmentsEnabled(),
   };
@@ -173,7 +169,6 @@ export default async function TransactionsPage({
               categoryId: t.categoryId,
               accountId: t.accountId,
               transferAccountId: t.transferAccountId,
-              subscriptionId: t.subscriptionId,
               attachmentCount: t._count.attachments,
             };
           })}

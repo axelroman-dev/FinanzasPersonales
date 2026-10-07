@@ -14,6 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Loader2, Trash2 } from "lucide-react";
 import {
   CategorySelect,
@@ -28,10 +35,18 @@ type SubFormData = {
   name: string;
   amount: number;
   billingDay: number;
+  frequency: Frequency;
+  billingMonth: number | null;
   categoryId: string | null;
   isActive: boolean;
   accountId: string;
 };
+
+type Frequency = "MONTHLY" | "YEARLY";
+
+const MONTHS = Array.from({ length: 12 }, (_, i) =>
+  new Intl.DateTimeFormat("es-MX", { month: "long" }).format(new Date(2000, i, 1))
+);
 
 export function SubscriptionActions({
   mode,
@@ -88,6 +103,11 @@ function SubFormDialog({
   const [billingDay, setBillingDay] = useState<number | "">(
     subscription?.billingDay ?? 1
   );
+  const [frequency, setFrequency] = useState<Frequency>(subscription?.frequency ?? "MONTHLY");
+  // Mes de cobro de las anuales (1-12); por defecto el actual
+  const [billingMonth, setBillingMonth] = useState<number>(
+    subscription?.billingMonth ?? new Date().getMonth() + 1
+  );
   const [categoryId, setCategoryId] = useState(subscription?.categoryId ?? "");
   const [isActive, setIsActive] = useState(subscription?.isActive ?? true);
   const [accountId, setAccountId] = useState(
@@ -103,6 +123,8 @@ function SubFormDialog({
           name,
           amount: Number(amount),
           billingDay: Number(billingDay),
+          frequency,
+          billingMonth: frequency === "YEARLY" ? billingMonth : null,
           categoryId: categoryId || null,
           isActive,
           accountId,
@@ -172,7 +194,21 @@ function SubFormDialog({
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
-            <Label htmlFor="amount">Monto mensual</Label>
+            <Label>Frecuencia</Label>
+            <Select value={frequency} onValueChange={(v) => setFrequency(v as Frequency)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="MONTHLY">Mensual</SelectItem>
+                <SelectItem value="YEARLY">Anual</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="amount">
+              {frequency === "YEARLY" ? "Monto anual" : "Monto mensual"}
+            </Label>
             <Input
               id="amount"
               type="number"
@@ -184,6 +220,29 @@ function SubFormDialog({
               required
             />
           </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          {frequency === "YEARLY" && (
+            <div className="space-y-2">
+              <Label>Mes de cobro</Label>
+              <Select
+                value={String(billingMonth)}
+                onValueChange={(v) => setBillingMonth(Number(v))}
+              >
+                <SelectTrigger className="capitalize">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONTHS.map((m, i) => (
+                    <SelectItem key={m} value={String(i + 1)} className="capitalize">
+                      {m}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="billingDay">Día de cobro</Label>
             <Input
@@ -201,6 +260,11 @@ function SubFormDialog({
             />
           </div>
         </div>
+
+        <p className="-mt-1 text-xs text-muted-foreground">
+          Se registra sola como gasto {frequency === "YEARLY" ? "cada año" : "cada mes"} en
+          esa fecha. Si el mes no tiene ese día, se cobra el último.
+        </p>
 
         <div className="space-y-2">
           <Label>Cuenta donde se cobra</Label>

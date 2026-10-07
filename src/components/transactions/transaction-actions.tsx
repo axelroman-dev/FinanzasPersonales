@@ -31,7 +31,6 @@ import { useAlert, useConfirm } from "@/components/shared/confirm-dialog";
 import type { NewTransactionDefaults } from "@/lib/transaction-defaults";
 
 type CreditAccount = { id: string; name: string; creditLimit: number | null };
-type SubOpt = { id: string; name: string; amount: number; categoryId: string | null };
 
 type CategoryNode = {
   id: string;
@@ -47,7 +46,6 @@ type CategoryNode = {
 export type TransactionFormOptions = {
   accounts: AccountOption[];
   creditAccounts: CreditAccount[];
-  subscriptions?: SubOpt[];
   categories?: CategoryNode[];
   /** false si falta ATTACHMENTS_KEY: no se muestra la sección de recibos */
   attachmentsEnabled?: boolean;
@@ -63,7 +61,6 @@ export type EditableTransaction = {
   categoryId: string | null;
   accountId: string;
   transferAccountId: string | null;
-  subscriptionId: string | null;
   isMsi: boolean;
   msiInstallments: number | null;
 };
@@ -72,7 +69,6 @@ export function TransactionActions({
   mode,
   accounts,
   creditAccounts,
-  subscriptions,
   categories,
   attachmentsEnabled,
   transaction,
@@ -82,7 +78,6 @@ export function TransactionActions({
   mode: "create" | "edit";
   accounts: AccountOption[];
   creditAccounts: CreditAccount[];
-  subscriptions?: SubOpt[];
   categories?: CategoryNode[];
   attachmentsEnabled?: boolean;
   transaction?: EditableTransaction;
@@ -100,7 +95,6 @@ export function TransactionActions({
         mode={mode}
         accounts={accounts}
         creditAccounts={creditAccounts}
-        subscriptions={subscriptions}
         categories={categories}
         attachmentsEnabled={attachmentsEnabled}
         transaction={transaction}
@@ -116,7 +110,6 @@ function TxFormDialog({
   mode,
   accounts,
   creditAccounts,
-  subscriptions,
   categories,
   attachmentsEnabled,
   transaction,
@@ -127,7 +120,6 @@ function TxFormDialog({
   mode: "create" | "edit";
   accounts: AccountOption[];
   creditAccounts: CreditAccount[];
-  subscriptions?: SubOpt[];
   categories?: CategoryNode[];
   attachmentsEnabled?: boolean;
   transaction?: EditableTransaction;
@@ -174,27 +166,13 @@ function TxFormDialog({
     transaction?.msiInstallments ?? 3
   );
 
-  // Suscripción
-  const [subscriptionId, setSubscriptionId] = useState<string>(
-    transaction?.subscriptionId ?? ""
-  );
-
   // Solo permitir MSI si es gasto en crédito
   const canMsi = type === "EXPENSE" && creditAccounts.some((c) => c.id === accountId);
 
   // Las categorías dependen del tipo: al cambiarlo, la elegida ya no aplica
   function onTypeChange(next: "INCOME" | "EXPENSE" | "TRANSFER") {
     if (next !== type) setCategoryId("");
-    // Solo los gastos pueden ser pago de una suscripción
-    if (next !== "EXPENSE") setSubscriptionId("");
     setType(next);
-  }
-
-  // Al elegir una suscripción, usar su categoría si aún no hay una
-  function onSubscriptionChange(id: string) {
-    setSubscriptionId(id);
-    const sub = subscriptions?.find((s) => s.id === id);
-    if (sub?.categoryId && !categoryId) setCategoryId(sub.categoryId);
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -226,7 +204,6 @@ function TxFormDialog({
           categoryId: type === "TRANSFER" ? null : (categoryId || null),
           accountId,
           transferAccountId: type === "TRANSFER" ? transferAccountId : null,
-          subscriptionId: subscriptionId || null,
         };
 
         if (mode === "create" && isMsi && canMsi) {
@@ -371,32 +348,6 @@ function TxFormDialog({
               placeholder="Selecciona cuenta destino"
               excludeId={accountId}
             />
-          </div>
-        )}
-
-        {type === "EXPENSE" && subscriptions && subscriptions.length > 0 && (
-          <div className="space-y-2">
-            <Label>Suscripción (opcional)</Label>
-            <Select
-              value={subscriptionId || "none"}
-              onValueChange={(v) => onSubscriptionChange(v === "none" ? "" : v)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Sin suscripción" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sin suscripción</SelectItem>
-                {subscriptions.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name} (${s.amount})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Si este gasto es el pago de una suscripción, elígela: queda
-              marcada como pagada este mes y el balance no la vuelve a restar.
-            </p>
           </div>
         )}
 

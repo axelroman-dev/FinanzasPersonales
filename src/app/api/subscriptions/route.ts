@@ -3,15 +3,23 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { isValidSubscriptionCategory } from "@/lib/subscriptions";
+import { chargeDueSubscriptions } from "@/lib/subscription-charges";
 
-const schema = z.object({
-  name: z.string().min(1),
-  amount: z.number().positive(),
-  billingDay: z.number().int().min(1).max(31),
-  categoryId: z.string().nullable().optional(),
-  isActive: z.boolean().optional(),
-  accountId: z.string(),
-});
+const schema = z
+  .object({
+    name: z.string().min(1),
+    amount: z.number().positive(),
+    billingDay: z.number().int().min(1).max(31),
+    frequency: z.enum(["MONTHLY", "YEARLY"]).default("MONTHLY"),
+    billingMonth: z.number().int().min(1).max(12).nullable().optional(),
+    categoryId: z.string().nullable().optional(),
+    isActive: z.boolean().optional(),
+    accountId: z.string(),
+  })
+  // Las anuales necesitan su mes de cobro
+  .refine((d) => d.frequency === "MONTHLY" || d.billingMonth, {
+    path: ["billingMonth"],
+  });
 
 export async function GET() {
   try {
@@ -61,11 +69,15 @@ export async function POST(req: Request) {
         name: parsed.data.name,
         amount: parsed.data.amount,
         billingDay: parsed.data.billingDay,
+        frequency: parsed.data.frequency,
+        billingMonth: parsed.data.frequency === "YEARLY" ? parsed.data.billingMonth : null,
         categoryId,
         isActive: parsed.data.isActive ?? true,
         accountId: parsed.data.accountId,
       },
     });
+    // Si el cobro es hoy, se registra ya
+    await chargeDueSubscriptions(user.id);
     return NextResponse.json(sub, { status: 201 });
   } catch (error) {
     console.error("Create sub error:", error);

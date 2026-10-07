@@ -128,17 +128,28 @@ model Transaction {
   @@index([categoryId])
 }
 
+// Cada cuánto se cobra una suscripción
+enum SubscriptionFrequency {
+  MONTHLY
+  YEARLY
+}
+
 model Subscription {
-  id         String   @id @default(cuid())
-  userId     String
-  name       String
-  amount     Decimal  @db.Decimal(14, 2)
-  billingDay Int // día del mes
-  categoryId String?
-  isActive   Boolean  @default(true)
-  accountId  String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id           String                @id @default(cuid())
+  userId       String
+  name         String
+  amount       Decimal               @db.Decimal(14, 2)
+  billingDay   Int // día del mes
+  frequency    SubscriptionFrequency @default(MONTHLY)
+  billingMonth Int? // 1-12, solo en las anuales
+  // Próximo cobro por registrar (ver src/lib/subscription-charges.ts). null =
+  // se calcula desde hoy, sin cobrar fechas pasadas
+  nextChargeAt DateTime?
+  categoryId   String?
+  isActive     Boolean               @default(true)
+  accountId    String
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   account      Account       @relation(fields: [accountId], references: [id])

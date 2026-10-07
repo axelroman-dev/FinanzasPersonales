@@ -84,6 +84,10 @@ export type ExportSubscription = {
   name: string;
   amount: number;
   billingDay: number;
+  /** Exports anteriores no lo traen: mensual */
+  frequency?: "MONTHLY" | "YEARLY";
+  /** 1-12, solo en las anuales */
+  billingMonth?: number | null;
   categoryName?: string | null;
   categoryParentName?: string | null;
   /** Exports anteriores: la categoría era texto libre; se resuelve por nombre */
@@ -201,6 +205,8 @@ export async function exportUserData(
         name: s.name,
         amount: Number(s.amount),
         billingDay: s.billingDay,
+        frequency: s.frequency,
+        billingMonth: s.billingMonth,
         categoryName: s.category?.name ?? null,
         categoryParentName: s.category?.parent?.name ?? null,
         isActive: s.isActive,
@@ -985,9 +991,12 @@ async function upsertSubscriptionTx(
         data: {
           amount: sub.amount,
           billingDay: sub.billingDay,
+          ...importSchedule(sub),
           categoryId,
           isActive: sub.isActive,
           accountId,
+          // El próximo cobro se recalcula desde hoy, sin cobrar fechas pasadas
+          nextChargeAt: null,
         },
       });
       result.updated++;
@@ -1003,6 +1012,7 @@ async function upsertSubscriptionTx(
       name: sub.name,
       amount: sub.amount,
       billingDay: sub.billingDay,
+      ...importSchedule(sub),
       categoryId,
       isActive: sub.isActive,
       accountId,
@@ -1010,6 +1020,15 @@ async function upsertSubscriptionTx(
   });
   existingByName.set(sub.name, "new");
   result.created++;
+}
+
+/** Frecuencia de una suscripción importada; las anuales sin mes, en enero */
+function importSchedule(sub: ExportSubscription) {
+  const frequency = sub.frequency === "YEARLY" ? "YEARLY" : "MONTHLY";
+  return {
+    frequency,
+    billingMonth: frequency === "YEARLY" ? sub.billingMonth ?? 1 : null,
+  } as const;
 }
 
 async function upsertTransactionTx(
