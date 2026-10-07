@@ -28,6 +28,7 @@ import { toDateTimeLocalValue } from "@/lib/utils";
 import { useFormResetKey } from "@/hooks/use-form-reset-key";
 import { AttachmentsField, uploadAttachments } from "./attachments-field";
 import { useAlert, useConfirm } from "@/components/shared/confirm-dialog";
+import type { NewTransactionDefaults } from "@/lib/transaction-defaults";
 
 type CreditAccount = { id: string; name: string; creditLimit: number | null };
 type SubOpt = { id: string; name: string; amount: number; categoryId: string | null };
@@ -75,6 +76,7 @@ export function TransactionActions({
   categories,
   attachmentsEnabled,
   transaction,
+  defaults,
   children,
 }: {
   mode: "create" | "edit";
@@ -84,6 +86,8 @@ export function TransactionActions({
   categories?: CategoryNode[];
   attachmentsEnabled?: boolean;
   transaction?: EditableTransaction;
+  /** Solo al crear: valores iniciales (p. ej. los filtros de la lista) */
+  defaults?: NewTransactionDefaults;
   children?: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -100,6 +104,7 @@ export function TransactionActions({
         categories={categories}
         attachmentsEnabled={attachmentsEnabled}
         transaction={transaction}
+        defaults={defaults}
         onClose={() => setOpen(false)}
         onSaved={() => setOpen(false)}
       />
@@ -115,6 +120,7 @@ function TxFormDialog({
   categories,
   attachmentsEnabled,
   transaction,
+  defaults,
   onClose,
   onSaved,
 }: {
@@ -125,6 +131,7 @@ function TxFormDialog({
   categories?: CategoryNode[];
   attachmentsEnabled?: boolean;
   transaction?: EditableTransaction;
+  defaults?: NewTransactionDefaults;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -137,7 +144,7 @@ function TxFormDialog({
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   const [type, setType] = useState<"INCOME" | "EXPENSE" | "TRANSFER">(
-    transaction?.type ?? "EXPENSE"
+    transaction?.type ?? defaults?.type ?? "EXPENSE"
   );
   const [amount, setAmount] = useState<number | "">(
     transaction ? Math.abs(Number(transaction.amount)) : ""
@@ -147,16 +154,22 @@ function TxFormDialog({
     toDateTimeLocalValue(transaction?.date ?? new Date())
   );
   const [description, setDescription] = useState(transaction?.description ?? "");
-  const [categoryId, setCategoryId] = useState<string>(transaction?.categoryId ?? "");
+  const [categoryId, setCategoryId] = useState<string>(
+    transaction?.categoryId ?? defaults?.categoryId ?? ""
+  );
+  // Sin cuenta preseleccionada: con varias hay que elegirla (salvo que venga
+  // del filtro); con una sola no hay nada que elegir
   const [accountId, setAccountId] = useState(
-    transaction?.accountId ?? accounts[0]?.id ?? ""
+    transaction?.accountId ??
+      defaults?.accountId ??
+      (accounts.length === 1 ? accounts[0].id : "")
   );
   const [transferAccountId, setTransferAccountId] = useState(
     transaction?.transferAccountId ?? ""
   );
 
   // MSI
-  const [isMsi, setIsMsi] = useState(transaction?.isMsi ?? false);
+  const [isMsi, setIsMsi] = useState(transaction?.isMsi ?? defaults?.isMsi ?? false);
   const [msiInstallments, setMsiInstallments] = useState<number | "">(
     transaction?.msiInstallments ?? 3
   );
@@ -189,6 +202,10 @@ function TxFormDialog({
     setError(null);
 
     // Validaciones
+    if (!accountId) {
+      setError(type === "TRANSFER" ? "Selecciona la cuenta origen" : "Selecciona la cuenta");
+      return;
+    }
     if (type === "TRANSFER" && !transferAccountId) {
       setError("Selecciona la cuenta destino");
       return;
