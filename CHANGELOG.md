@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.12.1...v0.13.0) (2026-10-07)
+
+
+### Nuevas funciones
+
+* **transactions:** sugerir descripciones ya usadas al escribir ([#63](https://github.com/axelroman-dev/FinanzasPersonales/issues/63)) ([f32760d](https://github.com/axelroman-dev/FinanzasPersonales/commit/f32760d2cd77764bb504c1ed3316d34cf32a1571))
+
 ## [0.12.1](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.12.0...v0.12.1) (2026-10-07)
 
 
