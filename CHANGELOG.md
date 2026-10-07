@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.12.0...v0.12.1) (2026-10-07)
+
+
+### Correcciones
+
+* **categories:** no permitir eliminar una categoría con movimientos ([#61](https://github.com/axelroman-dev/FinanzasPersonales/issues/61)) ([5307acd](https://github.com/axelroman-dev/FinanzasPersonales/commit/5307acdc8f5df435f18e2b04e0d82082170ffdf1))
+
 ## [0.12.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.11.0...v0.12.0) (2026-10-07)
 
 
