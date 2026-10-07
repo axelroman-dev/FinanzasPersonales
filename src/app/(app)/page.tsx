@@ -9,9 +9,12 @@ import { formatCurrency, formatShortDate } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MonthlyFlowChart } from "@/components/dashboard/monthly-flow-chart";
+import { chargeDueSubscriptions } from "@/lib/subscription-charges";
 
 export default async function DashboardPage() {
   const user = await requireUser();
+  // Registra antes los cobros de suscripciones que ya tocan
+  await chargeDueSubscriptions(user.id);
   const now = new Date();
   const [balance, events, flow, unrecorded] = await Promise.all([
     calculateBalance(user.id),

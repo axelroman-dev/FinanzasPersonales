@@ -1,7 +1,8 @@
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { calculateBalance } from "@/lib/balance";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate, formatShortDate } from "@/lib/utils";
+import { firstDueOnOrAfter, isDueInMonth } from "@/lib/subscription-schedule";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,9 +10,12 @@ import { Pencil, Plus, Receipt } from "lucide-react";
 import { SubscriptionActions } from "@/components/subscriptions/subscription-actions";
 import { getCategoryTree } from "@/lib/categories";
 import { getPaidSubscriptionIds, summarizeSubscriptions } from "@/lib/subscriptions";
+import { chargeDueSubscriptions } from "@/lib/subscription-charges";
 
 export default async function SubscriptionsPage() {
   const user = await requireUser();
+  // Registra antes los cobros de suscripciones que ya tocan
+  await chargeDueSubscriptions(user.id);
   const [subscriptions, accounts, balance, categories, paidIds] = await Promise.all([
     prisma.subscription.findMany({
       where: { userId: user.id },
@@ -27,9 +31,11 @@ export default async function SubscriptionsPage() {
     getPaidSubscriptionIds(user.id),
   ]);
 
+  const now = new Date();
   const summary = summarizeSubscriptions(
     subscriptions.map((s) => ({ ...s, amount: Number(s.amount) })),
-    paidIds
+    paidIds,
+    now
   );
 
   return (
@@ -38,7 +44,7 @@ export default async function SubscriptionsPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Suscripciones</h1>
           <p className="text-muted-foreground">
-            Tus cargos recurrentes mensuales
+            Tus cargos recurrentes; se registran solos en su fecha
           </p>
         </div>
         <SubscriptionActions
@@ -94,8 +100,9 @@ export default async function SubscriptionsPage() {
               </p>
             </div>
             <p className="text-xs text-muted-foreground">
-              Una suscripción cuenta como pagada cuando registras el gasto y la
-              eliges en el campo &quot;Suscripción&quot; del movimiento.
+              En su fecha de cobro, cada suscripción activa se registra sola como
+              un gasto en su cuenta. Las anuales suman al total mensual 1/12 de su
+              monto y solo cuentan como pendientes en su mes.
             </p>
           </div>
         </CardContent>
@@ -141,9 +148,9 @@ export default async function SubscriptionsPage() {
                     <Badge variant="secondary" className="text-xs">
                       Inactiva
                     </Badge>
-                  ) : paidIds.has(sub.id) ? (
+                  ) : !isDueInMonth(sub, now) ? null : paidIds.has(sub.id) ? (
                     <Badge variant="success" className="text-xs">
-                      Pagada este mes
+                      Cobrada este mes
                     </Badge>
                   ) : (
                     <Badge variant="warning" className="text-xs">
@@ -152,7 +159,8 @@ export default async function SubscriptionsPage() {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {sub.account.name} • Día {sub.billingDay}
+                  {sub.account.name} • {scheduleLabel(sub)}
+                  {sub.isActive && ` • Próximo cobro: ${nextChargeLabel(sub, now)}`}
                   {sub.category &&
                     ` • ${sub.category.parent ? `${sub.category.parent.name} › ` : ""}${sub.category.name}`}
                 </p>
@@ -160,6 +168,9 @@ export default async function SubscriptionsPage() {
               <div className="flex items-center gap-3">
                 <p className="text-lg font-semibold tabular-nums">
                   {formatCurrency(Number(sub.amount))}
+                  <span className="ml-1 text-xs font-normal text-muted-foreground">
+                    {sub.frequency === "YEARLY" ? "/año" : "/mes"}
+                  </span>
                 </p>
                 <SubscriptionActions
                   mode="edit"
@@ -175,6 +186,8 @@ export default async function SubscriptionsPage() {
                     name: sub.name,
                     amount: Number(sub.amount),
                     billingDay: sub.billingDay,
+                    frequency: sub.frequency,
+                    billingMonth: sub.billingMonth,
                     categoryId: sub.categoryId,
                     isActive: sub.isActive,
                     accountId: sub.accountId,
@@ -196,4 +209,31 @@ export default async function SubscriptionsPage() {
       </div>
     </div>
   );
+}
+
+const monthName = new Intl.DateTimeFormat("es-MX", { month: "long" });
+
+/** "Mensual, día 9" o "Anual, 9 de marzo" */
+function scheduleLabel(sub: {
+  frequency: "MONTHLY" | "YEARLY";
+  billingDay: number;
+  billingMonth: number | null;
+}): string {
+  if (sub.frequency === "MONTHLY") return `Mensual, día ${sub.billingDay}`;
+  const month = monthName.format(new Date(2000, (sub.billingMonth ?? 1) - 1, 1));
+  return `Anual, ${sub.billingDay} de ${month}`;
+}
+
+/** Fecha del próximo cobro; con año si no es este */
+function nextChargeLabel(
+  sub: {
+    frequency: "MONTHLY" | "YEARLY";
+    billingDay: number;
+    billingMonth: number | null;
+    nextChargeAt: Date | null;
+  },
+  now: Date
+): string {
+  const next = sub.nextChargeAt ?? firstDueOnOrAfter(sub, now);
+  return next.getFullYear() === now.getFullYear() ? formatShortDate(next) : formatDate(next);
 }

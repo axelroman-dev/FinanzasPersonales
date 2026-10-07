@@ -3,11 +3,14 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { isValidSubscriptionCategory } from "@/lib/subscriptions";
+import { chargeDueSubscriptions } from "@/lib/subscription-charges";
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
   amount: z.number().positive().optional(),
   billingDay: z.number().int().min(1).max(31).optional(),
+  frequency: z.enum(["MONTHLY", "YEARLY"]).optional(),
+  billingMonth: z.number().int().min(1).max(12).nullable().optional(),
   categoryId: z.string().nullable().optional(),
   isActive: z.boolean().optional(),
   accountId: z.string().optional(),
@@ -49,10 +52,36 @@ export async function PATCH(
         { status: 400 }
       );
     }
+    const data = parsed.data;
+    const frequency = data.frequency ?? existing.frequency;
+    const billingMonth =
+      frequency === "YEARLY"
+        ? data.billingMonth !== undefined
+          ? data.billingMonth
+          : existing.billingMonth
+        : null;
+    if (frequency === "YEARLY" && !billingMonth) {
+      return NextResponse.json({ error: "Elige el mes de cobro" }, { status: 400 });
+    }
+
+    // Si cambia cuándo se cobra o se reactiva, el próximo cobro se recalcula
+    // desde hoy (sin cobrar las fechas que pasaron mientras tanto)
+    const reschedule =
+      frequency !== existing.frequency ||
+      billingMonth !== existing.billingMonth ||
+      (data.billingDay !== undefined && data.billingDay !== existing.billingDay) ||
+      (data.isActive === true && !existing.isActive);
+
     const sub = await prisma.subscription.update({
       where: { id: params.id },
-      data: parsed.data,
+      data: {
+        ...data,
+        frequency,
+        billingMonth,
+        ...(reschedule && { nextChargeAt: null }),
+      },
     });
+    if (reschedule) await chargeDueSubscriptions(user.id);
     return NextResponse.json(sub);
   } catch {
     return NextResponse.json({ error: "Error al actualizar" }, { status: 500 });
