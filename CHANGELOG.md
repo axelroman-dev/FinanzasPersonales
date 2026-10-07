@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.11.0...v0.12.0) (2026-10-07)
+
+
+### Nuevas funciones
+
+* **transactions:** tipo de movimiento «Pago de tarjeta» ([#59](https://github.com/axelroman-dev/FinanzasPersonales/issues/59)) ([064ec88](https://github.com/axelroman-dev/FinanzasPersonales/commit/064ec8817285077530e303b7bd3c1dc3a775e880))
+
 ## [0.11.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.10.0...v0.11.0) (2026-10-07)
 
 
