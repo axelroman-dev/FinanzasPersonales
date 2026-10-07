@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.10.0...v0.11.0) (2026-10-07)
+
+
+### Nuevas funciones
+
+* **ui:** calendario propio en lugar de los campos de fecha del navegador ([#57](https://github.com/axelroman-dev/FinanzasPersonales/issues/57)) ([0ea60ee](https://github.com/axelroman-dev/FinanzasPersonales/commit/0ea60ee8b682d44344f2ce55e88fe47679dd83d8))
+
 ## [0.10.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.9.1...v0.10.0) (2026-10-07)
 
 
