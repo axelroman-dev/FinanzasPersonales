@@ -265,20 +265,18 @@ function CategoryMenu({
   const [isPending, startTransition] = useTransition();
   const [editOpen, setEditOpen] = useState(false);
 
+  // Con movimientos (suyos o de sus subcategorías) no se puede eliminar
+  const isProtected = category.usageCount > 0;
+
   async function onDelete() {
-    const details = [
-      subcategoryCount > 0 &&
-        `Se eliminarán también sus ${subcategoryCount} subcategoría(s).`,
-      category.usageCount > 0 &&
-        `${category.usageCount} movimiento(s) quedarán sin categoría.`,
-    ].filter((d): d is string => !!d);
+    if (isProtected) return;
     const ok = await confirm({
       title: `¿Eliminar la categoría "${category.name}"?`,
       description: (
         <>
-          {details.map((d) => (
-            <p key={d}>{d}</p>
-          ))}
+          {subcategoryCount > 0 && (
+            <p>Se eliminarán también sus {subcategoryCount} subcategoría(s).</p>
+          )}
           <p>Esta acción no se puede deshacer.</p>
         </>
       ),
@@ -287,8 +285,7 @@ function CategoryMenu({
     });
     if (!ok) return;
     startTransition(async () => {
-      // force: el usuario ya confirmó desvincular los movimientos
-      const res = await fetch(`/api/categories/${category.id}?force=true`, {
+      const res = await fetch(`/api/categories/${category.id}`, {
         method: "DELETE",
       });
       if (!res.ok) {
@@ -334,10 +331,11 @@ function CategoryMenu({
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onSelect={onDelete}
-            className="text-destructive focus:text-destructive"
+            disabled={isProtected}
+            className="text-destructive focus:text-destructive data-[disabled]:opacity-50"
           >
             <Trash2 className="h-4 w-4" />
-            Eliminar categoría
+            {isProtected ? `En uso (${category.usageCount})` : "Eliminar categoría"}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -387,37 +385,19 @@ function SubcategoryRow({
       destructive: true,
     });
     if (!ok) return;
-    const probe = await fetch(`/api/categories/${sub.id}`, { method: "DELETE" });
-    if (probe.status === 409) {
-      const data = await probe.json();
-      const force = await confirm({
-        title: `¿Eliminar "${sub.name}"?`,
-        description: `Tiene ${data.usageCount ?? 0} movimiento(s) vinculado(s). Si la eliminas, esos movimientos quedarán sin categoría.`,
-        confirmLabel: "Eliminar",
-        destructive: true,
-      });
-      if (!force) return;
-      startTransition(async () => {
-        const res = await fetch(`/api/categories/${sub.id}?force=true`, {
-          method: "DELETE",
+    startTransition(async () => {
+      const res = await fetch(`/api/categories/${sub.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        // p. ej. se le registró un movimiento mientras tanto
+        const data = await res.json().catch(() => ({}));
+        showAlert({
+          title: "No se pudo eliminar",
+          description: data.error || "Error al eliminar",
         });
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          showAlert({
-            title: "No se pudo eliminar",
-            description: errData.error || "Error al eliminar",
-          });
-          return;
-        }
-        router.refresh();
-      });
-      return;
-    }
-    if (!probe.ok) {
-      showAlert({ title: "No se pudo eliminar", description: "Error al eliminar" });
-      return;
-    }
-    router.refresh();
+        return;
+      }
+      router.refresh();
+    });
   }
 
   const expenseAmount = stat?.byType.EXPENSE ?? 0;

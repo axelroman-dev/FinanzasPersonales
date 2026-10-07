@@ -87,7 +87,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  req: Request,
+  _req: Request,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -106,31 +106,21 @@ export async function DELETE(
     const childIds = existing.children.map((c) => c.id);
     const usageCount = await countUsage(params.id, childIds);
 
-    // Safe delete: si hay uso, devolver error con detalles
+    // Con movimientos (suyos o de sus subcategorías) no se borra: hay que
+    // moverlos o borrarlos antes, igual que con una subcategoría en uso
     if (usageCount > 0) {
-      const url = new URL(req.url);
-      const force = url.searchParams.get("force") === "true";
-      if (!force) {
-        return NextResponse.json(
-          {
-            error: "Categoría en uso",
-            usageCount,
-            message: `Esta categoría tiene ${usageCount} movimiento(s) vinculado(s). Usa ?force=true para desvincular y eliminar, o primero oculta la categoría.`,
-          },
-          { status: 409 }
-        );
-      }
-      // Forzar: desvincular movimientos primero
-      const ids = [params.id, ...childIds];
-      await prisma.transaction.updateMany({
-        where: { categoryId: { in: ids } },
-        data: { categoryId: null },
-      });
+      return NextResponse.json(
+        {
+          error: `Tiene ${usageCount} movimiento(s) vinculado(s). Muévelos a otra categoría o elimínalos antes.`,
+          usageCount,
+        },
+        { status: 409 }
+      );
     }
 
     // Borrar la categoría (cascade borra subcategorías)
     await prisma.category.delete({ where: { id: params.id } });
-    return NextResponse.json({ ok: true, unlinked: usageCount });
+    return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Error al eliminar" }, { status: 500 });
   }
