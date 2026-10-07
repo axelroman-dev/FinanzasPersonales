@@ -8,6 +8,7 @@ import { encrypt, getAttachmentsKey } from "@/lib/storage/crypto";
 import { newStorageKey } from "@/lib/storage/keys";
 import { getStorage } from "@/lib/storage/storage";
 import { normalizeCategoryIcon } from "@/lib/category-icons";
+import { defaultSubcategoryIcon } from "../../prisma/default-categories";
 
 /**
  * Estructura del JSON de export/import.
@@ -679,6 +680,9 @@ async function importDataTx(
     if (id) categoryIdMap.set(categoryKey(cat.parentName, cat.name), id);
   }
   // Después las hijas
+  const rootIcons = new Map(
+    data.categories.filter((c) => !c.parentName).map((c) => [c.name, c.icon])
+  );
   for (const cat of data.categories.filter((c) => c.parentName)) {
     const parentId = categoryIdMap.get(categoryKey(null, cat.parentName!));
     if (!parentId) {
@@ -688,7 +692,7 @@ async function importDataTx(
     const id = await upsertCategoryTx(
       tx,
       userId,
-      cat,
+      { ...cat, icon: subcategoryIcon(cat, rootIcons.get(cat.parentName!)) },
       parentId,
       strategy,
       result,
@@ -862,6 +866,21 @@ function resolveCategoryId(
 
 // Versiones Tx (reciben el cliente de transacción y mapas pre-cargados)
 type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+/**
+ * Icono de una subcategoría importada. Los respaldos anteriores a los iconos
+ * de Tabler guardaban en cada subcategoría el icono de su principal: en ese
+ * caso (o sin icono) se usa el predeterminado si es una de fábrica, y si no,
+ * ninguno (se muestra el de la principal).
+ */
+function subcategoryIcon(
+  cat: ExportCategory,
+  parentIcon: string | null | undefined
+): string | null {
+  const icon = normalizeCategoryIcon(cat.icon);
+  if (icon && icon !== normalizeCategoryIcon(parentIcon)) return icon;
+  return defaultSubcategoryIcon(cat.parentName!, cat.name);
+}
 
 async function upsertCategoryTx(
   tx: TxClient,

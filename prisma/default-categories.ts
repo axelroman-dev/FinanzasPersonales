@@ -136,3 +136,9 @@ export const defaultCategories: DefaultCategory[] = [
     children: [{ name: "Varios", icon: "category" }],
   },
 ];
+
+/** Icono predeterminado de una subcategoría de fábrica, o null si no lo es */
+export function defaultSubcategoryIcon(parentName: string, name: string): string | null {
+  const parent = defaultCategories.find((c) => c.name === parentName);
+  return parent?.children.find((c) => c.name === name)?.icon ?? null;
+}
