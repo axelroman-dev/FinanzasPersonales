@@ -54,6 +54,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.id = user.id;
         token.role = (user as any).role;
         token.mustChangePassword = (user as any).mustChangePassword ?? false;
+        // Cuándo se inició la sesión: deja de valer si la contraseña cambia
+        // después (ver getCurrentUser en src/lib/auth.ts)
+        token.authAt = Date.now();
       }
       return token;
     },
@@ -62,6 +65,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         (session.user as any).id = token.id;
         (session.user as any).role = token.role;
         (session.user as any).mustChangePassword = token.mustChangePassword ?? false;
+        (session.user as any).authAt = token.authAt;
       }
       return session;
     },

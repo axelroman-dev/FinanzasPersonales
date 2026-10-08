@@ -43,6 +43,9 @@ model User {
   // TRUE cuando el usuario fue creado por un admin con contraseña temporal.
   // Debe cambiarla antes de poder navegar a otras páginas.
   mustChangePassword  Boolean  @default(false)
+  // Último cambio o restablecimiento de contraseña: las sesiones iniciadas
+  // antes dejan de valer (ver getCurrentUser en src/lib/auth.ts)
+  passwordChangedAt   DateTime?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -52,8 +55,30 @@ model User {
   subscriptions Subscription[]
   categories    Category[]
   configUpdates AppConfig[]    @relation("ConfigUpdater")
+  authTokens    AuthToken[]
 
   @@index([email])
+}
+
+enum AuthTokenType {
+  PASSWORD_RESET
+  INVITE
+}
+
+// Enlace de un solo uso enviado por correo (ver src/lib/auth-tokens.ts). Solo
+// se guarda el SHA-256 del token; el token en claro va únicamente en el enlace.
+model AuthToken {
+  id        String        @id @default(cuid())
+  userId    String
+  type      AuthTokenType
+  tokenHash String        @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
 }
 
 model AppConfig {

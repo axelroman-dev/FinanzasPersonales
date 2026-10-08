@@ -12,10 +12,13 @@ export function LoginForm({
   callbackUrl,
   error,
   allowRegistration,
+  canResetPassword,
 }: {
   callbackUrl?: string;
   error?: string;
   allowRegistration: boolean;
+  /** Hay correo configurado: se puede recuperar la contraseña */
+  canResetPassword: boolean;
 }) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
@@ -65,7 +68,14 @@ export function LoginForm({
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="password">Contraseña</Label>
+        <div className="flex items-baseline justify-between gap-2">
+          <Label htmlFor="password">Contraseña</Label>
+          {canResetPassword && (
+            <Link href="/forgot-password" className="text-xs text-primary hover:underline">
+              ¿Olvidaste tu contraseña?
+            </Link>
+          )}
+        </div>
         <Input
           id="password"
           name="password"

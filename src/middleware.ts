@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/register"];
+const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/reset-password"];
 const CHANGE_PASSWORD_PATH = "/change-password";
 // Cierra la sesión de usuarios desactivados/eliminados (ver lib/auth.ts)
 const SESSION_EXPIRED_PATH = "/session-expired";
@@ -26,6 +26,8 @@ export default auth((req) => {
     path.startsWith(`${CHANGE_PASSWORD_PATH}/`);
   const isApiAuthPath = path.startsWith("/api/auth");
   const isApiRegisterPath = path === "/api/register";
+  // Recuperar contraseña: se usa sin sesión
+  const isApiPasswordPath = path.startsWith("/api/password/");
   const isSessionExpiredPath = path === SESSION_EXPIRED_PATH;
   const isAllowedDuringChange = ALLOWED_DURING_PASSWORD_CHANGE.some(
     (p) => path === p || path.startsWith(`${p}/`)
@@ -41,6 +43,7 @@ export default auth((req) => {
   if (
     isApiAuthPath ||
     isApiRegisterPath ||
+    isApiPasswordPath ||
     isSessionExpiredPath ||
     isAllowedDuringChange ||
     isStaticAsset
