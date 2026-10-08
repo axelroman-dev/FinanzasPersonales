@@ -114,6 +114,33 @@ export function passwordResetEmail(params: {
   });
 }
 
+/** Invitación: el admin creó la cuenta y el usuario crea su contraseña */
+export function inviteEmail(params: {
+  name: string;
+  inviterName: string;
+  email: string;
+  url: string;
+  expiresInDays: number;
+}): RenderedEmail {
+  return layout({
+    subject: `Te invitaron a ${APP_NAME}`,
+    preheader: "Crea tu contraseña para empezar.",
+    greeting: greet(params.name),
+    blocks: [
+      {
+        kind: "p",
+        text: `${params.inviterName} te creó una cuenta en ${APP_NAME} para llevar tus cuentas, gastos e ingresos.`,
+      },
+      {
+        kind: "p",
+        text: `Para entrar, crea tu contraseña con el botón. Iniciarás sesión con ${params.email}. El enlace vence en ${params.expiresInDays} días.`,
+      },
+    ],
+    button: { label: "Crear mi contraseña", url: params.url },
+    footnote: "Si no esperabas esta invitación, ignora este correo.",
+  });
+}
+
 /** Aviso de seguridad tras cambiar o restablecer la contraseña */
 export function passwordChangedEmail(params: {
   name: string;

@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { isSystemAdmin } from "@/lib/system-admin";
 import { deleteUserFiles } from "@/lib/attachments";
+import { mailEnabled } from "@/lib/mail/config";
+import { sendInvite, sendPasswordResetLink } from "@/lib/mail/links";
 
 export async function POST(
   _req: Request,
@@ -39,6 +41,32 @@ export async function POST(
         where: { id: params.id },
         data: { role: user.role === "ADMIN" ? "USER" : "ADMIN" },
       });
+      return NextResponse.json({ ok: true });
+    }
+
+    // Correos: reenviar la invitación (aún sin contraseña) o mandar un enlace
+    // para restablecer la contraseña (ya activada)
+    if (params.action === "resend-invite" || params.action === "send-reset") {
+      if (!mailEnabled()) {
+        return NextResponse.json({ error: "El correo no está configurado" }, { status: 400 });
+      }
+      const pending = user.passwordHash === null;
+      if (params.action === "resend-invite" && !pending) {
+        return NextResponse.json({ error: "Este usuario ya activó su cuenta" }, { status: 400 });
+      }
+      if (params.action === "send-reset" && pending) {
+        return NextResponse.json(
+          { error: "Aún no activa su cuenta: reenvía la invitación" },
+          { status: 400 }
+        );
+      }
+      const result =
+        params.action === "resend-invite"
+          ? await sendInvite(user, admin.name)
+          : await sendPasswordResetLink(user);
+      if (!result.ok) {
+        return NextResponse.json({ error: `No se pudo enviar: ${result.error}` }, { status: 502 });
+      }
       return NextResponse.json({ ok: true });
     }
 

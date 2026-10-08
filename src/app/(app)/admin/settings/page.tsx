@@ -50,8 +50,8 @@ export default async function AdminSettingsPage() {
             </Badge>
           </div>
           <CardDescription>
-            Se usa para recuperar contraseñas y avisos de seguridad. Se configura con las
-            variables SMTP_* del .env.
+            Se usa para invitar usuarios, recuperar contraseñas y avisos de seguridad. Se
+            configura con las variables SMTP_* del .env.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -71,8 +71,8 @@ export default async function AdminSettingsPage() {
           ) : (
             <p className="text-sm text-muted-foreground">
               Agrega SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD y MAIL_FROM al .env y
-              reinicia la app. Mientras tanto, la recuperación de contraseña está
-              desactivada.
+              reinicia la app. Mientras tanto, los usuarios nuevos se crean con contraseña
+              temporal y la recuperación de contraseña está desactivada.
             </p>
           )}
         </CardContent>

@@ -87,7 +87,12 @@ Sobre los archivos:
 
 ## Correo
 
-Con correo configurado, la app permite **recuperar la contraseña** («¿Olvidaste tu contraseña?» en el login) y manda **avisos de seguridad** cuando una contraseña cambia. Sin correo, todo lo demás funciona igual.
+Con correo configurado, la app:
+- **invita a los usuarios nuevos:** el admin pone nombre y email, y la persona recibe un enlace (válido 7 días) para crear su contraseña. La invitación se puede reenviar desde la lista de usuarios;
+- permite **recuperar la contraseña** («¿Olvidaste tu contraseña?» en el login, o «Enviar enlace para restablecer contraseña» desde Admin);
+- manda **avisos de seguridad** cuando una contraseña cambia.
+
+Sin correo, todo lo demás funciona igual y los usuarios nuevos se crean con contraseña temporal.
 
 1. Agrega al `.env` los datos SMTP de tu proveedor. Con Hostinger:
    ```bash
@@ -210,7 +215,7 @@ Los **vales de despensa** no cuentan en el balance.
 - El registro público está desactivado por defecto
 - Passwords hasheados con **bcrypt** (10 rounds)
 - Sesiones JWT firmadas
-- Middleware protege todas las rutas excepto `/login`, `/register`, `/forgot-password` y `/reset-password`
+- Middleware protege todas las rutas excepto `/login`, `/register`, `/forgot-password`, `/reset-password` e `/invite`
 - Usuarios con `mustChangePassword` son redirigidos a `/change-password` hasta que la cambien
 - Cambiar o restablecer la contraseña cierra las sesiones abiertas en otros dispositivos
 - Recuperar contraseña: enlace de un solo uso que vence en 1 hora; en la base solo se guarda su SHA-256; la respuesta no revela si un correo tiene cuenta; límite de solicitudes por correo y por IP

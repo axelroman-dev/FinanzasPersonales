@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { escapeHtml, passwordChangedEmail, passwordResetEmail } from "./templates";
+import { escapeHtml, inviteEmail, passwordChangedEmail, passwordResetEmail } from "./templates";
 import { getMailConfig } from "./config";
 
 describe("plantillas", () => {
@@ -26,6 +26,23 @@ describe("plantillas", () => {
     const base = { name: "Ana", when: new Date(2026, 9, 8, 10, 30), forgotUrl: "https://app.test/forgot-password" };
     expect(passwordChangedEmail({ ...base, how: "reset" }).text).toContain("se restableció");
     expect(passwordChangedEmail({ ...base, how: "changed" }).text).toContain("se cambió");
+  });
+});
+
+describe("invitación", () => {
+  it("dice quién invita, con qué correo se entra y lleva el enlace", () => {
+    const url = "https://app.test/invite?token=abc";
+    const email = inviteEmail({
+      name: "Ana López",
+      inviterName: "Axel",
+      email: "ana@x.mx",
+      url,
+      expiresInDays: 7,
+    });
+    expect(email.subject).toBe("Te invitaron a Finanzas Personales");
+    expect(email.text).toContain("Axel te creó una cuenta");
+    expect(email.text).toContain("ana@x.mx");
+    expect(email.text).toContain(url);
   });
 });
 

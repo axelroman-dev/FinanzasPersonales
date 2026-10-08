@@ -44,7 +44,8 @@ export async function POST(req: Request) {
     }
 
     // Verificar contraseña actual
-    const isValid = await bcrypt.compare(currentPassword, dbUser.passwordHash);
+    const isValid =
+      !!dbUser.passwordHash && (await bcrypt.compare(currentPassword, dbUser.passwordHash));
     if (!isValid) {
       return NextResponse.json(
         { error: "La contraseña actual es incorrecta" },

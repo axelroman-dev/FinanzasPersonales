@@ -11,20 +11,35 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, MoreHorizontal, Shield, ShieldOff, Power, Trash2 } from "lucide-react";
-import { useConfirm } from "@/components/shared/confirm-dialog";
+import {
+  KeyRound,
+  Loader2,
+  Mail,
+  MoreHorizontal,
+  Shield,
+  ShieldOff,
+  Power,
+  Trash2,
+} from "lucide-react";
+import { useAlert, useConfirm } from "@/components/shared/confirm-dialog";
 
 type UserActionsData = {
   id: string;
+  email: string;
   role: "USER" | "ADMIN";
   isActive: boolean;
   isSelf: boolean;
   isSystem: boolean;
+  /** Invitado que aún no crea su contraseña */
+  invitePending: boolean;
+  /** Hay correo configurado */
+  canEmail: boolean;
 };
 
 export function UserActions({ user }: { user: UserActionsData }) {
   const router = useRouter();
   const confirm = useConfirm();
+  const showAlert = useAlert();
   const [isPending, startTransition] = useTransition();
   const locked = user.isSelf || user.isSystem;
 
@@ -36,6 +51,19 @@ export function UserActions({ user }: { user: UserActionsData }) {
         body: JSON.stringify(body),
       });
       router.refresh();
+    });
+  }
+
+  /** Manda un correo y avisa si salió o por qué no */
+  function sendEmail(action: "resend-invite" | "send-reset", sentTitle: string) {
+    startTransition(async () => {
+      const res = await fetch(`/api/admin/users/${user.id}/${action}`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      showAlert(
+        res.ok
+          ? { title: sentTitle, description: `Se envió a ${user.email}.` }
+          : { title: "No se pudo enviar", description: data.error || "Error al enviar" }
+      );
     });
   }
 
@@ -75,6 +103,25 @@ export function UserActions({ user }: { user: UserActionsData }) {
             </>
           )}
         </DropdownMenuItem>
+        {user.canEmail && !user.isSystem && (
+          <>
+            <DropdownMenuSeparator />
+            {user.invitePending ? (
+              <DropdownMenuItem onClick={() => sendEmail("resend-invite", "Invitación reenviada")}>
+                <Mail className="h-4 w-4" />
+                Reenviar invitación
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem
+                onClick={() => sendEmail("send-reset", "Enlace enviado")}
+                disabled={!user.isActive}
+              >
+                <KeyRound className="h-4 w-4" />
+                Enviar enlace para restablecer contraseña
+              </DropdownMenuItem>
+            )}
+          </>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={async () => {

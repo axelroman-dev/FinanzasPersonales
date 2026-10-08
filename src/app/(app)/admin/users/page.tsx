@@ -8,6 +8,7 @@ import { UserActions } from "@/components/admin/user-actions";
 import { CreateUserDialog } from "@/components/admin/create-user-dialog";
 import { Plus } from "lucide-react";
 import { isSystemAdmin } from "@/lib/system-admin";
+import { mailEnabled } from "@/lib/mail/config";
 
 export const dynamic = "force-dynamic";
 
@@ -20,8 +21,12 @@ export default async function AdminUsersPage() {
     },
   });
 
+  const canEmail = mailEnabled();
   const actionsData = (u: (typeof users)[number]) => ({
     id: u.id,
+    email: u.email,
+    invitePending: u.passwordHash === null,
+    canEmail,
     role: u.role,
     isActive: u.isActive,
     isSelf: u.id === admin.id,
@@ -32,7 +37,7 @@ export default async function AdminUsersPage() {
     <>
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Usuarios</h2>
-        <CreateUserDialog>
+        <CreateUserDialog canInvite={canEmail}>
           <Button>
             <Plus className="h-4 w-4" />
             Nuevo usuario
@@ -122,10 +127,18 @@ export default async function AdminUsersPage() {
 function UserFlags({
   user,
 }: {
-  user: Parameters<typeof isSystemAdmin>[0] & { mustChangePassword: boolean };
+  user: Parameters<typeof isSystemAdmin>[0] & {
+    mustChangePassword: boolean;
+    passwordHash: string | null;
+  };
 }) {
   return (
     <>
+      {user.passwordHash === null && (
+        <Badge variant="warning" className="text-[10px]" title="Aún no crea su contraseña">
+          Invitación pendiente
+        </Badge>
+      )}
       {isSystemAdmin(user) && (
         <Badge
           variant="outline"
@@ -136,8 +149,12 @@ function UserFlags({
         </Badge>
       )}
       {user.mustChangePassword && (
-        <Badge variant="warning" className="text-[10px]" title="Debe cambiar contraseña">
-          ⚠ Pendiente
+        <Badge
+          variant="outline"
+          className="text-[10px]"
+          title="Debe cambiarla al iniciar sesión por primera vez"
+        >
+          Contraseña temporal
         </Badge>
       )}
     </>
