@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.14.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.13.0...v0.14.0) (2026-10-08)
+
+
+### Nuevas funciones
+
+* **admin:** invitar usuarios por correo en lugar de contraseña temporal ([#68](https://github.com/axelroman-dev/FinanzasPersonales/issues/68)) ([b211c5e](https://github.com/axelroman-dev/FinanzasPersonales/commit/b211c5ea74ef58b3ab2e3be2c2064d9cc0299ee9))
+* **auth:** correo SMTP, recuperar contraseña y avisos de seguridad ([#67](https://github.com/axelroman-dev/FinanzasPersonales/issues/67)) ([32682ee](https://github.com/axelroman-dev/FinanzasPersonales/commit/32682eedddd9ef1bfdced3bf7dfe37cf8325886a))
+* **auth:** verificar el correo con un código al registrarse ([#69](https://github.com/axelroman-dev/FinanzasPersonales/issues/69)) ([e28f0f7](https://github.com/axelroman-dev/FinanzasPersonales/commit/e28f0f7fb80c2b3977f4b9aebda069d024a6cfa0))
+
+
+### Correcciones
+
+* **ui:** botones de los modales separados y apilados en móvil, y otros detalles ([#65](https://github.com/axelroman-dev/FinanzasPersonales/issues/65)) ([0dbdcd7](https://github.com/axelroman-dev/FinanzasPersonales/commit/0dbdcd7e19956d5b58fd7e072bd8de2d9d58da9f))
+
 ## [0.13.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.12.1...v0.13.0) (2026-10-07)
 
 
