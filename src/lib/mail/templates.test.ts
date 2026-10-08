@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { escapeHtml, inviteEmail, passwordChangedEmail, passwordResetEmail } from "./templates";
+import {
+  escapeHtml,
+  inviteEmail,
+  passwordChangedEmail,
+  passwordResetEmail,
+  verificationCodeEmail,
+} from "./templates";
 import { getMailConfig } from "./config";
 
 describe("plantillas", () => {
@@ -43,6 +49,16 @@ describe("invitación", () => {
     expect(email.text).toContain("Axel te creó una cuenta");
     expect(email.text).toContain("ana@x.mx");
     expect(email.text).toContain(url);
+  });
+});
+
+describe("código de verificación", () => {
+  it("lleva el código en el asunto, el HTML y el texto", () => {
+    const email = verificationCodeEmail({ name: "Ana", code: "042917", expiresInMinutes: 15 });
+    expect(email.subject).toBe("042917 es tu código de Finanzas Personales");
+    expect(email.html).toContain("042917");
+    expect(email.text).toContain("042917");
+    expect(email.text).toContain("15 minutos");
   });
 });
 

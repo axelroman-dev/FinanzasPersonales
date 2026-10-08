@@ -25,7 +25,8 @@ export default auth((req) => {
     path === CHANGE_PASSWORD_PATH ||
     path.startsWith(`${CHANGE_PASSWORD_PATH}/`);
   const isApiAuthPath = path.startsWith("/api/auth");
-  const isApiRegisterPath = path === "/api/register";
+  // Registro y su verificación por código: se usan sin sesión
+  const isApiRegisterPath = path === "/api/register" || path.startsWith("/api/register/");
   // Recuperar contraseña y aceptar invitación: se usan sin sesión
   const isApiPasswordPath = path.startsWith("/api/password/") || path.startsWith("/api/invite/");
   const isSessionExpiredPath = path === SESSION_EXPIRED_PATH;
