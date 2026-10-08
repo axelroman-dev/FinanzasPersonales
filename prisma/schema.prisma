@@ -232,3 +232,18 @@ model Attachment {
   @@index([userId])
   @@index([transactionId])
 }
+
+// Registro público esperando que se confirme el correo con un código (ver
+// src/lib/registration.ts). La cuenta (User) se crea hasta escribir el código;
+// así no quedan cuentas a medias con correos ajenos.
+model PendingRegistration {
+  id           String   @id @default(cuid())
+  email        String   @unique // en minúsculas
+  name         String
+  passwordHash String
+  codeHash     String
+  expiresAt    DateTime
+  attempts     Int      @default(0)
+  lastSentAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+}

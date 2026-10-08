@@ -4,6 +4,11 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { getRegistrationConfig } from "@/lib/admin";
 import { seedDefaultCategories } from "@/lib/categories";
+import { mailEnabled } from "@/lib/mail/config";
+import { startRegistration } from "@/lib/registration";
+import { clientIp, createRateLimiter } from "@/lib/rate-limit";
+
+const perIp = createRateLimiter(10, 60 * 60 * 1000);
 
 const schema = z.object({
   name: z.string().min(1).max(100),
@@ -11,8 +16,19 @@ const schema = z.object({
   password: z.string().min(8).max(100),
 });
 
+/**
+ * POST /api/register — con correo configurado manda un código para confirmar
+ * el correo (la cuenta se crea en /api/register/verify); sin correo, crea la
+ * cuenta directo.
+ */
 export async function POST(req: Request) {
   try {
+    if (!perIp.take(clientIp(req))) {
+      return NextResponse.json(
+        { error: "Demasiados intentos. Intenta de nuevo más tarde." },
+        { status: 429 }
+      );
+    }
     const allowed = await getRegistrationConfig();
     if (!allowed) {
       return NextResponse.json(
@@ -31,6 +47,14 @@ export async function POST(req: Request) {
     }
 
     const { name, email, password } = parsed.data;
+
+    if (mailEnabled()) {
+      const started = await startRegistration({ name, email, password });
+      if (!started.ok) {
+        return NextResponse.json({ error: started.error }, { status: started.status });
+      }
+      return NextResponse.json({ ok: true, verify: true });
+    }
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {

@@ -50,8 +50,8 @@ export default async function AdminSettingsPage() {
             </Badge>
           </div>
           <CardDescription>
-            Se usa para invitar usuarios, recuperar contraseñas y avisos de seguridad. Se
-            configura con las variables SMTP_* del .env.
+            Se usa para invitar usuarios, verificar el correo en el registro, recuperar
+            contraseñas y avisos de seguridad. Se configura con las variables SMTP_* del .env.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

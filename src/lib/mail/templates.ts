@@ -37,8 +37,15 @@ function layout(params: {
   showLink?: boolean;
   /** Nota pequeña al final (p. ej. «si no lo pediste, ignóralo») */
   footnote?: string;
+  /** Código destacado bajo los párrafos (verificación de correo) */
+  code?: string;
 }): RenderedEmail {
-  const { subject, preheader, greeting, blocks, button, showLink = true, footnote } = params;
+  const { subject, preheader, greeting, blocks, button, showLink = true, footnote, code } =
+    params;
+
+  const codeHtml = code
+    ? `<p style="margin:8px 0 24px;padding:14px 0;text-align:center;background:#f4f4f5;border-radius:8px;font-family:'SFMono-Regular',Menlo,Consolas,monospace;font-size:30px;font-weight:700;letter-spacing:8px;color:#18181b;">${escapeHtml(code)}</p>`
+    : "";
 
   const body = blocks
     .map((b) =>
@@ -67,7 +74,7 @@ function layout(params: {
 <span style="margin-left:10px;font-size:16px;font-weight:700;color:#18181b;vertical-align:middle;">${APP_NAME}</span></td></tr>
 <tr><td style="padding:16px 28px 8px;">
 <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#27272a;">${escapeHtml(greeting)}</p>
-${body}${buttonHtml}${footnote ? `<p style="margin:0 0 12px;font-size:13px;line-height:1.5;color:#71717a;">${escapeHtml(footnote)}</p>` : ""}
+${body}${codeHtml}${buttonHtml}${footnote ? `<p style="margin:0 0 12px;font-size:13px;line-height:1.5;color:#71717a;">${escapeHtml(footnote)}</p>` : ""}
 </td></tr>
 <tr><td style="padding:16px 28px 24px;border-top:1px solid #f4f4f5;font-size:12px;line-height:1.5;color:#a1a1aa;">Este correo lo envió automáticamente ${APP_NAME}. No respondas a este mensaje.</td></tr>
 </table></td></tr></table></body></html>`;
@@ -76,6 +83,7 @@ ${body}${buttonHtml}${footnote ? `<p style="margin:0 0 12px;font-size:13px;line-
     greeting,
     "",
     ...blocks.map((b) => b.text),
+    ...(code ? ["", code] : []),
     ...(button ? ["", `${button.label}: ${button.url}`] : []),
     ...(footnote ? ["", footnote] : []),
     "",
@@ -111,6 +119,28 @@ export function passwordResetEmail(params: {
     ],
     button: { label: "Crear contraseña nueva", url: params.url },
     footnote: "Si no lo pediste tú, ignora este correo: tu contraseña no cambia.",
+  });
+}
+
+/** Código para confirmar el correo al registrarse */
+export function verificationCodeEmail(params: {
+  name: string;
+  code: string;
+  expiresInMinutes: number;
+}): RenderedEmail {
+  return layout({
+    // El código en el asunto: se ve en la notificación sin abrir el correo
+    subject: `${params.code} es tu código de ${APP_NAME}`,
+    preheader: "Escríbelo para terminar de crear tu cuenta.",
+    greeting: greet(params.name),
+    blocks: [
+      {
+        kind: "p",
+        text: `Para terminar de crear tu cuenta, escribe este código. Vence en ${params.expiresInMinutes} minutos.`,
+      },
+    ],
+    code: params.code,
+    footnote: "Si no intentaste registrarte, ignora este correo: no se creará ninguna cuenta.",
   });
 }
 

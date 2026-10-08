@@ -28,7 +28,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (!parsed.success) return null;
 
         const { email, password } = parsed.data;
-        const user = await prisma.user.findUnique({ where: { email } });
+        // Sin distinguir mayúsculas: el registro guarda el correo en minúsculas
+        const user = await prisma.user.findFirst({
+          where: { email: { equals: email.trim(), mode: "insensitive" } },
+        });
         // Sin contraseña: invitación pendiente, todavía no puede entrar
         if (!user?.passwordHash) return null;
 

@@ -90,9 +90,10 @@ Sobre los archivos:
 Con correo configurado, la app:
 - **invita a los usuarios nuevos:** el admin pone nombre y email, y la persona recibe un enlace (válido 7 días) para crear su contraseña. La invitación se puede reenviar desde la lista de usuarios;
 - permite **recuperar la contraseña** («¿Olvidaste tu contraseña?» en el login, o «Enviar enlace para restablecer contraseña» desde Admin);
-- manda **avisos de seguridad** cuando una contraseña cambia.
+- manda **avisos de seguridad** cuando una contraseña cambia;
+- **verifica el correo en el registro público** (si está abierto): llega un código de 6 dígitos (válido 15 minutos) y la cuenta se crea hasta escribirlo.
 
-Sin correo, todo lo demás funciona igual y los usuarios nuevos se crean con contraseña temporal.
+Sin correo, todo lo demás funciona igual: los usuarios nuevos se crean con contraseña temporal y el registro público crea la cuenta sin verificar el correo.
 
 1. Agrega al `.env` los datos SMTP de tu proveedor. Con Hostinger:
    ```bash
@@ -218,6 +219,7 @@ Los **vales de despensa** no cuentan en el balance.
 - Middleware protege todas las rutas excepto `/login`, `/register`, `/forgot-password`, `/reset-password` e `/invite`
 - Usuarios con `mustChangePassword` son redirigidos a `/change-password` hasta que la cambien
 - Cambiar o restablecer la contraseña cierra las sesiones abiertas en otros dispositivos
+- Registro público con correo configurado: código de 6 dígitos (15 minutos, 5 intentos, guardado como HMAC) y la cuenta se crea hasta confirmarlo, así no quedan cuentas con correos ajenos
 - Recuperar contraseña: enlace de un solo uso que vence en 1 hora; en la base solo se guarda su SHA-256; la respuesta no revela si un correo tiene cuenta; límite de solicitudes por correo y por IP
 - Todas las queries filtran por `userId` desde la sesión (nunca del cliente)
 - `isActive` y el rol se verifican contra la DB en cada request: desactivar, eliminar o cambiar el rol de un usuario aplica de inmediato aunque tenga una sesión abierta
