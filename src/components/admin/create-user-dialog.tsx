@@ -6,7 +6,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
+  DialogActions,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -86,6 +86,7 @@ function CreateUserForm({ onClose }: { onClose: () => void }) {
             required
             maxLength={100}
             placeholder="Ej. Juan Pérez"
+            autoComplete="off"
           />
         </div>
 
@@ -98,6 +99,8 @@ function CreateUserForm({ onClose }: { onClose: () => void }) {
             onChange={(e) => setEmail(e.target.value)}
             required
             placeholder="juan@ejemplo.com"
+            // Es el email de otra persona: que el navegador no ponga el tuyo
+            autoComplete="off"
           />
         </div>
 
@@ -111,6 +114,8 @@ function CreateUserForm({ onClose }: { onClose: () => void }) {
             required
             minLength={8}
             placeholder="Mínimo 8 caracteres"
+            // Contraseña nueva: que el gestor de contraseñas no rellene la tuya
+            autoComplete="new-password"
           />
           <p className="text-xs text-muted-foreground">
             El usuario deberá cambiarla en su primer inicio de sesión
@@ -136,7 +141,8 @@ function CreateUserForm({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        <DialogFooter>
+        {/* Fijos abajo: siguen a la vista con el teclado del celular abierto */}
+        <DialogActions className="justify-end">
           <Button type="button" variant="outline" onClick={onClose}>
             Cancelar
           </Button>
@@ -144,7 +150,7 @@ function CreateUserForm({ onClose }: { onClose: () => void }) {
             {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
             Crear usuario
           </Button>
-        </DialogFooter>
+        </DialogActions>
       </form>
     </DialogContent>
   );

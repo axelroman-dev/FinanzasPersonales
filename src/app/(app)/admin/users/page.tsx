@@ -20,6 +20,14 @@ export default async function AdminUsersPage() {
     },
   });
 
+  const actionsData = (u: (typeof users)[number]) => ({
+    id: u.id,
+    role: u.role,
+    isActive: u.isActive,
+    isSelf: u.id === admin.id,
+    isSystem: isSystemAdmin(u),
+  });
+
   return (
     <>
       <div className="flex items-center justify-between">
@@ -32,7 +40,35 @@ export default async function AdminUsersPage() {
         </CreateUserDialog>
       </div>
 
-      <Card>
+      {/* Móvil y tablet: tarjetas; la tabla de 7 columnas no cabe */}
+      <Card className="divide-y lg:hidden">
+        {users.map((u) => (
+          <div key={u.id} className="flex gap-3 p-4">
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-medium">{u.name}</p>
+                  <UserFlags user={u} />
+                </div>
+                <p className="truncate text-xs text-muted-foreground">{u.email}</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <RoleBadge role={u.role} />
+                <StatusBadge isActive={u.isActive} />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {u._count.accounts} cuenta(s) · {u._count.transactions} movimiento(s) · desde{" "}
+                {formatShortDate(u.createdAt)}
+              </p>
+            </div>
+            <div className="-mr-2 shrink-0 self-start">
+              <UserActions user={actionsData(u)} />
+            </div>
+          </div>
+        ))}
+      </Card>
+
+      <Card className="hidden lg:block">
         <CardContent className="p-0">
           <table className="w-full">
             <thead>
@@ -55,35 +91,14 @@ export default async function AdminUsersPage() {
                         <p className="font-medium">{u.name}</p>
                         <p className="text-xs text-muted-foreground">{u.email}</p>
                       </div>
-                      {isSystemAdmin(u) && (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px]"
-                          title="Cuenta fija; la contraseña se configura en el .env"
-                        >
-                          Sistema
-                        </Badge>
-                      )}
-                      {u.mustChangePassword && (
-                        <Badge
-                          variant="warning"
-                          className="text-[10px]"
-                          title="Debe cambiar contraseña"
-                        >
-                          ⚠ Pendiente
-                        </Badge>
-                      )}
+                      <UserFlags user={u} />
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <Badge variant={u.role === "ADMIN" ? "default" : "secondary"}>
-                      {u.role === "ADMIN" ? "Admin" : "Usuario"}
-                    </Badge>
+                    <RoleBadge role={u.role} />
                   </td>
                   <td className="px-4 py-3">
-                    <Badge variant={u.isActive ? "success" : "destructive"}>
-                      {u.isActive ? "Activo" : "Inactivo"}
-                    </Badge>
+                    <StatusBadge isActive={u.isActive} />
                   </td>
                   <td className="px-4 py-3 text-sm">{u._count.accounts}</td>
                   <td className="px-4 py-3 text-sm">{u._count.transactions}</td>
@@ -91,15 +106,7 @@ export default async function AdminUsersPage() {
                     {formatShortDate(u.createdAt)}
                   </td>
                   <td className="px-4 py-3">
-                    <UserActions
-                      user={{
-                        id: u.id,
-                        role: u.role,
-                        isActive: u.isActive,
-                        isSelf: u.id === admin.id,
-                        isSystem: isSystemAdmin(u),
-                      }}
-                    />
+                    <UserActions user={actionsData(u)} />
                   </td>
                 </tr>
               ))}
@@ -108,5 +115,47 @@ export default async function AdminUsersPage() {
         </CardContent>
       </Card>
     </>
+  );
+}
+
+/** Marcas junto al nombre: admin del sistema y contraseña pendiente */
+function UserFlags({
+  user,
+}: {
+  user: Parameters<typeof isSystemAdmin>[0] & { mustChangePassword: boolean };
+}) {
+  return (
+    <>
+      {isSystemAdmin(user) && (
+        <Badge
+          variant="outline"
+          className="text-[10px]"
+          title="Cuenta fija; la contraseña se configura en el .env"
+        >
+          Sistema
+        </Badge>
+      )}
+      {user.mustChangePassword && (
+        <Badge variant="warning" className="text-[10px]" title="Debe cambiar contraseña">
+          ⚠ Pendiente
+        </Badge>
+      )}
+    </>
+  );
+}
+
+function RoleBadge({ role }: { role: string }) {
+  return (
+    <Badge variant={role === "ADMIN" ? "default" : "secondary"}>
+      {role === "ADMIN" ? "Admin" : "Usuario"}
+    </Badge>
+  );
+}
+
+function StatusBadge({ isActive }: { isActive: boolean }) {
+  return (
+    <Badge variant={isActive ? "success" : "destructive"}>
+      {isActive ? "Activo" : "Inactivo"}
+    </Badge>
   );
 }

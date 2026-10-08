@@ -6,6 +6,7 @@ import {
   Dialog,
   DialogContent,
   DialogActions,
+  DialogActionGroup,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -143,55 +144,54 @@ function AccountFormDialog({
   async function onDelete() {
     if (!account) return;
 
-    // Primer intento: detección de uso
-    const probe = await fetch(`/api/accounts/${account.id}`, {
+    // Cuánto se perdería, para avisarlo antes de confirmar
+    const check = await fetch(`/api/accounts/${account.id}?check=true`, {
       method: "DELETE",
     });
+    if (!check.ok) {
+      setError("Error al eliminar");
+      return;
+    }
+    const usage = await check.json();
+    const lines = [
+      usage.ownTxCount > 0 && `Se borrarán sus ${usage.ownTxCount} movimiento(s).`,
+      usage.transferCount > 0 &&
+        `Sus ${usage.transferCount} transferencia(s) con otras cuentas se conservan en esas cuentas como ingreso o gasto (sus saldos no cambian).`,
+      usage.subCount > 0 && `Se borrarán sus ${usage.subCount} suscripción(es).`,
+    ].filter((l): l is string => !!l);
 
-    if (probe.status === 409) {
-      const data = await probe.json();
-      const lines = [
-        data.ownTxCount > 0 && `Se borrarán sus ${data.ownTxCount} movimiento(s).`,
-        data.transferCount > 0 &&
-          `Sus ${data.transferCount} transferencia(s) con otras cuentas se conservan en esas cuentas como ingreso o gasto (sus saldos no cambian).`,
-        data.subCount > 0 && `Se borrarán sus ${data.subCount} suscripción(es).`,
-      ].filter((l): l is string => !!l);
-      const force = await confirm({
-        title: `¿Eliminar la cuenta "${account.name}"?`,
-        description: (
-          <>
+    // Siempre se confirma escribiendo el nombre: no debe bastar un clic
+    const ok = await confirm({
+      title: `¿Eliminar la cuenta "${account.name}"?`,
+      description: (
+        <>
+          {lines.length > 0 && (
             <ul className="list-disc space-y-1 pl-4">
               {lines.map((l) => (
                 <li key={l}>{l}</li>
               ))}
             </ul>
-            <p>Esta acción no se puede deshacer.</p>
-          </>
-        ),
-        confirmLabel: "Eliminar cuenta",
-        destructive: true,
-      });
-      if (!force) return;
-      startTransition(async () => {
-        const res = await fetch(`/api/accounts/${account.id}?force=true`, {
-          method: "DELETE",
-        });
-        if (res.ok) {
-          onSaved();
-        } else {
-          setError("Error al eliminar");
-        }
-      });
-      return;
-    }
+          )}
+          <p>Esta acción no se puede deshacer.</p>
+        </>
+      ),
+      confirmLabel: "Eliminar cuenta",
+      destructive: true,
+      confirmText: account.name,
+    });
+    if (!ok) return;
 
-    if (probe.ok) {
-      // Sin uso, se eliminó en el primer intento
-      onSaved();
-      return;
-    }
-
-    setError("Error al eliminar");
+    startTransition(async () => {
+      // force: el usuario ya confirmó lo que se borra
+      const res = await fetch(`/api/accounts/${account.id}?force=true`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        onSaved();
+      } else {
+        setError("Error al eliminar");
+      }
+    });
   }
 
   const isVoucher = type === "VOUCHER";
@@ -334,7 +334,7 @@ function AccountFormDialog({
         )}
 
         <DialogActions className="justify-between">
-          {mode === "edit" ? (
+          {mode === "edit" && (
             <Button
               type="button"
               variant="ghost"
@@ -346,10 +346,8 @@ function AccountFormDialog({
               <Trash2 className="h-4 w-4" />
               Eliminar
             </Button>
-          ) : (
-            <span />
           )}
-          <div className="flex gap-2">
+          <DialogActionGroup>
             <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>
@@ -357,7 +355,7 @@ function AccountFormDialog({
               {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
               {mode === "create" ? "Crear" : "Guardar"}
             </Button>
-          </div>
+          </DialogActionGroup>
         </DialogActions>
       </form>
     </DialogContent>

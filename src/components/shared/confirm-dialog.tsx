@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 export type ConfirmOptions = {
@@ -21,6 +22,11 @@ export type ConfirmOptions = {
   cancelLabel?: string;
   /** Acción irreversible: botón rojo e icono de advertencia */
   destructive?: boolean;
+  /**
+   * Texto que hay que escribir para habilitar el botón (p. ej. el nombre de
+   * lo que se borra), para acciones graves que no deben salir de un clic
+   */
+  confirmText?: string;
 };
 
 export type AlertOptions = {
@@ -45,6 +51,7 @@ const ConfirmContext = createContext<ConfirmContextValue | null>(null);
 export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   const [request, setRequest] = useState<Request | null>(null);
   const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState("");
   const resolveRef = useRef<((value: boolean) => void) | null>(null);
 
   const settle = useCallback((value: boolean) => {
@@ -58,6 +65,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
     resolveRef.current?.(false);
     return new Promise<boolean>((resolve) => {
       resolveRef.current = resolve;
+      setTyped("");
       setRequest(next);
       setOpen(true);
     });
@@ -71,6 +79,10 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   };
 
   const destructive = request?.kind === "confirm" && request.destructive;
+  const confirmText = request?.kind === "confirm" ? request.confirmText : undefined;
+  // Sin distinguir mayúsculas ni espacios de más
+  const typedOk =
+    !confirmText || typed.trim().toLowerCase() === confirmText.trim().toLowerCase();
   const Icon = destructive ? AlertTriangle : Info;
 
   return (
@@ -101,7 +113,28 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                 )}
               </div>
             </DialogHeader>
-            <DialogFooter className="gap-2 sm:gap-0">
+            {confirmText && (
+              <form
+                className="space-y-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (typedOk) settle(true);
+                }}
+              >
+                <label htmlFor="confirm-text" className="text-sm text-muted-foreground">
+                  Para confirmar, escribe{" "}
+                  <span className="font-semibold text-foreground">{confirmText}</span>
+                </label>
+                <Input
+                  id="confirm-text"
+                  value={typed}
+                  onChange={(e) => setTyped(e.target.value)}
+                  autoComplete="off"
+                  autoFocus
+                />
+              </form>
+            )}
+            <DialogFooter>
               {request.kind === "confirm" && (
                 <Button variant="outline" onClick={() => settle(false)}>
                   {request.cancelLabel ?? "Cancelar"}
@@ -110,7 +143,8 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
               <Button
                 variant={destructive ? "destructive" : "default"}
                 onClick={() => settle(true)}
-                autoFocus
+                disabled={!typedOk}
+                autoFocus={!confirmText}
               >
                 {request.confirmLabel ?? (request.kind === "alert" ? "Entendido" : "Confirmar")}
               </Button>

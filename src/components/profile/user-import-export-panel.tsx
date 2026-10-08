@@ -176,7 +176,8 @@ export function UserImportExportPanel() {
 
         {errorBox}
 
-        <div className="flex gap-2">
+        {/* En móvil: apilados, la acción principal arriba */}
+        <div className="flex flex-col-reverse gap-3 sm:flex-row [&>*]:w-full sm:[&>*]:w-auto">
           <Button variant="outline" onClick={reset} disabled={isPending}>
             Cancelar
           </Button>
@@ -214,13 +215,14 @@ export function UserImportExportPanel() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-2">
-        <Button onClick={handleExport}>
+      {/* Los dos botones llenan la tarjeta: apilados en móvil, a la par en escritorio */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Button onClick={handleExport} className="w-full">
           <Download className="h-4 w-4" />
           Exportar mis datos
         </Button>
-        <label className="cursor-pointer">
-          <Button variant="outline" type="button" asChild>
+        <label className="block cursor-pointer">
+          <Button variant="outline" type="button" asChild className="w-full">
             <span>
               <Upload className="h-4 w-4" />
               Importar archivo

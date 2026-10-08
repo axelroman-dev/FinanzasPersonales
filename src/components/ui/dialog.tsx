@@ -64,7 +64,8 @@ DialogHeader.displayName = "DialogHeader";
 const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+      // En móvil los botones van apilados a todo el ancho; en ambos casos separados
+      "flex flex-col-reverse gap-3 sm:flex-row sm:justify-end",
       className
     )}
     {...props}
@@ -75,13 +76,30 @@ DialogFooter.displayName = "DialogFooter";
 /**
  * Botones al final de un formulario largo: quedan fijos abajo mientras se
  * hace scroll dentro del dialog, así siempre se pueden pulsar en móvil.
- * DialogContent quita su padding inferior para que queden pegados al borde
+ * DialogContent quita su padding inferior para que queden pegados al borde.
+ *
+ * En móvil van apilados a todo el ancho y en orden inverso: el último (la
+ * acción principal) arriba y el primero abajo. Un grupo de botones dentro
+ * (DialogActionGroup) se apila igual. Un hijo vacío (relleno) no ocupa lugar.
  */
 const DialogActions = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     data-dialog-actions=""
     className={cn(
-      "sticky bottom-0 z-10 -mx-6 flex items-center gap-2 border-t bg-background px-6 py-4",
+      "sticky bottom-0 z-10 -mx-6 flex flex-col-reverse gap-3 border-t bg-background px-6 py-4 sm:flex-row sm:items-center",
+      "[&>*:empty]:hidden [&>*]:w-full sm:[&>*]:w-auto",
+      className
+    )}
+    {...props}
+  />
+);
+
+/** Botones agrupados dentro de DialogActions (p. ej. Cancelar y Guardar) */
+const DialogActionGroup = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn(
+      // ml-auto: a la derecha en escritorio, haya o no un botón a la izquierda
+      "flex flex-col-reverse gap-3 sm:ml-auto sm:flex-row [&>*]:w-full sm:[&>*]:w-auto",
       className
     )}
     {...props}
@@ -123,6 +141,7 @@ export {
   DialogHeader,
   DialogFooter,
   DialogActions,
+  DialogActionGroup,
   DialogTitle,
   DialogDescription,
 };
