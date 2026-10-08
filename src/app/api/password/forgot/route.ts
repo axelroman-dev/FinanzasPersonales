@@ -2,10 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { isSystemAdmin } from "@/lib/system-admin";
-import { appUrl, mailEnabled } from "@/lib/mail/config";
-import { sendMail } from "@/lib/mail/send";
-import { passwordResetEmail } from "@/lib/mail/templates";
-import { TOKEN_TTL_MS, countRecentAuthTokens, issueAuthToken } from "@/lib/auth-tokens";
+import { mailEnabled } from "@/lib/mail/config";
+import { sendPasswordResetLink } from "@/lib/mail/links";
+import { countRecentAuthTokens } from "@/lib/auth-tokens";
 import { clientIp, createRateLimiter } from "@/lib/rate-limit";
 
 const schema = z.object({ email: z.string().trim().email() });
@@ -46,17 +45,7 @@ export async function POST(req: Request) {
   if (user && user.isActive && !isSystemAdmin(user)) {
     const since = new Date(Date.now() - 60 * 60 * 1000);
     const recent = await countRecentAuthTokens(user.id, "PASSWORD_RESET", since);
-    if (recent < MAX_PER_USER_PER_HOUR) {
-      const token = await issueAuthToken(user.id, "PASSWORD_RESET");
-      await sendMail(
-        user.email,
-        passwordResetEmail({
-          name: user.name,
-          url: `${appUrl()}/reset-password?token=${token}`,
-          expiresInMinutes: TOKEN_TTL_MS.PASSWORD_RESET / 60_000,
-        })
-      );
-    }
+    if (recent < MAX_PER_USER_PER_HOUR) await sendPasswordResetLink(user);
   }
 
   return NextResponse.json({ ok: true });

@@ -64,7 +64,8 @@ export async function ensureSystemAdmin(password: string): Promise<void> {
     return;
   }
 
-  const passwordChanged = !(await bcrypt.compare(password, existing.passwordHash));
+  const passwordChanged =
+    !existing.passwordHash || !(await bcrypt.compare(password, existing.passwordHash));
   await prisma.user.update({
     where: { id: existing.id },
     data: {

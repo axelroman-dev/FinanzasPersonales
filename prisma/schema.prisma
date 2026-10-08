@@ -36,7 +36,9 @@ enum CategoryKind {
 model User {
   id                  String   @id @default(cuid())
   email               String   @unique
-  passwordHash        String
+  // null = invitación pendiente: el usuario aún no crea su contraseña y no
+  // puede iniciar sesión (ver src/app/invite)
+  passwordHash        String?
   name                String
   role                Role     @default(USER)
   isActive            Boolean  @default(true)

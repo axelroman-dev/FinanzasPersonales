@@ -29,7 +29,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const { email, password } = parsed.data;
         const user = await prisma.user.findUnique({ where: { email } });
-        if (!user) return null;
+        // Sin contraseña: invitación pendiente, todavía no puede entrar
+        if (!user?.passwordHash) return null;
 
         const isValid = await bcrypt.compare(password, user.passwordHash);
         if (!isValid) return null;

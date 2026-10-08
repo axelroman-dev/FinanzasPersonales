@@ -16,7 +16,7 @@ export async function passwordMatches(
     where: { id: userId },
     select: { passwordHash: true },
   });
-  return !!user && (await bcrypt.compare(password, user.passwordHash));
+  return !!user?.passwordHash && (await bcrypt.compare(password, user.passwordHash));
 }
 
 /**
