@@ -1,6 +1,14 @@
+import { existsSync } from "fs";
+import path from "path";
 import nodemailer, { type Transporter } from "nodemailer";
 import { getMailConfig } from "./config";
-import type { RenderedEmail } from "./templates";
+import { LOGO_CID, type RenderedEmail } from "./templates";
+
+// Logo de los correos: public/ también se copia a la imagen de Docker
+const LOGO_PATH = path.join(process.cwd(), "public", "email-logo.png");
+const logoAttachment = existsSync(LOGO_PATH)
+  ? [{ filename: "logo.png", path: LOGO_PATH, cid: LOGO_CID }]
+  : [];
 
 let transport: Transporter | null = null;
 let transportKey = "";
@@ -37,7 +45,14 @@ export async function sendMail(to: string, email: RenderedEmail): Promise<SendRe
   const t = getTransport();
   if (!config || !t) return { ok: false, error: "El correo no está configurado" };
   try {
-    await t.sendMail({ from: config.from, to, subject: email.subject, html: email.html, text: email.text });
+    await t.sendMail({
+      from: config.from,
+      to,
+      subject: email.subject,
+      html: email.html,
+      text: email.text,
+      attachments: logoAttachment,
+    });
     return { ok: true };
   } catch (error) {
     console.error(`No se pudo enviar el correo «${email.subject}» a ${to}:`, error);

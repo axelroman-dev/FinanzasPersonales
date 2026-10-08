@@ -7,7 +7,7 @@
  *   SMTP_PORT=465                 # 465 = SSL; 587 = STARTTLS
  *   SMTP_USER=finanzas@tudominio.com
  *   SMTP_PASSWORD=...
- *   MAIL_FROM="Finanzas <finanzas@tudominio.com>"   # opcional: por defecto SMTP_USER
+ *   MAIL_FROM="Finanzas Personales <finanzas@tudominio.com>"   # opcional: por defecto SMTP_USER
  */
 export type MailConfig = {
   host: string;
@@ -28,7 +28,9 @@ export function getMailConfig(
   const pass = env.SMTP_PASSWORD;
   // Sin usuario (p. ej. Mailpit en desarrollo) se envía sin autenticar
   const auth = user && pass ? { user, pass } : undefined;
-  const from = env.MAIL_FROM?.trim() || (user ? `Finanzas <${user}>` : "Finanzas <finanzas@localhost>");
+  const from =
+    env.MAIL_FROM?.trim() ||
+    (user ? `Finanzas Personales <${user}>` : "Finanzas Personales <finanzas@localhost>");
   return { host, port, secure: port === 465, auth, from };
 }
 

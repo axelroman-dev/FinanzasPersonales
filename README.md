@@ -95,7 +95,7 @@ Con correo configurado, la app permite **recuperar la contraseña** («¿Olvidas
    SMTP_PORT=465            # SSL; 587 = STARTTLS
    SMTP_USER=finanzas@tudominio.com
    SMTP_PASSWORD=...
-   MAIL_FROM="Finanzas <finanzas@tudominio.com>"
+   MAIL_FROM="Finanzas Personales <finanzas@tudominio.com>"
    ```
 2. Reinicia la app. En los logs aparece «Correo listo» o el error de conexión.
 3. Prueba en **Admin › Configuración › Enviar correo de prueba**.

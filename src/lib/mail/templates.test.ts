@@ -42,7 +42,7 @@ describe("getMailConfig", () => {
       port: 465,
       secure: true,
       auth: { user: "a@b.mx", pass: "x" },
-      from: "Finanzas <a@b.mx>",
+      from: "Finanzas Personales <a@b.mx>",
     });
   });
 

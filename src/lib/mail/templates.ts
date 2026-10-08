@@ -5,7 +5,13 @@
  */
 export type RenderedEmail = { subject: string; html: string; text: string };
 
+export const APP_NAME = "Finanzas Personales";
 const BRAND = "#16a34a";
+/**
+ * El logo (la cartera de la app) va adjunto al correo con este Content-ID:
+ * así se ve aunque el cliente bloquee imágenes externas (ver send.ts)
+ */
+export const LOGO_CID = "logo@finanzas";
 
 /** Escapa texto del usuario (nombres, etc.) para meterlo en el HTML */
 export function escapeHtml(text: string): string {
@@ -57,13 +63,13 @@ function layout(params: {
 <span style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(preheader)}</span>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:12px;border:1px solid #e4e4e7;">
-<tr><td style="padding:24px 28px 8px;"><span style="display:inline-block;width:28px;height:28px;line-height:28px;text-align:center;border-radius:8px;background:${BRAND};color:#fff;font-weight:700;font-size:15px;">F</span>
-<span style="margin-left:8px;font-size:16px;font-weight:700;color:#18181b;vertical-align:middle;">Finanzas</span></td></tr>
+<tr><td style="padding:24px 28px 8px;"><img src="cid:${LOGO_CID}" width="32" height="32" alt="" style="display:inline-block;width:32px;height:32px;border-radius:8px;vertical-align:middle;border:0;">
+<span style="margin-left:10px;font-size:16px;font-weight:700;color:#18181b;vertical-align:middle;">${APP_NAME}</span></td></tr>
 <tr><td style="padding:16px 28px 8px;">
 <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#27272a;">${escapeHtml(greeting)}</p>
 ${body}${buttonHtml}${footnote ? `<p style="margin:0 0 12px;font-size:13px;line-height:1.5;color:#71717a;">${escapeHtml(footnote)}</p>` : ""}
 </td></tr>
-<tr><td style="padding:16px 28px 24px;border-top:1px solid #f4f4f5;font-size:12px;line-height:1.5;color:#a1a1aa;">Este correo lo envió automáticamente tu app de Finanzas. No respondas a este mensaje.</td></tr>
+<tr><td style="padding:16px 28px 24px;border-top:1px solid #f4f4f5;font-size:12px;line-height:1.5;color:#a1a1aa;">Este correo lo envió automáticamente ${APP_NAME}. No respondas a este mensaje.</td></tr>
 </table></td></tr></table></body></html>`;
 
   const text = [
@@ -73,7 +79,7 @@ ${body}${buttonHtml}${footnote ? `<p style="margin:0 0 12px;font-size:13px;line-
     ...(button ? ["", `${button.label}: ${button.url}`] : []),
     ...(footnote ? ["", footnote] : []),
     "",
-    "— Finanzas (correo automático, no respondas a este mensaje)",
+    `— ${APP_NAME} (correo automático, no respondas a este mensaje)`,
   ].join("\n");
 
   return { subject, html, text };
@@ -141,7 +147,7 @@ export function testEmail(params: { name: string }): RenderedEmail {
     preheader: "La configuración de correo funciona.",
     greeting: greet(params.name),
     blocks: [
-      { kind: "p", text: "Si lees esto, la configuración de correo de tu app de Finanzas funciona." },
+      { kind: "p", text: `Si lees esto, la configuración de correo de ${APP_NAME} funciona.` },
       {
         kind: "small",
         text: "Si este correo llegó a spam, revisa los registros SPF, DKIM y DMARC de tu dominio.",
