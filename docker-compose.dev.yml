@@ -27,6 +27,16 @@ services:
       timeout: 5s
       retries: 5
 
+  # Buzón de prueba: atrapa los correos que manda la app sin enviarlos de
+  # verdad. Bandeja en http://localhost:8025 (ver SMTP_* en .env.local.example)
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: finanzas-dev-mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
 volumes:
   finanzas_dev_pgdata:
     driver: local

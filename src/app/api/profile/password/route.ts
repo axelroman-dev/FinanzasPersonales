@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { isSystemAdmin } from "@/lib/system-admin";
+import { notifyPasswordChanged } from "@/lib/mail/notices";
 
 const schema = z
   .object({
@@ -58,8 +59,14 @@ export async function POST(req: Request) {
       data: {
         passwordHash: newHash,
         mustChangePassword: false,
+        // Cierra las sesiones de otros dispositivos; esta se renueva al
+        // volver a iniciar sesión (ver change-password-form)
+        passwordChangedAt: new Date(),
       },
     });
+
+    // El primer cambio de una contraseña temporal es esperado: sin aviso
+    if (!dbUser.mustChangePassword) notifyPasswordChanged(dbUser, "changed");
 
     return NextResponse.json({ ok: true });
   } catch (error: any) {

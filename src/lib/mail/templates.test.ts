@@ -1,0 +1,53 @@
+import { describe, expect, it } from "vitest";
+import { escapeHtml, passwordChangedEmail, passwordResetEmail } from "./templates";
+import { getMailConfig } from "./config";
+
+describe("plantillas", () => {
+  it("escapa el nombre del usuario en el HTML", () => {
+    const email = passwordResetEmail({
+      name: "<script>x</script>",
+      url: "https://app.test/reset-password?token=abc",
+      expiresInMinutes: 60,
+    });
+    expect(email.html).not.toContain("<script>x");
+    expect(email.html).toContain(escapeHtml("<script>x</script>"));
+  });
+
+  it("incluye el enlace en el HTML y en el texto", () => {
+    const url = "https://app.test/reset-password?token=abc&x=1";
+    const email = passwordResetEmail({ name: "Ana López", url, expiresInMinutes: 60 });
+    expect(email.subject).toBe("Restablece tu contraseña");
+    expect(email.html).toContain(escapeHtml(url));
+    expect(email.text).toContain(url);
+    expect(email.text).toContain("Hola, Ana:");
+  });
+
+  it("el aviso de cambio dice si se cambió o se restableció", () => {
+    const base = { name: "Ana", when: new Date(2026, 9, 8, 10, 30), forgotUrl: "https://app.test/forgot-password" };
+    expect(passwordChangedEmail({ ...base, how: "reset" }).text).toContain("se restableció");
+    expect(passwordChangedEmail({ ...base, how: "changed" }).text).toContain("se cambió");
+  });
+});
+
+describe("getMailConfig", () => {
+  it("sin SMTP_HOST el correo está desactivado", () => {
+    expect(getMailConfig({})).toBeNull();
+  });
+
+  it("465 usa TLS directo y el remitente por defecto es el usuario", () => {
+    expect(
+      getMailConfig({ SMTP_HOST: "smtp.hostinger.com", SMTP_USER: "a@b.mx", SMTP_PASSWORD: "x" })
+    ).toEqual({
+      host: "smtp.hostinger.com",
+      port: 465,
+      secure: true,
+      auth: { user: "a@b.mx", pass: "x" },
+      from: "Finanzas Personales <a@b.mx>",
+    });
+  });
+
+  it("587 usa STARTTLS; sin usuario no autentica", () => {
+    const c = getMailConfig({ SMTP_HOST: "localhost", SMTP_PORT: "587", MAIL_FROM: "X <x@y.z>" });
+    expect(c).toMatchObject({ port: 587, secure: false, auth: undefined, from: "X <x@y.z>" });
+  });
+});

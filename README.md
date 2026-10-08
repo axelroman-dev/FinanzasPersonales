@@ -85,6 +85,25 @@ Sobre los archivos:
   docker compose exec app npx tsx scripts/cleanup-attachments.ts --apply  # borra
   ```
 
+## Correo
+
+Con correo configurado, la app permite **recuperar la contraseña** («¿Olvidaste tu contraseña?» en el login) y manda **avisos de seguridad** cuando una contraseña cambia. Sin correo, todo lo demás funciona igual.
+
+1. Agrega al `.env` los datos SMTP de tu proveedor. Con Hostinger:
+   ```bash
+   SMTP_HOST=smtp.hostinger.com
+   SMTP_PORT=465            # SSL; 587 = STARTTLS
+   SMTP_USER=finanzas@tudominio.com
+   SMTP_PASSWORD=...
+   MAIL_FROM="Finanzas Personales <finanzas@tudominio.com>"
+   ```
+2. Reinicia la app. En los logs aparece «Correo listo» o el error de conexión.
+3. Prueba en **Admin › Configuración › Enviar correo de prueba**.
+
+Para que no lleguen a spam, el dominio necesita registros **SPF, DKIM y DMARC**. Los enlaces de los correos usan `NEXTAUTH_URL`, así que debe ser la URL pública.
+
+En desarrollo, `npm run db:up` también levanta **Mailpit**, un buzón de prueba: con `SMTP_HOST=localhost` y `SMTP_PORT=1025`, los correos se ven en http://localhost:8025 sin enviarse de verdad.
+
 ## Comandos útiles
 
 ```bash
@@ -125,6 +144,7 @@ Hay dos plantillas: `.env.local.example` (desarrollo local) y `.env.prod.example
 | `ADMIN_PASSWORD` | Ambos | Contraseña de `admin@finanzas.local` (obligatoria, mínimo 12 caracteres) |
 | `ATTACHMENTS_KEY` | Ambos | Clave para cifrar los adjuntos (opcional; sin ella están desactivados). Genera con `openssl rand -base64 32` |
 | `ATTACHMENTS_DIR` | Ambos | Carpeta de adjuntos (opcional; por defecto `./data/uploads`, en Docker `/app/data/uploads`) |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM` | Ambos | Correo (opcional; sin `SMTP_HOST` está desactivado). Ver [Correo](#correo) |
 | `TZ` | Producción | Zona horaria del servidor (por defecto `America/Mexico_City`) |
 | `DATA_PATH` | Producción | Carpeta del host donde se guardan los datos de PostgreSQL y los adjuntos (por defecto `/data`) |
 | `IMAGE_TAG` | Producción | Versión de la imagen a usar (por defecto `latest`) |
@@ -190,8 +210,10 @@ Los **vales de despensa** no cuentan en el balance.
 - El registro público está desactivado por defecto
 - Passwords hasheados con **bcrypt** (10 rounds)
 - Sesiones JWT firmadas
-- Middleware protege todas las rutas excepto `/login` y `/register`
+- Middleware protege todas las rutas excepto `/login`, `/register`, `/forgot-password` y `/reset-password`
 - Usuarios con `mustChangePassword` son redirigidos a `/change-password` hasta que la cambien
+- Cambiar o restablecer la contraseña cierra las sesiones abiertas en otros dispositivos
+- Recuperar contraseña: enlace de un solo uso que vence en 1 hora; en la base solo se guarda su SHA-256; la respuesta no revela si un correo tiene cuenta; límite de solicitudes por correo y por IP
 - Todas las queries filtran por `userId` desde la sesión (nunca del cliente)
 - `isActive` y el rol se verifican contra la DB en cada request: desactivar, eliminar o cambiar el rol de un usuario aplica de inmediato aunque tenga una sesión abierta
 - Validación con **Zod** en todos los endpoints

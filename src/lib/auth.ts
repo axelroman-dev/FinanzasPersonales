@@ -18,10 +18,12 @@ export type SessionUser = {
 };
 
 /**
- * Usuario de la sesión actual, o null si no hay sesión o si el usuario fue
- * desactivado/eliminado. El JWT no se invalida cuando un admin cambia al
- * usuario, así que `isActive` y `role` se leen de la DB en cada request
- * (`cache` evita repetir la consulta dentro del mismo request).
+ * Usuario de la sesión actual, o null si no hay sesión, si el usuario fue
+ * desactivado/eliminado o si su contraseña cambió después de iniciar sesión
+ * (así un cambio o restablecimiento cierra las sesiones de otros
+ * dispositivos). El JWT no se invalida solo, así que `isActive`, `role` y
+ * `passwordChangedAt` se leen de la DB en cada request (`cache` evita repetir
+ * la consulta dentro del mismo request).
  */
 export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   const session = await auth();
@@ -30,9 +32,13 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
 
   const dbUser = await prisma.user.findUnique({
     where: { id: u.id },
-    select: { isActive: true, role: true },
+    select: { isActive: true, role: true, passwordChangedAt: true },
   });
   if (!dbUser || !dbUser.isActive) return null;
+  // Sesiones de antes de este cambio no traen authAt: cuentan como antiguas
+  if (dbUser.passwordChangedAt && (u.authAt ?? 0) < dbUser.passwordChangedAt.getTime()) {
+    return null;
+  }
 
   return {
     id: u.id,

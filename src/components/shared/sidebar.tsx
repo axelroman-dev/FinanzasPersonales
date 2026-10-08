@@ -130,11 +130,11 @@ function NavLink({
 
 function Logo({ collapsed = false }: { collapsed?: boolean }) {
   return (
-    <Link href="/" className="flex items-center gap-2 font-semibold" aria-label="Finanzas">
+    <Link href="/" className="flex items-center gap-2 font-semibold" aria-label="Finanzas Personales">
       <div className="h-8 w-8 shrink-0 rounded-md bg-primary flex items-center justify-center text-primary-foreground">
         <Wallet className="h-4 w-4" />
       </div>
-      {!collapsed && <span className="text-lg">Finanzas</span>}
+      {!collapsed && <span className="truncate text-lg">Finanzas Personales</span>}
     </Link>
   );
 }
