@@ -94,9 +94,14 @@ export async function DELETE(
     const txCount = ownTxCount + transferCount;
 
     const totalUsage = txCount + subCount;
+    const url = new URL(req.url);
+
+    // ?check=true: solo informa el uso (para la confirmación), no borra
+    if (url.searchParams.get("check") === "true") {
+      return NextResponse.json({ txCount, ownTxCount, transferCount, subCount });
+    }
 
     if (totalUsage > 0) {
-      const url = new URL(req.url);
       const force = url.searchParams.get("force") === "true";
       if (!force) {
         return NextResponse.json(

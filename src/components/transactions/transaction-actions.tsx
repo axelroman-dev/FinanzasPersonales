@@ -6,6 +6,7 @@ import {
   Dialog,
   DialogContent,
   DialogActions,
+  DialogActionGroup,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -510,7 +511,7 @@ function TxFormDialog({
         )}
 
         <DialogActions className="justify-between">
-          {mode === "edit" ? (
+          {mode === "edit" && (
             <Button
               type="button"
               variant="ghost"
@@ -522,10 +523,8 @@ function TxFormDialog({
               <Trash2 className="h-4 w-4" />
               Eliminar
             </Button>
-          ) : (
-            <span />
           )}
-          <div className="flex gap-2">
+          <DialogActionGroup>
             <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>
@@ -533,7 +532,7 @@ function TxFormDialog({
               {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
               {mode === "create" ? "Crear" : "Guardar"}
             </Button>
-          </div>
+          </DialogActionGroup>
         </DialogActions>
       </form>
     </DialogContent>

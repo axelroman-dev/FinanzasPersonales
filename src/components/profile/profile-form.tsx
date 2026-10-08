@@ -102,7 +102,7 @@ export function ProfileForm({
       )}
 
       {!isSystem && (
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" disabled={isPending} className="w-full">
           {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
           Guardar cambios
         </Button>

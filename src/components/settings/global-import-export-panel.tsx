@@ -197,7 +197,8 @@ export function GlobalImportExportPanel() {
           </div>
         )}
 
-        <div className="flex gap-2">
+        {/* En móvil: apilados, la acción principal arriba */}
+        <div className="flex flex-col-reverse gap-3 sm:flex-row [&>*]:w-full sm:[&>*]:w-auto">
           <Button variant="outline" onClick={reset}>
             Cancelar
           </Button>
@@ -252,14 +253,14 @@ export function GlobalImportExportPanel() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-2">
-        <Button onClick={handleExport} variant="default">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Button onClick={handleExport} variant="default" className="w-full">
           <Download className="h-4 w-4" />
           Exportar todo (sistema)
         </Button>
 
-        <label className="cursor-pointer">
-          <Button variant="outline" type="button" asChild>
+        <label className="block cursor-pointer">
+          <Button variant="outline" type="button" asChild className="w-full">
             <span>
               <Upload className="h-4 w-4" />
               Importar archivo global

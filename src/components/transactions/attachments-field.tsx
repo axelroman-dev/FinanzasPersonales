@@ -33,6 +33,12 @@ export function AttachmentsField({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
+  // «Tomar foto» solo abre la cámara en celulares y tablets; en la
+  // computadora abría el explorador de archivos, igual que «Subir archivo»
+  const [canUseCamera, setCanUseCamera] = useState(false);
+  useEffect(() => {
+    setCanUseCamera(window.matchMedia("(pointer: coarse)").matches);
+  }, []);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -113,16 +119,18 @@ export function AttachmentsField({
       )}
 
       <div className="flex gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => cameraRef.current?.click()}
-          disabled={total >= MAX_ATTACHMENTS_PER_TRANSACTION}
-        >
-          <Camera className="h-4 w-4" />
-          Tomar foto
-        </Button>
+        {canUseCamera && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => cameraRef.current?.click()}
+            disabled={total >= MAX_ATTACHMENTS_PER_TRANSACTION}
+          >
+            <Camera className="h-4 w-4" />
+            Tomar foto
+          </Button>
+        )}
         <Button
           type="button"
           variant="outline"
@@ -133,7 +141,7 @@ export function AttachmentsField({
           <Paperclip className="h-4 w-4" />
           Subir archivo
         </Button>
-        {/* capture abre la cámara en el celular; en escritorio es un selector normal */}
+        {/* capture abre la cámara del celular */}
         <input
           ref={cameraRef}
           type="file"
