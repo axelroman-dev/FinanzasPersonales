@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { normalizeCurrencySettings } from "@/lib/currencies";
 import { RATE_PROVIDERS, RATE_PROVIDER_IDS } from "@/lib/rate-providers";
 import { testProvider, validateCustomUrl } from "@/lib/exchange-rates";
+import { serverBanxicoToken } from "@/lib/onboarding";
 
 const schema = z.object({
   primaryCurrency: z.string().length(3),
@@ -73,7 +74,7 @@ export async function PATCH(req: Request) {
       });
       token = data.banxicoToken === undefined ? saved?.banxicoToken ?? null : data.banxicoToken || null;
       if (data.banxicoToken !== undefined) update.banxicoToken = token;
-      if (data.ratesProvider === "BANXICO" && !token && !process.env.BANXICO_TOKEN) {
+      if (data.ratesProvider === "BANXICO" && !token && !serverBanxicoToken()) {
         return NextResponse.json(
           { error: "Escribe tu token del SIE de Banxico" },
           { status: 400 }
