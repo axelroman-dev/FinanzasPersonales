@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.15.0...v0.16.0) (2026-10-17)
+
+
+### Nuevas funciones
+
+* **monedas:** Banxico por defecto con BANXICO_TOKEN y resumen del proveedor ([#72](https://github.com/axelroman-dev/FinanzasPersonales/issues/72)) ([817ddf7](https://github.com/axelroman-dev/FinanzasPersonales/commit/817ddf79c6e34cf1177cc3df3570c80f397a3f7b))
+
 ## [0.15.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.14.0...v0.15.0) (2026-10-17)
 
 
