@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.14.0...v0.15.0) (2026-10-17)
+
+
+### Nuevas funciones
+
+* **monedas:** moneda principal, secundarias y conversión con tipo de cambio ([#70](https://github.com/axelroman-dev/FinanzasPersonales/issues/70)) ([358fc80](https://github.com/axelroman-dev/FinanzasPersonales/commit/358fc80a98cc82c1eb49351e25ed79bc21ceb32e))
+
 ## [0.14.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.13.0...v0.14.0) (2026-10-08)
 
 
