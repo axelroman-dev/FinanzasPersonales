@@ -4,11 +4,14 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { isValidSubscriptionCategory } from "@/lib/subscriptions";
 import { chargeDueSubscriptions } from "@/lib/subscription-charges";
+import { allowedCurrencies } from "@/lib/currencies";
 
 const schema = z
   .object({
     name: z.string().min(1),
     amount: z.number().positive(),
+    // Sin moneda: la de la cuenta
+    currency: z.string().length(3).optional(),
     billingDay: z.number().int().min(1).max(31),
     frequency: z.enum(["MONTHLY", "YEARLY"]).default("MONTHLY"),
     billingMonth: z.number().int().min(1).max(12).nullable().optional(),
@@ -55,6 +58,14 @@ export async function POST(req: Request) {
       );
     }
 
+    const currency = parsed.data.currency ?? account.currency;
+    if (currency !== account.currency && !allowedCurrencies(user).includes(currency)) {
+      return NextResponse.json(
+        { error: `Agrega ${currency} a tus monedas en Mi perfil para usarla` },
+        { status: 400 }
+      );
+    }
+
     const categoryId = parsed.data.categoryId ?? null;
     if (!(await isValidSubscriptionCategory(user.id, categoryId))) {
       return NextResponse.json(
@@ -68,6 +79,7 @@ export async function POST(req: Request) {
         userId: user.id,
         name: parsed.data.name,
         amount: parsed.data.amount,
+        currency,
         billingDay: parsed.data.billingDay,
         frequency: parsed.data.frequency,
         billingMonth: parsed.data.frequency === "YEARLY" ? parsed.data.billingMonth : null,

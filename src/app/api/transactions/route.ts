@@ -7,6 +7,7 @@ import { createMsiPurchase } from "@/lib/msi";
 import { applyBalanceDeltas, balanceEffects } from "@/lib/transaction-balance";
 import { isCardPayment } from "@/lib/account-types";
 import { ensureInternalCategory } from "@/lib/internal-categories";
+import { resolveTransactionAmount } from "@/lib/exchange-rates";
 
 const baseSchema = {
   type: z.enum(["INCOME", "EXPENSE", "TRANSFER"]),
@@ -26,6 +27,8 @@ const baseSchema = {
   subscriptionId: z.string().nullable().optional(),
   isMsi: z.boolean().optional(),
   msiInstallments: z.number().int().min(2).max(48).optional(),
+  // Moneda del monto; si no es la de la cuenta se convierte con la tasa de hoy
+  currency: z.string().length(3).optional(),
 };
 
 const schema = z.object(baseSchema);
@@ -119,6 +122,14 @@ export async function POST(req: Request) {
           { status: 404 }
         );
       }
+      if (transfer.currency !== account.currency) {
+        return NextResponse.json(
+          {
+            error: `No se puede transferir entre cuentas en ${account.currency} y ${transfer.currency}`,
+          },
+          { status: 400 }
+        );
+      }
       transferAccountType = transfer.type;
     }
 
@@ -155,6 +166,25 @@ export async function POST(req: Request) {
       }
     }
 
+    // Monto en otra moneda: solo en gastos e ingresos (las transferencias van
+    // entre cuentas de la misma moneda y los MSI son en la de la tarjeta)
+    const foreign = data.currency !== undefined && data.currency !== account.currency;
+    if (foreign && (data.type === "TRANSFER" || (data.isMsi && data.msiInstallments))) {
+      return NextResponse.json(
+        { error: `El monto debe ir en ${account.currency}, la moneda de la cuenta` },
+        { status: 400 }
+      );
+    }
+    const resolved = await resolveTransactionAmount(user, {
+      amount: data.amount,
+      currency: data.currency,
+      accountCurrency: account.currency,
+    });
+    if (!resolved.ok) {
+      return NextResponse.json({ error: resolved.error }, { status: 400 });
+    }
+    const amount = resolved.value.amount;
+
     // MSI: solo gastos en cuenta de crédito
     if (data.isMsi && data.msiInstallments) {
       if (data.type !== "EXPENSE" || account.type !== "CREDIT") {
@@ -189,7 +219,10 @@ export async function POST(req: Request) {
         data: {
           userId: user.id,
           type: data.type,
-          amount: data.amount,
+          amount,
+          originalAmount: resolved.value.originalAmount,
+          originalCurrency: resolved.value.originalCurrency,
+          exchangeRate: resolved.value.exchangeRate,
           date: data.date,
           description: data.description,
           category: data.category ?? null,
@@ -205,7 +238,7 @@ export async function POST(req: Request) {
         tx,
         balanceEffects({
           type: data.type,
-          amount: data.amount,
+          amount,
           accountId: data.accountId,
           accountType: account.type,
           transferAccountId: data.transferAccountId,

@@ -25,6 +25,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Trash2, Loader2, Pencil } from "lucide-react";
 import { useFormResetKey } from "@/hooks/use-form-reset-key";
 import { useConfirm } from "@/components/shared/confirm-dialog";
+import { currencyLabel } from "@/lib/currencies";
 
 type AccountFormData = {
   id: string;
@@ -36,15 +37,20 @@ type AccountFormData = {
   creditLimit: number | null;
   cutoffDay: number | null;
   paymentDay: number | null;
+  /** Con transferencias la moneda ya no se cambia: ambas cuentas deben usar la misma */
+  currencyLocked?: boolean;
 };
 
 export function AccountActions({
   mode,
   account,
+  currencies,
   children,
 }: {
   mode: "create" | "edit";
   account?: AccountFormData;
+  /** Monedas del usuario (la principal primero, ver Mi perfil) */
+  currencies: string[];
   children?: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -58,6 +64,7 @@ export function AccountActions({
         key={formKey}
         mode={mode}
         account={account}
+        currencies={currencies}
         onClose={() => setOpen(false)}
         onSaved={() => {
           setOpen(false);
@@ -71,11 +78,13 @@ export function AccountActions({
 function AccountFormDialog({
   mode,
   account,
+  currencies,
   onClose,
   onSaved,
 }: {
   mode: "create" | "edit";
   account?: AccountFormData;
+  currencies: string[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -88,7 +97,11 @@ function AccountFormDialog({
     account?.type ?? "DEBIT"
   );
   const [balance, setBalance] = useState(account?.balance ?? 0);
-  const [currency, setCurrency] = useState(account?.currency ?? "MXN");
+  const [currency, setCurrency] = useState(account?.currency ?? currencies[0]);
+  const currencyOptions =
+    account && !currencies.includes(account.currency)
+      ? [...currencies, account.currency]
+      : currencies;
   const [includeInBalance, setIncludeInBalance] = useState(
     account?.includeInBalance ?? true
   );
@@ -233,13 +246,27 @@ function AccountFormDialog({
           </div>
           <div className="space-y-2">
             <Label htmlFor="currency">Moneda</Label>
-            <Input
-              id="currency"
+            <Select
               value={currency}
-              onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-              maxLength={3}
-              required
-            />
+              onValueChange={setCurrency}
+              disabled={account?.currencyLocked}
+            >
+              <SelectTrigger id="currency">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {currencyOptions.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {currencyLabel(c)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {account?.currencyLocked && (
+              <p className="text-xs text-muted-foreground">
+                Tiene transferencias con otras cuentas: la moneda no se puede cambiar
+              </p>
+            )}
           </div>
         </div>
 
@@ -366,9 +393,15 @@ function AccountFormDialog({
  * Botón compacto de edición para mostrar en cada card de cuenta.
  * Reutiliza el formulario de edición.
  */
-export function AccountEditButton({ account }: { account: AccountFormData }) {
+export function AccountEditButton({
+  account,
+  currencies,
+}: {
+  account: AccountFormData;
+  currencies: string[];
+}) {
   return (
-    <AccountActions mode="edit" account={account}>
+    <AccountActions mode="edit" account={account} currencies={currencies}>
       <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar cuenta">
         <Pencil className="h-3.5 w-3.5" />
       </Button>

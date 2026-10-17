@@ -9,17 +9,22 @@ import { newStorageKey } from "@/lib/storage/keys";
 import { getStorage } from "@/lib/storage/storage";
 import { normalizeCategoryIcon } from "@/lib/category-icons";
 import { defaultSubcategoryIcon } from "../../prisma/default-categories";
+import { isSupportedCurrency, type CurrencySettings } from "@/lib/currencies";
+import { isRateProvider, parseManualRates } from "@/lib/rate-providers";
 
 /**
  * Estructura del JSON de export/import.
  * Versionado: si en el futuro cambia el formato, podemos detectar
  * la versión del archivo y migrar/avisar al usuario.
  */
-export type ExportVersion = "1.0" | "1.1";
+export type ExportVersion = "1.0" | "1.1" | "1.2";
 
-/** 1.1 añade los adjuntos de los movimientos (respaldo en .zip) */
-const CURRENT_VERSION = "1.1";
-const SUPPORTED_VERSIONS: string[] = ["1.0", "1.1"];
+/**
+ * 1.1 añade los adjuntos de los movimientos (respaldo en .zip)
+ * 1.2 añade la moneda principal y las secundarias del usuario
+ */
+const CURRENT_VERSION = "1.2";
+const SUPPORTED_VERSIONS: string[] = ["1.0", "1.1", "1.2"];
 
 function isSupportedVersion(version: string): boolean {
   return SUPPORTED_VERSIONS.includes(version);
@@ -34,6 +39,12 @@ export type ExportData = {
     transactions: ExportTransaction[];
     subscriptions: ExportSubscription[];
     categories: ExportCategory[];
+    /** Desde 1.2 (sin el token de Banxico) */
+    currencies?: CurrencySettings & {
+      ratesProvider?: string;
+      ratesProviderUrl?: string | null;
+      manualRates?: unknown;
+    };
   };
 };
 
@@ -69,6 +80,10 @@ export type ExportTransaction = {
   msiTotalAmount: number | null;
   msiInstallments: number | null;
   subscriptionName: string | null;
+  /** Desde 1.2: cobro de suscripción convertido de otra moneda */
+  originalAmount?: number | null;
+  originalCurrency?: string | null;
+  exchangeRate?: number | null;
   createdAt: string;
   /** Desde 1.1. Los archivos van en el zip, en la ruta `file` */
   attachments?: ExportAttachment[];
@@ -95,6 +110,8 @@ export type ExportSubscription = {
   category?: string | null;
   isActive: boolean;
   accountName: string;
+  /** Desde 1.2; antes, la moneda de la cuenta */
+  currency?: string;
   createdAt: string;
 };
 
@@ -158,6 +175,16 @@ export async function exportUserData(
       orderBy: { createdAt: "asc" },
     }),
   ]);
+  const currencies = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: {
+      primaryCurrency: true,
+      secondaryCurrencies: true,
+      ratesProvider: true,
+      ratesProviderUrl: true,
+      manualRates: true,
+    },
+  });
 
   const json: ExportData = {
     version: CURRENT_VERSION,
@@ -192,6 +219,9 @@ export async function exportUserData(
         msiTotalAmount: t.msiTotalAmount ? Number(t.msiTotalAmount) : null,
         msiInstallments: t.msiInstallments,
         subscriptionName: t.subscription?.name ?? null,
+        originalAmount: t.originalAmount ? Number(t.originalAmount) : null,
+        originalCurrency: t.originalCurrency,
+        exchangeRate: t.exchangeRate ? Number(t.exchangeRate) : null,
         createdAt: t.createdAt.toISOString(),
         attachments: t.attachments?.length
           ? t.attachments.map((a) => {
@@ -212,6 +242,7 @@ export async function exportUserData(
         categoryParentName: s.category?.parent?.name ?? null,
         isActive: s.isActive,
         accountName: s.account.name,
+        currency: s.currency,
         createdAt: s.createdAt.toISOString(),
       })),
       categories: categories.map((c) => ({
@@ -222,6 +253,7 @@ export async function exportUserData(
         color: c.color,
         icon: c.icon,
       })),
+      currencies,
     },
   };
   return { json, files };
@@ -728,6 +760,7 @@ async function importDataTx(
     );
     if (id) accountIdMap.set(acc.name, id);
   }
+  await importCurrenciesTx(tx, userId, data, existingAccounts.length === 0);
 
   // 3. Suscripciones
   const existingSubs = await tx.subscription.findMany({
@@ -787,6 +820,63 @@ async function importDataTx(
       await importAttachmentsTx(tx, userId, saved, txData.attachments, att, result);
     }
   }
+}
+
+/**
+ * Monedas del usuario tras importar: si aún no tenía cuentas toma la
+ * principal del respaldo; en todo caso, las monedas de las cuentas
+ * importadas (y las secundarias del respaldo) se agregan como secundarias.
+ */
+async function importCurrenciesTx(
+  tx: TxClient,
+  userId: string,
+  data: ExportData["data"],
+  freshUser: boolean
+) {
+  const user = await tx.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { primaryCurrency: true, secondaryCurrencies: true, onboardedAt: true },
+  });
+  const backupPrimary = data.currencies?.primaryCurrency;
+  const primary =
+    freshUser && backupPrimary && isSupportedCurrency(backupPrimary)
+      ? backupPrimary
+      : user.primaryCurrency;
+  const candidates = [
+    ...user.secondaryCurrencies,
+    ...(data.currencies?.secondaryCurrencies ?? []).filter(isSupportedCurrency),
+    ...data.accounts.map((a) => a.currency),
+  ];
+  const secondary = [...new Set(candidates)].filter((c) => c !== primary);
+
+  // Un usuario sin cuentas también toma el proveedor del respaldo (el token
+  // de Banxico no viaja en el respaldo: si hacía falta, lo vuelve a escribir)
+  const backupProvider = data.currencies?.ratesProvider;
+  const provider =
+    freshUser && backupProvider && isRateProvider(backupProvider) && backupProvider !== "BANXICO"
+      ? {
+          ratesProvider: backupProvider,
+          ratesProviderUrl: data.currencies?.ratesProviderUrl ?? null,
+          ...(backupProvider === "MANUAL" && {
+            manualRates: parseManualRates(data.currencies?.manualRates) ?? undefined,
+            manualRatesAt: new Date(),
+          }),
+          // Ya eligió sus monedas: no necesita la configuración inicial
+          onboardedAt: user.onboardedAt ?? new Date(),
+        }
+      : {};
+
+  if (
+    primary === user.primaryCurrency &&
+    secondary.length === user.secondaryCurrencies.length &&
+    Object.keys(provider).length === 0
+  ) {
+    return;
+  }
+  await tx.user.update({
+    where: { id: userId },
+    data: { primaryCurrency: primary, secondaryCurrencies: secondary, ...provider },
+  });
 }
 
 /**
@@ -998,6 +1088,10 @@ async function upsertSubscriptionTx(
   existingByName: Map<string, string>
 ): Promise<void> {
   const existingId = existingByName.get(sub.name);
+  const currency =
+    sub.currency ??
+    (await tx.account.findUniqueOrThrow({ where: { id: accountId }, select: { currency: true } }))
+      .currency;
 
   if (existingId) {
     if (strategy === "skip") {
@@ -1009,6 +1103,7 @@ async function upsertSubscriptionTx(
         where: { id: existingId },
         data: {
           amount: sub.amount,
+          currency,
           billingDay: sub.billingDay,
           ...importSchedule(sub),
           categoryId,
@@ -1030,6 +1125,7 @@ async function upsertSubscriptionTx(
       userId,
       name: sub.name,
       amount: sub.amount,
+      currency,
       billingDay: sub.billingDay,
       ...importSchedule(sub),
       categoryId,
@@ -1088,6 +1184,9 @@ async function upsertTransactionTx(
           isMsi: t.isMsi,
           msiTotalAmount: t.msiTotalAmount,
           msiInstallments: t.msiInstallments,
+          originalAmount: t.originalAmount ?? null,
+          originalCurrency: t.originalCurrency ?? null,
+          exchangeRate: t.exchangeRate ?? null,
         },
       });
       result.updated++;
@@ -1111,6 +1210,9 @@ async function upsertTransactionTx(
       isMsi: t.isMsi,
       msiTotalAmount: t.msiTotalAmount,
       msiInstallments: t.msiInstallments,
+      originalAmount: t.originalAmount ?? null,
+      originalCurrency: t.originalCurrency ?? null,
+      exchangeRate: t.exchangeRate ?? null,
     },
     select: { id: true },
   });

@@ -3,7 +3,9 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { INTERNAL_CATEGORIES, excludeInternal } from "@/lib/internal-categories";
 import { adjustmentsNet } from "@/lib/transaction-balance";
 import { getPaidSubscriptionIds, summarizeSubscriptions } from "@/lib/subscriptions";
+import type { Converter } from "@/lib/exchange-rates";
 
+/** Todos los montos van convertidos a la moneda principal del usuario */
 export type BalanceSummary = {
   // Total dinero en cuentas que cuentan al balance
   cashAvailable: number;
@@ -22,7 +24,10 @@ export type BalanceSummary = {
   accountSubtotals: Record<string, number>;
 };
 
-export async function calculateBalance(userId: string): Promise<BalanceSummary> {
+export async function calculateBalance(
+  userId: string,
+  converter: Converter
+): Promise<BalanceSummary> {
   // Traer cuentas del usuario
   const accounts = await prisma.account.findMany({
     where: { userId },
@@ -39,8 +44,8 @@ export async function calculateBalance(userId: string): Promise<BalanceSummary> 
   };
 
   for (const acc of accounts) {
-    const bal = Number(acc.balance);
-    const limit = acc.creditLimit ? Number(acc.creditLimit) : 0;
+    const bal = converter.toBase(Number(acc.balance), acc.currency);
+    const limit = acc.creditLimit ? converter.toBase(Number(acc.creditLimit), acc.currency) : 0;
 
     if (acc.type === "CREDIT") {
       // Para crédito: balance = deuda usada (lo que se debe)
@@ -66,12 +71,16 @@ export async function calculateBalance(userId: string): Promise<BalanceSummary> 
         frequency: true,
         billingDay: true,
         billingMonth: true,
+        currency: true,
       },
     }),
     getPaidSubscriptionIds(userId),
   ]);
   const { pendingTotal: subscriptionsPending } = summarizeSubscriptions(
-    activeSubs.map((s) => ({ ...s, amount: Number(s.amount) })),
+    activeSubs.map((s) => ({
+      ...s,
+      amount: converter.toBase(Number(s.amount), s.currency),
+    })),
     paidSubIds
   );
 
@@ -91,9 +100,10 @@ export async function calculateBalance(userId: string): Promise<BalanceSummary> 
         lte: endOfMonth,
       },
     },
+    select: { amount: true, account: { select: { currency: true } } },
   });
   const msiMonthlyTotal = msiInstallments.reduce(
-    (sum, t) => sum + Number(t.amount),
+    (sum, t) => sum + converter.toBase(Number(t.amount), t.account.currency),
     0
   );
 
@@ -185,7 +195,7 @@ function getNextOccurrence(day: number): Date {
 }
 
 // Flujo del mes (ingresos vs gastos) por día
-export async function getMonthlyFlow(userId: string) {
+export async function getMonthlyFlow(userId: string, converter: Converter) {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
@@ -199,7 +209,12 @@ export async function getMonthlyFlow(userId: string) {
       // Ni los ajustes de balance
       ...excludeInternal,
     },
-    select: { type: true, amount: true, date: true },
+    select: {
+      type: true,
+      amount: true,
+      date: true,
+      account: { select: { currency: true } },
+    },
   });
 
   // Agrupar por día
@@ -212,10 +227,11 @@ export async function getMonthlyFlow(userId: string) {
   for (const tx of txs) {
     const day = tx.date.getDate();
     const idx = day - 1;
+    const amount = converter.toBase(Number(tx.amount), tx.account.currency);
     if (tx.type === "INCOME") {
-      flow[idx].income += Number(tx.amount);
+      flow[idx].income += amount;
     } else {
-      flow[idx].expense += Number(tx.amount);
+      flow[idx].expense += amount;
     }
   }
 
@@ -236,14 +252,25 @@ export async function getMonthlyFlow(userId: string) {
  * aparecen cuando se corrige a mano el balance de una cuenta. Negativo indica
  * gastos que no se registraron. No incluye el «Balance inicial».
  */
-export async function getUnrecordedTotal(userId: string, from: Date, to: Date) {
+export async function getUnrecordedTotal(
+  userId: string,
+  from: Date,
+  to: Date,
+  converter: Converter
+) {
   const adjustments = await prisma.transaction.findMany({
     where: {
       userId,
       date: { gte: from, lte: to },
       categoryRef: { kind: "INTERNAL", name: INTERNAL_CATEGORIES.ADJUSTMENT },
     },
-    select: { type: true, amount: true },
+    select: { type: true, amount: true, account: { select: { currency: true } } },
   });
-  return { net: adjustmentsNet(adjustments), count: adjustments.length };
+  const net = adjustmentsNet(
+    adjustments.map((a) => ({
+      type: a.type,
+      amount: converter.toBase(Number(a.amount), a.account.currency),
+    }))
+  );
+  return { net, count: adjustments.length };
 }

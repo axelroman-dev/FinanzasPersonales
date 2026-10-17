@@ -151,6 +151,9 @@ Hay dos plantillas: `.env.local.example` (desarrollo local) y `.env.prod.example
 | `ATTACHMENTS_KEY` | Ambos | Clave para cifrar los adjuntos (opcional; sin ella están desactivados). Genera con `openssl rand -base64 32` |
 | `ATTACHMENTS_DIR` | Ambos | Carpeta de adjuntos (opcional; por defecto `./data/uploads`, en Docker `/app/data/uploads`) |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM` | Ambos | Correo (opcional; sin `SMTP_HOST` está desactivado). Ver [Correo](#correo) |
+| `BANXICO_TOKEN` | Ambos | Token del SIE de Banxico compartido por todos los usuarios (opcional; si no, cada uno escribe el suyo en Mi perfil) |
+| `EXCHANGE_RATES_URL` | Ambos | Otra instancia de Frankfurter para el proveedor «Banco Central Europeo» (opcional) |
+| `ALLOW_PRIVATE_RATE_URLS` | Ambos | `true` deja que una URL personalizada de tipos de cambio apunte a la red local (opcional; solo si confías en todos los usuarios) |
 | `TZ` | Producción | Zona horaria del servidor (por defecto `America/Mexico_City`) |
 | `DATA_PATH` | Producción | Carpeta del host donde se guardan los datos de PostgreSQL y los adjuntos (por defecto `/data`) |
 | `IMAGE_TAG` | Producción | Versión de la imagen a usar (por defecto `latest`) |

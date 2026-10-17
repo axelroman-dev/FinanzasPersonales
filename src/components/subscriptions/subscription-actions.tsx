@@ -35,6 +35,7 @@ type SubFormData = {
   id: string;
   name: string;
   amount: number;
+  currency: string;
   billingDay: number;
   frequency: Frequency;
   billingMonth: number | null;
@@ -53,12 +54,15 @@ export function SubscriptionActions({
   mode,
   accounts,
   categories,
+  currencies,
   subscription,
   children,
 }: {
   mode: "create" | "edit";
   accounts: AccountOption[];
   categories: CategoryOption[];
+  /** Monedas del usuario (la principal primero) */
+  currencies: string[];
   subscription?: SubFormData;
   children?: React.ReactNode;
 }) {
@@ -72,6 +76,7 @@ export function SubscriptionActions({
         mode={mode}
         accounts={accounts}
         categories={categories}
+        currencies={currencies}
         subscription={subscription}
         onClose={() => setOpen(false)}
         onSaved={() => setOpen(false)}
@@ -84,6 +89,7 @@ function SubFormDialog({
   mode,
   accounts,
   categories,
+  currencies,
   subscription,
   onClose,
   onSaved,
@@ -91,6 +97,7 @@ function SubFormDialog({
   mode: "create" | "edit";
   accounts: AccountOption[];
   categories: CategoryOption[];
+  currencies: string[];
   subscription?: SubFormData;
   onClose: () => void;
   onSaved: () => void;
@@ -116,6 +123,20 @@ function SubFormDialog({
   const [accountId, setAccountId] = useState(
     subscription?.accountId ?? (accounts.length === 1 ? accounts[0].id : "")
   );
+  const accountCurrency = accounts.find((a) => a.id === accountId)?.currency;
+  // Moneda del monto: la de la cuenta hasta que se elija otra (p. ej. 20 USD
+  // cobrados a una tarjeta en pesos)
+  const [currency, setCurrency] = useState(
+    subscription?.currency ?? accountCurrency ?? currencies[0]
+  );
+  const [currencyTouched, setCurrencyTouched] = useState(mode === "edit");
+  const currencyOptions = [...new Set([...currencies, currency, ...(accountCurrency ? [accountCurrency] : [])])];
+
+  function changeAccount(id: string) {
+    setAccountId(id);
+    const next = accounts.find((a) => a.id === id)?.currency;
+    if (next && !currencyTouched) setCurrency(next);
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -129,6 +150,7 @@ function SubFormDialog({
         const body = {
           name,
           amount: Number(amount),
+          currency,
           billingDay: Number(billingDay),
           frequency,
           billingMonth: frequency === "YEARLY" ? billingMonth : null,
@@ -216,16 +238,36 @@ function SubFormDialog({
             <Label htmlFor="amount">
               {frequency === "YEARLY" ? "Monto anual" : "Monto mensual"}
             </Label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              value={amount}
-              onChange={(e) =>
-                setAmount(e.target.value === "" ? "" : parseFloat(e.target.value))
-              }
-              required
-            />
+            <div className="flex gap-2">
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                value={amount}
+                onChange={(e) =>
+                  setAmount(e.target.value === "" ? "" : parseFloat(e.target.value))
+                }
+                required
+              />
+              <Select
+                value={currency}
+                onValueChange={(v) => {
+                  setCurrency(v);
+                  setCurrencyTouched(true);
+                }}
+              >
+                <SelectTrigger className="w-24 shrink-0" aria-label="Moneda del monto">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {currencyOptions.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 
@@ -278,8 +320,14 @@ function SubFormDialog({
           <AccountSelect
             accounts={accounts}
             value={accountId}
-            onChange={setAccountId}
+            onChange={changeAccount}
           />
+          {accountCurrency && currency !== accountCurrency && (
+            <p className="text-xs text-muted-foreground">
+              La cuenta está en {accountCurrency}: cada cobro se convierte de{" "}
+              {currency} con el tipo de cambio de ese día (tu proveedor en Mi perfil).
+            </p>
+          )}
         </div>
 
         <div className="space-y-2">

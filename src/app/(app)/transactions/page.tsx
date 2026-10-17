@@ -7,6 +7,8 @@ import { newTransactionDefaults } from "@/lib/transaction-defaults";
 import { getKnownDescriptions } from "@/lib/known-descriptions";
 import { isCardPayment } from "@/lib/account-types";
 import { chargeDueSubscriptions } from "@/lib/subscription-charges";
+import { allowedCurrencies } from "@/lib/currencies";
+import { getUserConverter } from "@/lib/exchange-rates";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, ArrowLeftRight } from "lucide-react";
@@ -94,12 +96,23 @@ export default async function TransactionsPage({
     take: 500,
   });
 
+  // Para capturar montos en otra moneda que la cuenta: cuánto vale 1 de cada
+  // moneda en la principal, con la tasa de hoy
+  const currencies = allowedCurrencies(user);
+  const converter = await getUserConverter(user);
+  const rates: Record<string, number> = {};
+  for (const c of new Set([...currencies, ...accounts.map((a) => a.currency)])) {
+    const r = converter.rate(c, user.primaryCurrency);
+    if (r) rates[c] = r;
+  }
+
   const formOptions: TransactionFormOptions = {
     accounts: accounts.map((a) => ({
       id: a.id,
       name: a.name,
       type: a.type,
       balance: Number(a.balance),
+      currency: a.currency,
     })),
     creditAccounts: accounts
       .filter((a) => a.type === "CREDIT")
@@ -111,6 +124,8 @@ export default async function TransactionsPage({
     categories,
     attachmentsEnabled: attachmentsEnabled(),
     descriptions,
+    currencies,
+    rates,
   };
 
   // El movimiento nuevo arranca con los filtros activos (cuenta, tipo, categoría)
@@ -163,6 +178,15 @@ export default async function TransactionsPage({
               id: t.id,
               type: t.type,
               amount: Number(t.amount),
+              currency: t.account.currency,
+              original:
+                t.originalAmount && t.originalCurrency
+                  ? {
+                      amount: Number(t.originalAmount),
+                      currency: t.originalCurrency,
+                      rate: t.exchangeRate ? Number(t.exchangeRate) : null,
+                    }
+                  : null,
               date: t.date.toISOString(),
               description: t.description,
               category: t.category,

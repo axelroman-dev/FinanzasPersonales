@@ -3,6 +3,8 @@ import { getCategoryTotals, type CategoryTotal } from "@/lib/categories";
 import { getUnrecordedTotal } from "@/lib/balance";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
+import { getUserConverter } from "@/lib/exchange-rates";
+import { RatesNotice } from "@/components/shared/rates-notice";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Calendar, ArrowLeftRight, ChevronRight } from "lucide-react";
@@ -36,11 +38,13 @@ export default async function ReportsPage({
   const from = new Date(fromStr + "T00:00:00");
   const to = new Date(toStr + "T23:59:59.999");
 
+  const converter = await getUserConverter(user);
   const [expenses, incomes, unrecorded] = await Promise.all([
-    getCategoryTotals({ userId: user.id, type: "EXPENSE", from, to }),
-    getCategoryTotals({ userId: user.id, type: "INCOME", from, to }),
-    getUnrecordedTotal(user.id, from, to),
+    getCategoryTotals({ userId: user.id, type: "EXPENSE", from, to, converter }),
+    getCategoryTotals({ userId: user.id, type: "INCOME", from, to, converter }),
+    getUnrecordedTotal(user.id, from, to, converter),
   ]);
+  const currency = user.primaryCurrency;
 
   const totalExpense = expenses.reduce((s, e) => s + e.total, 0);
   const totalIncome = incomes.reduce((s, i) => s + i.total, 0);
@@ -56,6 +60,7 @@ export default async function ReportsPage({
       </div>
 
       <ReportFilters defaultFrom={defaultFromStr} defaultTo={defaultToStr} />
+      <RatesNotice converter={converter} />
 
       <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
         <Card>
@@ -66,7 +71,7 @@ export default async function ReportsPage({
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-emerald-400">
-              {formatCurrency(totalIncome)}
+              {formatCurrency(totalIncome, currency)}
             </p>
           </CardContent>
         </Card>
@@ -78,7 +83,7 @@ export default async function ReportsPage({
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-red-400">
-              {formatCurrency(totalExpense)}
+              {formatCurrency(totalExpense, currency)}
             </p>
           </CardContent>
         </Card>
@@ -94,7 +99,7 @@ export default async function ReportsPage({
                 net >= 0 ? "text-emerald-400" : "text-red-400"
               }`}
             >
-              {formatCurrency(net)}
+              {formatCurrency(net, currency)}
             </p>
           </CardContent>
         </Card>
@@ -114,7 +119,7 @@ export default async function ReportsPage({
               </p>
             </div>
             <p className="text-xl font-bold tabular-nums text-amber-400">
-              {formatCurrency(unrecorded.net)}
+              {formatCurrency(unrecorded.net, currency)}
             </p>
           </CardContent>
         </Card>
@@ -127,6 +132,7 @@ export default async function ReportsPage({
           total={totalExpense}
           emptyText="No hay gastos en este período"
           negative
+          currency={currency}
           chart={
             expenses.length > 0 && (
               <CategoryPieChart
@@ -137,6 +143,7 @@ export default async function ReportsPage({
                   total: e.total,
                 }))}
                 total={totalExpense}
+                currency={currency}
               />
             )
           }
@@ -147,6 +154,7 @@ export default async function ReportsPage({
           total={totalIncome}
           emptyText="No hay ingresos en este período"
           negative={false}
+          currency={currency}
           chart={
             incomes.length > 0 && (
               <CategoryPieChart
@@ -157,6 +165,7 @@ export default async function ReportsPage({
                   total: i.total,
                 }))}
                 total={totalIncome}
+                currency={currency}
               />
             )
           }
@@ -172,6 +181,7 @@ function CategoryList({
   total,
   emptyText,
   negative,
+  currency,
   chart,
 }: {
   title: string;
@@ -179,6 +189,7 @@ function CategoryList({
   total: number;
   emptyText: string;
   negative: boolean;
+  currency: string;
   /** Gráfica opcional sobre el desglose */
   chart?: React.ReactNode;
 }) {
@@ -211,7 +222,7 @@ function CategoryList({
                   </div>
                   <div className="text-right shrink-0">
                     <span className={`text-sm font-semibold tabular-nums ${amountColor}`}>
-                      {formatCurrency(item.total)}
+                      {formatCurrency(item.total, currency)}
                     </span>
                     <span className="text-xs text-muted-foreground ml-2">
                       {item.percent.toFixed(1)}%
@@ -265,7 +276,7 @@ function CategoryList({
                       </div>
                       <div className="text-right shrink-0">
                         <span className="text-sm tabular-nums">
-                          {formatCurrency(child.total)}
+                          {formatCurrency(child.total, currency)}
                         </span>
                         <span className="text-xs text-muted-foreground ml-2">
                           {child.percent.toFixed(1)}%

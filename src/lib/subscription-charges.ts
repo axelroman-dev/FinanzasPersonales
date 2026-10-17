@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { convertAmount, getConverter, type Converter } from "@/lib/exchange-rates";
 import { monthRange } from "@/lib/subscriptions";
 import { firstDueOnOrAfter, nextDueAfter } from "@/lib/subscription-schedule";
 import { applyBalanceDeltas, balanceEffects } from "@/lib/transaction-balance";
@@ -17,6 +18,10 @@ const MAX_CATCH_UP = 36;
  * nueva, reactivada o recién migrada), arranca desde hoy sin cobrar fechas
  * pasadas.
  *
+ * Una suscripción en otra moneda que la de su cuenta se convierte con el tipo
+ * de cambio del proveedor del usuario al momento de registrar el cobro. Sin
+ * tipo de cambio no se cobra: se reintenta en la siguiente pasada.
+ *
  * Es idempotente y segura en paralelo: cada avance se hace con un update
  * condicionado al valor anterior, y quien pierde la carrera se detiene.
  *
@@ -29,8 +34,31 @@ export async function chargeDueSubscriptions(
 ): Promise<number> {
   const subs = await prisma.subscription.findMany({
     where: { isActive: true, ...(userId && { userId }) },
-    include: { account: { select: { type: true } } },
+    include: {
+      account: { select: { type: true, currency: true } },
+      user: {
+        select: {
+          primaryCurrency: true,
+          secondaryCurrencies: true,
+          ratesProvider: true,
+          ratesProviderUrl: true,
+          manualRates: true,
+          manualRatesAt: true,
+        },
+      },
+    },
   });
+
+  // Un convertidor por usuario, solo si alguna suscripción lo necesita
+  const converters = new Map<string, Promise<Converter>>();
+  const converterFor = (sub: (typeof subs)[number]) => {
+    let c = converters.get(sub.userId);
+    if (!c) {
+      c = getConverter(sub.userId, sub.user, [sub.currency, sub.account.currency]);
+      converters.set(sub.userId, c);
+    }
+    return c;
+  };
 
   let charged = 0;
   for (const sub of subs) {
@@ -46,7 +74,25 @@ export async function chargeDueSubscriptions(
       continue;
     }
 
-    for (let i = 0; i < MAX_CATCH_UP && due <= now; i++) {
+    // Sin tipo de cambio, la siguiente pasada lo vuelve a intentar
+    let charge: ReturnType<typeof convertAmount> = null;
+    if (due <= now) {
+      const converter =
+        sub.currency !== sub.account.currency ? await converterFor(sub) : null;
+      charge = convertAmount(sub.amount, sub.currency, sub.account.currency, (f, t) =>
+        converter ? converter.rate(f, t) : null
+      );
+      if (!charge) {
+        console.error(
+          `Suscripción ${sub.id}: sin tipo de cambio ${sub.currency}→${sub.account.currency}, no se cobró`
+        );
+        continue;
+      }
+    }
+    const converted = sub.currency !== sub.account.currency;
+
+    for (let i = 0; i < MAX_CATCH_UP && due <= now && charge; i++) {
+      const amount = charge.amount;
       const next = nextDueAfter(sub, due);
       const didCharge = await prisma.$transaction(async (tx) => {
         const claimed = await tx.subscription.updateMany({
@@ -67,19 +113,24 @@ export async function chargeDueSubscriptions(
           data: {
             userId: sub.userId,
             type: "EXPENSE",
-            amount: sub.amount,
+            amount,
             date: due,
             description: sub.name,
             categoryId: sub.categoryId,
             accountId: sub.accountId,
             subscriptionId: sub.id,
+            ...(converted && {
+              originalAmount: sub.amount,
+              originalCurrency: sub.currency,
+              exchangeRate: charge!.rate,
+            }),
           },
         });
         await applyBalanceDeltas(
           tx,
           balanceEffects({
             type: "EXPENSE",
-            amount: sub.amount,
+            amount,
             accountId: sub.accountId,
             accountType: sub.account.type,
           })

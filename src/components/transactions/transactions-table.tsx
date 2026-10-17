@@ -31,6 +31,10 @@ type Tx = {
   id: string;
   type: "INCOME" | "EXPENSE" | "TRANSFER";
   amount: number;
+  /** Moneda de la cuenta del movimiento */
+  currency: string;
+  /** Cobro de suscripción convertido: monto original y tasa (1 original = N cuenta) */
+  original: { amount: number; currency: string; rate: number | null } | null;
   date: string;
   description: string;
   category: string | null;
@@ -116,7 +120,8 @@ export function TransactionsTable({
                       className={`px-4 py-3 text-sm font-semibold text-right tabular-nums ${color}`}
                     >
                       {sign}
-                      {formatCurrency(tx.amount)}
+                      {formatCurrency(tx.amount, tx.currency)}
+                      <OriginalAmount tx={tx} />
                     </td>
                     <td className="px-2 py-3 text-right">
                       <RowActions tx={tx} formOptions={formOptions} />
@@ -210,7 +215,8 @@ function TransactionCard({
           <p className="min-w-0 break-words text-sm font-medium">{tx.description}</p>
           <p className={`shrink-0 text-sm font-semibold tabular-nums ${color}`}>
             {sign}
-            {formatCurrency(tx.amount)}
+            {formatCurrency(tx.amount, tx.currency)}
+            <OriginalAmount tx={tx} />
           </p>
         </div>
         <p className="text-xs text-muted-foreground">
@@ -312,6 +318,7 @@ function RowActions({
     transferAccountId: tx.transferAccountId,
     isMsi: tx.isMsi,
     msiInstallments: tx.msiInstallments,
+    original: tx.original,
   };
 
   return (
@@ -377,5 +384,20 @@ function DeleteMsiButton({ tx }: { tx: Tx }) {
         <Trash2 className="h-3.5 w-3.5" />
       )}
     </Button>
+  );
+}
+
+/** "20.00 USD × 17.8542" bajo un cobro convertido de otra moneda */
+function OriginalAmount({ tx }: { tx: Tx }) {
+  if (!tx.original) return null;
+  const { amount, currency, rate } = tx.original;
+  return (
+    <span
+      className="block text-xs font-normal text-muted-foreground"
+      title="Convertido con el tipo de cambio del día del cobro"
+    >
+      {formatCurrency(amount, currency)}
+      {rate && ` × ${rate.toFixed(4)}`}
+    </span>
   );
 }

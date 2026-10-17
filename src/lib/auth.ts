@@ -15,6 +15,14 @@ export type SessionUser = {
   name: string;
   role: "USER" | "ADMIN";
   mustChangePassword: boolean;
+  primaryCurrency: string;
+  secondaryCurrencies: string[];
+  ratesProvider: string;
+  ratesProviderUrl: string | null;
+  manualRates: unknown;
+  manualRatesAt: Date | null;
+  /** null = aún no pasa por la configuración inicial */
+  onboardedAt: Date | null;
 };
 
 /**
@@ -32,7 +40,18 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
 
   const dbUser = await prisma.user.findUnique({
     where: { id: u.id },
-    select: { isActive: true, role: true, passwordChangedAt: true },
+    select: {
+      isActive: true,
+      role: true,
+      passwordChangedAt: true,
+      primaryCurrency: true,
+      secondaryCurrencies: true,
+      ratesProvider: true,
+      ratesProviderUrl: true,
+      manualRates: true,
+      manualRatesAt: true,
+      onboardedAt: true,
+    },
   });
   if (!dbUser || !dbUser.isActive) return null;
   // Sesiones de antes de este cambio no traen authAt: cuentan como antiguas
@@ -46,6 +65,13 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
     name: u.name!,
     role: dbUser.role,
     mustChangePassword: u.mustChangePassword ?? false,
+    primaryCurrency: dbUser.primaryCurrency,
+    secondaryCurrencies: dbUser.secondaryCurrencies,
+    ratesProvider: dbUser.ratesProvider,
+    ratesProviderUrl: dbUser.ratesProviderUrl,
+    manualRates: dbUser.manualRates,
+    manualRatesAt: dbUser.manualRatesAt,
+    onboardedAt: dbUser.onboardedAt,
   };
 });
 

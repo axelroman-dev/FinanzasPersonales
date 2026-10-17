@@ -11,11 +11,16 @@ import { SubscriptionActions } from "@/components/subscriptions/subscription-act
 import { getCategoryTree } from "@/lib/categories";
 import { getPaidSubscriptionIds, summarizeSubscriptions } from "@/lib/subscriptions";
 import { chargeDueSubscriptions } from "@/lib/subscription-charges";
+import { getUserConverter } from "@/lib/exchange-rates";
+import { RatesNotice } from "@/components/shared/rates-notice";
+import { allowedCurrencies } from "@/lib/currencies";
 
 export default async function SubscriptionsPage() {
   const user = await requireUser();
   // Registra antes los cobros de suscripciones que ya tocan
   await chargeDueSubscriptions(user.id);
+  const converter = await getUserConverter(user);
+  const currencies = allowedCurrencies(user);
   const [subscriptions, accounts, balance, categories, paidIds] = await Promise.all([
     prisma.subscription.findMany({
       where: { userId: user.id },
@@ -26,14 +31,17 @@ export default async function SubscriptionsPage() {
       },
     }),
     prisma.account.findMany({ where: { userId: user.id } }),
-    calculateBalance(user.id),
+    calculateBalance(user.id, converter),
     getCategoryTree(user.id, "EXPENSE"),
     getPaidSubscriptionIds(user.id),
   ]);
 
   const now = new Date();
   const summary = summarizeSubscriptions(
-    subscriptions.map((s) => ({ ...s, amount: Number(s.amount) })),
+    subscriptions.map((s) => ({
+      ...s,
+      amount: converter.toBase(Number(s.amount), s.currency),
+    })),
     paidIds,
     now
   );
@@ -50,11 +58,13 @@ export default async function SubscriptionsPage() {
         <SubscriptionActions
           mode="create"
           categories={categories}
+          currencies={currencies}
           accounts={accounts.map((a) => ({
             id: a.id,
             name: a.name,
             type: a.type,
             balance: Number(a.balance),
+            currency: a.currency,
           }))}
         >
           <Button>
@@ -70,19 +80,19 @@ export default async function SubscriptionsPage() {
             <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
               Total mensual activo
             </p>
-            <p className="text-3xl font-bold">{formatCurrency(summary.activeTotal)}</p>
+            <p className="text-3xl font-bold">{formatCurrency(summary.activeTotal, user.primaryCurrency)}</p>
           </div>
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
               <p className="text-muted-foreground">Pagado este mes</p>
               <p className="font-semibold text-emerald-400 tabular-nums">
-                {formatCurrency(summary.paidTotal)}
+                {formatCurrency(summary.paidTotal, user.primaryCurrency)}
               </p>
             </div>
             <div>
               <p className="text-muted-foreground">Pendiente este mes</p>
               <p className="font-semibold text-amber-400 tabular-nums">
-                {formatCurrency(summary.pendingTotal)}
+                {formatCurrency(summary.pendingTotal, user.primaryCurrency)}
               </p>
             </div>
           </div>
@@ -96,7 +106,7 @@ export default async function SubscriptionsPage() {
                   balance.realBalance >= 0 ? "text-emerald-400" : "text-red-400"
                 }`}
               >
-                {formatCurrency(balance.realBalance)}
+                {formatCurrency(balance.realBalance, user.primaryCurrency)}
               </p>
             </div>
             <p className="text-xs text-muted-foreground">
@@ -104,6 +114,7 @@ export default async function SubscriptionsPage() {
               un gasto en su cuenta. Las anuales suman al total mensual 1/12 de su
               monto y solo cuentan como pendientes en su mes.
             </p>
+            <RatesNotice converter={converter} />
           </div>
         </CardContent>
       </Card>
@@ -121,11 +132,13 @@ export default async function SubscriptionsPage() {
             <SubscriptionActions
               mode="create"
               categories={categories}
+              currencies={currencies}
               accounts={accounts.map((a) => ({
                 id: a.id,
                 name: a.name,
                 type: a.type,
                 balance: Number(a.balance),
+                currency: a.currency,
               }))}
             >
               <Button>
@@ -166,25 +179,39 @@ export default async function SubscriptionsPage() {
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <p className="text-lg font-semibold tabular-nums">
-                  {formatCurrency(Number(sub.amount))}
-                  <span className="ml-1 text-xs font-normal text-muted-foreground">
-                    {sub.frequency === "YEARLY" ? "/año" : "/mes"}
-                  </span>
-                </p>
+                <div className="text-right">
+                  <p className="text-lg font-semibold tabular-nums">
+                    {formatCurrency(Number(sub.amount), sub.currency)}
+                    <span className="ml-1 text-xs font-normal text-muted-foreground">
+                      {sub.frequency === "YEARLY" ? "/año" : "/mes"}
+                    </span>
+                  </p>
+                  {/* Se cobra convertido a la moneda de la cuenta con la tasa del día */}
+                  {sub.currency !== sub.account.currency && (
+                    <SubscriptionConversion
+                      amount={Number(sub.amount)}
+                      from={sub.currency}
+                      to={sub.account.currency}
+                      rate={converter.rate(sub.currency, sub.account.currency)}
+                    />
+                  )}
+                </div>
                 <SubscriptionActions
                   mode="edit"
                   categories={categories}
+                  currencies={currencies}
                   accounts={accounts.map((a) => ({
                     id: a.id,
                     name: a.name,
                     type: a.type,
                     balance: Number(a.balance),
+                    currency: a.currency,
                   }))}
                   subscription={{
                     id: sub.id,
                     name: sub.name,
                     amount: Number(sub.amount),
+                    currency: sub.currency,
                     billingDay: sub.billingDay,
                     frequency: sub.frequency,
                     billingMonth: sub.billingMonth,
@@ -208,6 +235,32 @@ export default async function SubscriptionsPage() {
         ))}
       </div>
     </div>
+  );
+}
+
+/** "≈ $357.12 MXN hoy" bajo una suscripción en otra moneda que su cuenta */
+function SubscriptionConversion({
+  amount,
+  from,
+  to,
+  rate,
+}: {
+  amount: number;
+  from: string;
+  to: string;
+  rate: number | null;
+}) {
+  if (!rate) {
+    return (
+      <p className="text-xs text-amber-400">
+        Sin tipo de cambio {from}→{to}: no se cobrará hasta tenerlo
+      </p>
+    );
+  }
+  return (
+    <p className="text-xs text-muted-foreground tabular-nums">
+      ≈ {formatCurrency(amount * rate, to)} hoy
+    </p>
   );
 }
 

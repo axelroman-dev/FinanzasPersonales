@@ -34,22 +34,37 @@ enum CategoryKind {
 }
 
 model User {
-  id                  String   @id @default(cuid())
-  email               String   @unique
+  id                  String    @id @default(cuid())
+  email               String    @unique
   // null = invitación pendiente: el usuario aún no crea su contraseña y no
   // puede iniciar sesión (ver src/app/invite)
   passwordHash        String?
   name                String
-  role                Role     @default(USER)
-  isActive            Boolean  @default(true)
+  role                Role      @default(USER)
+  isActive            Boolean   @default(true)
   // TRUE cuando el usuario fue creado por un admin con contraseña temporal.
   // Debe cambiarla antes de poder navegar a otras páginas.
-  mustChangePassword  Boolean  @default(false)
+  mustChangePassword  Boolean   @default(false)
   // Último cambio o restablecimiento de contraseña: las sesiones iniciadas
   // antes dejan de valer (ver getCurrentUser en src/lib/auth.ts)
   passwordChangedAt   DateTime?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  // Los totales se muestran en la principal; las cuentas solo pueden usar la
+  // principal o una secundaria (ver src/lib/currencies.ts)
+  primaryCurrency     String    @default("MXN")
+  secondaryCurrencies String[]  @default([])
+  // De dónde salen los tipos de cambio (ver src/lib/rate-providers.ts)
+  ratesProvider       String    @default("ECB")
+  // Solo CUSTOM: URL que devuelve { rates: { USD: 0.054, ... } }
+  ratesProviderUrl    String?
+  // Solo BANXICO: token del SIE; nunca se manda al navegador ni se exporta
+  banxicoToken        String?
+  // Solo MANUAL: { base: "MXN", rates: { USD: 18.5 } } = 1 USD vale 18.5 MXN
+  manualRates         Json?
+  manualRatesAt       DateTime?
+  // null = cuenta nueva: debe pasar por la configuración inicial (/welcome)
+  onboardedAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   accounts      Account[]
   transactions  Transaction[]
@@ -89,6 +104,19 @@ model AppConfig {
   updatedAt         DateTime @updatedAt
   updatedById       String?
   updatedBy         User?    @relation("ConfigUpdater", fields: [updatedById], references: [id])
+}
+
+// Caché global de tipos de cambio por proveedor (ver src/lib/exchange-rates.ts):
+// 1 base = rate quote
+model ExchangeRate {
+  // ECB, BANXICO, ... o CUSTOM:<hash de la URL>
+  provider  String
+  base      String
+  quote     String
+  rate      Decimal  @db.Decimal(18, 8)
+  fetchedAt DateTime
+
+  @@id([provider, base, quote])
 }
 
 model Account {
@@ -137,6 +165,12 @@ model Transaction {
 
   subscriptionId String?
 
+  // Cobro de suscripción convertido de otra moneda: el monto original (p. ej.
+  // 20 USD) y la tasa usada; `amount` va en la moneda de la cuenta
+  originalAmount   Decimal? @db.Decimal(14, 2)
+  originalCurrency String?
+  exchangeRate     Decimal? @db.Decimal(18, 8)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -166,6 +200,9 @@ model Subscription {
   userId       String
   name         String
   amount       Decimal               @db.Decimal(14, 2)
+  // Moneda del monto. Si no es la de la cuenta, cada cobro se convierte con
+  // el tipo de cambio de ese día (ver src/lib/subscription-charges.ts)
+  currency     String
   billingDay   Int // día del mes
   frequency    SubscriptionFrequency @default(MONTHLY)
   billingMonth Int? // 1-12, solo en las anuales

@@ -54,6 +54,7 @@ export function SubcategoryTable({
   category,
   subcategories,
   monthlyStats,
+  currency,
 }: {
   category: {
     id: string;
@@ -66,6 +67,8 @@ export function SubcategoryTable({
   };
   subcategories: Subcategory[];
   monthlyStats: SubcategoryStat[];
+  /** Moneda principal: los totales ya vienen convertidos */
+  currency: string;
 }) {
   // Stats por subcategoría para mostrar el gasto del mes
   const statsById = new Map<string, SubcategoryStat>();
@@ -127,7 +130,7 @@ export function SubcategoryTable({
           <Kpi
             className="col-span-2 lg:col-span-1"
             label={category.kind === "EXPENSE" ? "Gasto del mes" : "Ingreso del mes"}
-            value={formatCurrency(expenseTotal + incomeTotal)}
+            value={formatCurrency(expenseTotal + incomeTotal, currency)}
             color={category.kind === "EXPENSE" ? "text-red-400" : "text-emerald-400"}
           />
           <Kpi
@@ -168,6 +171,7 @@ export function SubcategoryTable({
                       sub={sub}
                       stat={stat}
                       category={category}
+                      currency={currency}
                     />
                   );
                 })}
@@ -185,7 +189,7 @@ export function SubcategoryTable({
                         category.kind === "EXPENSE" ? "text-red-400" : "text-emerald-400"
                       )}
                     >
-                      {formatCurrency(expenseTotal + incomeTotal)}
+                      {formatCurrency(expenseTotal + incomeTotal, currency)}
                     </td>
                     <td className="hidden lg:table-cell"></td>
                     <td></td>
@@ -363,10 +367,12 @@ function SubcategoryRow({
   sub,
   stat,
   category,
+  currency,
 }: {
   sub: Subcategory;
   stat: SubcategoryStat | undefined;
   category: { id: string; kind: CategoryKind; color: string | null; icon: string | null };
+  currency: string;
 }) {
   const router = useRouter();
   const confirm = useConfirm();
@@ -431,8 +437,8 @@ function SubcategoryRow({
           singleColor
         )}
       >
-        {singleAmount > 0 ? formatCurrency(singleAmount) : (
-          <span className="text-muted-foreground">$0.00</span>
+        {singleAmount > 0 ? formatCurrency(singleAmount, currency) : (
+          <span className="text-muted-foreground">{formatCurrency(0, currency)}</span>
         )}
       </td>
       <td className="hidden px-4 py-2.5 text-sm text-right tabular-nums text-muted-foreground lg:table-cell">
