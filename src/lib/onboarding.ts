@@ -4,10 +4,24 @@ import {
   DEFAULT_RATE_PROVIDER,
   isRateProvider,
   parseManualRates,
+  type RateProviderId,
 } from "@/lib/rate-providers";
 
 /** Configuración inicial de una cuenta nueva (monedas y tipo de cambio) */
 export const WELCOME_PATH = "/welcome";
+
+/** El servidor tiene un token de Banxico para todos (BANXICO_TOKEN) */
+export function serverBanxicoToken(): boolean {
+  return !!process.env.BANXICO_TOKEN?.trim();
+}
+
+/**
+ * Proveedor que se sugiere a las cuentas nuevas: Banco de México si el
+ * servidor tiene token (nadie tiene que sacar el suyo); si no, el BCE
+ */
+export function defaultRateProvider(): RateProviderId {
+  return serverBanxicoToken() ? "BANXICO" : DEFAULT_RATE_PROVIDER;
+}
 
 /** Datos para el formulario de monedas (perfil y configuración inicial) */
 export async function getCurrencyFormProps(user: SessionUser) {
@@ -22,13 +36,16 @@ export async function getCurrencyFormProps(user: SessionUser) {
   return {
     initialPrimary: user.primaryCurrency,
     initialSecondary: user.secondaryCurrencies,
-    initialProvider: isRateProvider(user.ratesProvider)
-      ? user.ratesProvider
-      : DEFAULT_RATE_PROVIDER,
+    // Una cuenta nueva aún no elige: arranca con el predeterminado del servidor
+    initialProvider:
+      !user.onboardedAt || !isRateProvider(user.ratesProvider)
+        ? defaultRateProvider()
+        : user.ratesProvider,
+    defaultProvider: defaultRateProvider(),
     initialUrl: user.ratesProviderUrl,
     initialManualRates: parseManualRates(user.manualRates),
     hasBanxicoToken: !!saved?.banxicoToken,
-    serverBanxicoToken: !!process.env.BANXICO_TOKEN,
+    serverBanxicoToken: serverBanxicoToken(),
     inUse: accounts.map((a) => a.currency),
   };
 }

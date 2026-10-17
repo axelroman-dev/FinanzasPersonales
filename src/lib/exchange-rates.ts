@@ -335,7 +335,7 @@ const fetchers: Record<
   },
 
   async BANXICO(base, quotes, ctx) {
-    const token = ctx.token || process.env.BANXICO_TOKEN;
+    const token = ctx.token || process.env.BANXICO_TOKEN?.trim();
     if (!token) throw new Error("falta el token del SIE");
     const ids = [base, ...quotes]
       .map((c) => BANXICO_SERIES[c])

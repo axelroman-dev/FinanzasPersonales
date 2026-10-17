@@ -43,6 +43,7 @@ export function CurrencySettingsForm({
   initialManualRates,
   hasBanxicoToken,
   serverBanxicoToken,
+  defaultProvider,
   inUse,
   mode = "profile",
 }: {
@@ -55,6 +56,8 @@ export function CurrencySettingsForm({
   hasBanxicoToken: boolean;
   /** El servidor tiene BANXICO_TOKEN: el token del usuario es opcional */
   serverBanxicoToken: boolean;
+  /** El que sugiere el servidor (Banxico si tiene BANXICO_TOKEN) */
+  defaultProvider: RateProviderId;
   /** Monedas de las cuentas del usuario: no se pueden quitar */
   inUse: string[];
   /** "welcome": configuración inicial; al guardar entra a la app */
@@ -70,6 +73,22 @@ export function CurrencySettingsForm({
   const [url, setUrl] = useState(initialUrl ?? "");
   const [token, setToken] = useState("");
   const [savedToken, setSavedToken] = useState(hasBanxicoToken);
+  // Lo guardado, para volver a ello al cancelar un cambio de proveedor
+  const [savedProvider, setSavedProvider] = useState<RateProviderId>(initialProvider);
+  const [savedUrl, setSavedUrl] = useState(initialUrl ?? "");
+  // El proveedor se muestra como resumen; el selector solo al cambiarlo. Se
+  // abre solo si al elegido le falta algo (token de Banxico o URL)
+  const [editingProvider, setEditingProvider] = useState(
+    (initialProvider === "BANXICO" && !hasBanxicoToken && !serverBanxicoToken) ||
+      (initialProvider === "CUSTOM" && !initialUrl)
+  );
+
+  function cancelProviderChange() {
+    setProvider(savedProvider);
+    setUrl(savedUrl);
+    setToken("");
+    setEditingProvider(false);
+  }
   // Texto de cada campo manual: "1 USD = ___ MXN"
   const [manual, setManual] = useState<Record<string, string>>(() =>
     initialManualRates && initialManualRates.base === initialPrimary
@@ -131,6 +150,10 @@ export function CurrencySettingsForm({
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(data.error || "Error al guardar");
+        // El proveedor no respondió (p. ej. token inválido): mostrar el selector
+        if (String(data.error ?? "").startsWith("No se pudo consultar")) {
+          setEditingProvider(true);
+        }
         return;
       }
       if (mode === "welcome") {
@@ -141,6 +164,9 @@ export function CurrencySettingsForm({
       setSecondary(data.secondaryCurrencies);
       setSavedToken(data.hasBanxicoToken);
       setToken("");
+      setSavedProvider(data.ratesProvider);
+      setSavedUrl(data.ratesProviderUrl ?? "");
+      setEditingProvider(false);
       setNotice(data.warning ?? null);
       if (!data.warning) setNotice("Monedas actualizadas");
       router.refresh();
@@ -169,6 +195,7 @@ export function CurrencySettingsForm({
       }
       setSavedToken(false);
       setProvider(data.ratesProvider);
+      setSavedProvider(data.ratesProvider);
       router.refresh();
     });
   }
@@ -176,20 +203,67 @@ export function CurrencySettingsForm({
   return (
     <form onSubmit={onSubmit} className="space-y-5">
       <div className="space-y-2">
-        <Label htmlFor="rates-provider">Tipo de cambio</Label>
-        <Select value={provider} onValueChange={(v) => setProvider(v as RateProviderId)}>
-          <SelectTrigger id="rates-provider">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {RATE_PROVIDER_IDS.map((id) => (
-              <SelectItem key={id} value={id}>
-                {RATE_PROVIDERS[id].label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <p className="text-xs text-muted-foreground">{RATE_PROVIDERS[provider].description}</p>
+        <Label htmlFor={editingProvider ? "rates-provider" : undefined}>Tipo de cambio</Label>
+        {!editingProvider ? (
+          // Resumen del proveedor elegido; el selector solo si se quiere cambiar
+          <div className="flex items-start justify-between gap-3 rounded-md border p-3">
+            <div className="min-w-0 space-y-1">
+              <p className="text-sm font-medium">
+                {RATE_PROVIDERS[provider].label}
+                {provider === defaultProvider && (
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">
+                    (predeterminado)
+                  </span>
+                )}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {RATE_PROVIDERS[provider].description}
+              </p>
+              {provider === "BANXICO" && (
+                <p className="text-xs text-muted-foreground">
+                  {savedToken
+                    ? "Con tu token del SIE"
+                    : serverBanxicoToken
+                      ? "Con el token del servidor"
+                      : "Falta el token del SIE"}
+                </p>
+              )}
+              {provider === "CUSTOM" && url && (
+                <p className="truncate text-xs text-muted-foreground" title={url}>
+                  {url}
+                </p>
+              )}
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              onClick={() => setEditingProvider(true)}
+            >
+              Cambiar proveedor
+            </Button>
+          </div>
+        ) : (
+          <>
+            <Select value={provider} onValueChange={(v) => setProvider(v as RateProviderId)}>
+              <SelectTrigger id="rates-provider">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {RATE_PROVIDER_IDS.map((id) => (
+                  <SelectItem key={id} value={id}>
+                    {RATE_PROVIDERS[id].label}
+                    {id === defaultProvider && " (predeterminado)"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {RATE_PROVIDERS[provider].description}
+            </p>
+          </>
+        )}
         {unsupported.length > 0 && (
           <p className="text-xs text-amber-400">
             {RATE_PROVIDERS[provider].label} no publica {unsupported.join(", ")}
@@ -197,7 +271,7 @@ export function CurrencySettingsForm({
         )}
       </div>
 
-      {provider === "BANXICO" && (
+      {editingProvider && provider === "BANXICO" && (
         <div className="space-y-2">
           <Label htmlFor="banxico-token">Token del SIE</Label>
           <Input
@@ -234,7 +308,7 @@ export function CurrencySettingsForm({
         </div>
       )}
 
-      {provider === "CUSTOM" && (
+      {editingProvider && provider === "CUSTOM" && (
         <div className="space-y-2">
           <Label htmlFor="rates-url">URL</Label>
           <Input
@@ -252,6 +326,16 @@ export function CurrencySettingsForm({
             principal = N de cada secundaria).
           </p>
         </div>
+      )}
+
+      {editingProvider && (
+        <button
+          type="button"
+          onClick={cancelProviderChange}
+          className="-mt-2 text-xs text-primary hover:underline"
+        >
+          Cancelar cambio de proveedor
+        </button>
       )}
 
       <div className="space-y-2">

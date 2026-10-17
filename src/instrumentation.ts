@@ -39,6 +39,24 @@ export async function register() {
       );
     }
 
+    // Banxico: con BANXICO_TOKEN es el proveedor por defecto de las cuentas
+    // nuevas; se prueba el token para avisar si no sirve
+    const { serverBanxicoToken } = await import("@/lib/onboarding");
+    if (!serverBanxicoToken()) {
+      console.log(
+        "ℹ️  Tipo de cambio: Banco Central Europeo por defecto (define BANXICO_TOKEN para usar Banxico)"
+      );
+    } else {
+      const { testProvider } = await import("@/lib/exchange-rates");
+      void testProvider("BANXICO", "MXN", ["USD"], {}).then((r) =>
+        r.ok && r.missing.length === 0
+          ? console.log("💱 Tipo de cambio: Banco de México por defecto (BANXICO_TOKEN válido)")
+          : console.error(
+              `⚠️  BANXICO_TOKEN no funciona: ${r.ok ? "Banxico no devolvió el dólar" : r.error}`
+            )
+      );
+    }
+
     // Cobros automáticos de suscripciones: al arrancar y cada hora
     const { startSubscriptionScheduler } = await import("@/lib/subscription-charges");
     startSubscriptionScheduler();
