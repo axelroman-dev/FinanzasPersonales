@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { recordBalanceChange } from "@/lib/internal-categories";
 import { deleteStoredFiles } from "@/lib/attachments";
 import { detachTransfer } from "@/lib/account-deletion";
+import { allowedCurrencies } from "@/lib/currencies";
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
@@ -35,6 +36,30 @@ export async function PATCH(
     });
     if (!existing) {
       return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+    }
+
+    const newCurrency = parsed.data.currency;
+    if (newCurrency !== undefined && newCurrency !== existing.currency) {
+      if (!allowedCurrencies(user).includes(newCurrency)) {
+        return NextResponse.json(
+          { error: `Agrega ${newCurrency} a tus monedas en Mi perfil para usarla` },
+          { status: 400 }
+        );
+      }
+      // Las transferencias mueven el mismo monto entre las dos cuentas: con
+      // otra moneda en una de ellas dejarían de cuadrar
+      const transfers = await prisma.transaction.count({
+        where: {
+          type: "TRANSFER",
+          OR: [{ accountId: params.id }, { transferAccountId: params.id }],
+        },
+      });
+      if (transfers > 0) {
+        return NextResponse.json(
+          { error: "La cuenta tiene transferencias: su moneda no se puede cambiar" },
+          { status: 400 }
+        );
+      }
     }
 
     // El balance no se sobrescribe: la diferencia se registra como un

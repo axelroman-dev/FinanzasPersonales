@@ -4,10 +4,12 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { isValidSubscriptionCategory } from "@/lib/subscriptions";
 import { chargeDueSubscriptions } from "@/lib/subscription-charges";
+import { allowedCurrencies } from "@/lib/currencies";
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
   amount: z.number().positive().optional(),
+  currency: z.string().length(3).optional(),
   billingDay: z.number().int().min(1).max(31).optional(),
   frequency: z.enum(["MONTHLY", "YEARLY"]).optional(),
   billingMonth: z.number().int().min(1).max(12).nullable().optional(),
@@ -33,13 +35,23 @@ export async function PATCH(
     if (!existing) {
       return NextResponse.json({ error: "No encontrado" }, { status: 404 });
     }
-    if (parsed.data.accountId) {
-      const account = await prisma.account.findFirst({
-        where: { id: parsed.data.accountId, userId: user.id },
-      });
-      if (!account) {
-        return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
-      }
+    const account = await prisma.account.findFirst({
+      where: { id: parsed.data.accountId ?? existing.accountId, userId: user.id },
+    });
+    if (!account) {
+      return NextResponse.json({ error: "Cuenta no encontrada" }, { status: 404 });
+    }
+    const currency = parsed.data.currency;
+    if (
+      currency !== undefined &&
+      currency !== account.currency &&
+      currency !== existing.currency &&
+      !allowedCurrencies(user).includes(currency)
+    ) {
+      return NextResponse.json(
+        { error: `Agrega ${currency} a tus monedas en Mi perfil para usarla` },
+        { status: 400 }
+      );
     }
     if (
       parsed.data.categoryId !== undefined &&

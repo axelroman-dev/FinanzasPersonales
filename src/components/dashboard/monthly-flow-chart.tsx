@@ -10,6 +10,7 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
+import { formatCurrency } from "@/lib/utils";
 
 type Point = {
   day: number;
@@ -19,7 +20,13 @@ type Point = {
   expenseCum?: number;
 };
 
-export function MonthlyFlowChart({ data }: { data: Point[] }) {
+export function MonthlyFlowChart({
+  data,
+  currency,
+}: {
+  data: Point[];
+  currency: string;
+}) {
   return (
     <ResponsiveContainer width="100%" height={260}>
       <BarChart data={data}>
@@ -45,6 +52,7 @@ export function MonthlyFlowChart({ data }: { data: Point[] }) {
             fontSize: 12,
           }}
           cursor={{ fill: "hsl(var(--accent))", opacity: 0.3 }}
+          formatter={(value) => formatCurrency(Number(value), currency)}
         />
         <Legend wrapperStyle={{ fontSize: 12 }} />
         <Bar dataKey="income" fill="hsl(142 76% 50%)" name="Ingresos" radius={[4, 4, 0, 0]} />

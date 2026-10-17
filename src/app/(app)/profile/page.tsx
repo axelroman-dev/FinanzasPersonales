@@ -5,12 +5,15 @@ import { ChangePasswordForm } from "@/app/change-password/change-password-form";
 import { isSystemAdmin } from "@/lib/system-admin";
 import { UserImportExportPanel } from "@/components/profile/user-import-export-panel";
 import { DangerZone } from "@/components/profile/danger-zone";
+import { CurrencySettingsForm } from "@/components/profile/currency-settings-form";
+import { getCurrencyFormProps } from "@/lib/onboarding";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProfilePage() {
   const user = await requireUser();
   const isSystem = isSystemAdmin(user);
+  const currencyForm = await getCurrencyFormProps(user);
 
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-3xl mx-auto space-y-6">
@@ -35,6 +38,19 @@ export default async function ProfilePage() {
             role={user.role}
             isSystem={isSystem}
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Monedas</CardTitle>
+          <CardDescription>
+            Tu moneda principal, las demás monedas en las que tienes cuentas y de
+            dónde sale el tipo de cambio
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CurrencySettingsForm {...currencyForm} />
         </CardContent>
       </Card>
 

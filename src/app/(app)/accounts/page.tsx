@@ -8,13 +8,27 @@ import { AccountActions, AccountEditButton } from "@/components/accounts/account
 import { Button } from "@/components/ui/button";
 import { Plus, Wallet } from "lucide-react";
 import { ACCOUNT_TYPE_LABEL, ACCOUNT_TYPE_ORDER } from "@/lib/account-types";
+import { allowedCurrencies } from "@/lib/currencies";
+import { getUserConverter } from "@/lib/exchange-rates";
+import { RatesNotice } from "@/components/shared/rates-notice";
 
 export default async function AccountsPage() {
   const user = await requireUser();
   const accounts = await prisma.account.findMany({
     where: { userId: user.id },
     orderBy: [{ type: "asc" }, { createdAt: "asc" }],
+    include: {
+      _count: {
+        select: {
+          transactions: { where: { type: "TRANSFER" } },
+          transferTransactions: true,
+        },
+      },
+    },
   });
+  const converter = await getUserConverter(user);
+  const currencies = allowedCurrencies(user);
+  const primary = user.primaryCurrency;
 
   // Agrupar por tipo
   const grouped = accounts.reduce(
@@ -36,8 +50,9 @@ export default async function AccountsPage() {
           <p className="text-muted-foreground">
             Gestiona tus cuentas, tarjetas y vales
           </p>
+          <RatesNotice converter={converter} />
         </div>
-        <AccountActions mode="create">
+        <AccountActions mode="create" currencies={currencies}>
           <Button>
             <Plus className="h-4 w-4" />
             Nueva cuenta
@@ -53,7 +68,7 @@ export default async function AccountsPage() {
             <p className="text-sm text-muted-foreground mb-4">
               Empieza creando tu primera cuenta
             </p>
-            <AccountActions mode="create">
+            <AccountActions mode="create" currencies={currencies}>
               <Button>
                 <Plus className="h-4 w-4" />
                 Crear primera cuenta
@@ -66,9 +81,13 @@ export default async function AccountsPage() {
       {typeOrder.map((type) => {
         const list = grouped[type];
         if (!list || list.length === 0) return null;
-        const subtotal = list.reduce((s, a) => s + Number(a.balance), 0);
+        // Subtotales en la moneda principal
+        const subtotal = list.reduce(
+          (s, a) => s + converter.toBase(Number(a.balance), a.currency),
+          0
+        );
         const totalCreditLimit = list.reduce(
-          (s, a) => s + Number(a.creditLimit ?? 0),
+          (s, a) => s + converter.toBase(Number(a.creditLimit ?? 0), a.currency),
           0
         );
 
@@ -78,11 +97,11 @@ export default async function AccountsPage() {
               <h2 className="text-lg font-semibold">{ACCOUNT_TYPE_LABEL[type]}</h2>
               <div className="text-sm">
                 <span className="text-muted-foreground">Subtotal: </span>
-                <span className="font-semibold">{formatCurrency(subtotal)}</span>
+                <span className="font-semibold">{formatCurrency(subtotal, primary)}</span>
                 {type === "CREDIT" && totalCreditLimit > 0 && (
                   <span className="text-muted-foreground">
                     {" "}
-                    / {formatCurrency(totalCreditLimit)} límite
+                    / {formatCurrency(totalCreditLimit, primary)} límite
                   </span>
                 )}
               </div>
@@ -121,7 +140,9 @@ export default async function AccountsPage() {
                               creditLimit: acc.creditLimit ? Number(acc.creditLimit) : null,
                               cutoffDay: acc.cutoffDay,
                               paymentDay: acc.paymentDay,
+                              currencyLocked: acc._count.transactions + acc._count.transferTransactions > 0,
                             }}
+                            currencies={currencies}
                           />
                         </div>
                       </div>
@@ -151,7 +172,7 @@ export default async function AccountsPage() {
                           />
                           <div className="flex justify-between text-xs text-muted-foreground">
                             <span>{percent.toFixed(0)}% usado</span>
-                            <span>{formatCurrency(limit)}</span>
+                            <span>{formatCurrency(limit, acc.currency)}</span>
                           </div>
                         </div>
                       )}

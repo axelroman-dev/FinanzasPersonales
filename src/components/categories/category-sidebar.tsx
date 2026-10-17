@@ -31,11 +31,14 @@ export function CategorySidebar({
   categories,
   selectedId,
   monthlyTotals,
+  currency,
 }: {
   categories: CatNode[];
   selectedId: string | null;
   /** Total del mes por categoría raíz (solo el subcategory hijo) */
   monthlyTotals: TotalsByCategory;
+  /** Moneda principal: los totales ya vienen convertidos */
+  currency: string;
 }) {
   const expenses = categories.filter((c) => c.kind === "EXPENSE");
   const incomes = categories.filter((c) => c.kind === "INCOME");
@@ -56,6 +59,7 @@ export function CategorySidebar({
           categories={expenses}
           selectedId={selectedId}
           monthlyTotals={monthlyTotals}
+          currency={currency}
         />
         <SidebarGroup
           title="Ingresos"
@@ -63,6 +67,7 @@ export function CategorySidebar({
           categories={incomes}
           selectedId={selectedId}
           monthlyTotals={monthlyTotals}
+          currency={currency}
         />
       </div>
     </>
@@ -119,12 +124,14 @@ function SidebarGroup({
   categories,
   selectedId,
   monthlyTotals,
+  currency,
 }: {
   title: string;
   badgeVariant: "destructive" | "success";
   categories: CatNode[];
   selectedId: string | null;
   monthlyTotals: TotalsByCategory;
+  currency: string;
 }) {
   if (categories.length === 0) return null;
 
@@ -164,7 +171,7 @@ function SidebarGroup({
                       : "text-emerald-400"
                   )}
                 >
-                  {formatCurrency(total)}
+                  {formatCurrency(total, currency)}
                 </span>
               )}
               {cat.children.length > 0 && (

@@ -12,6 +12,7 @@ import { msiParentRevertAmount } from "@/lib/msi-installments";
 import { deleteStoredFiles } from "@/lib/attachments";
 import { isCardPayment } from "@/lib/account-types";
 import { ensureInternalCategory } from "@/lib/internal-categories";
+import { resolveTransactionAmount } from "@/lib/exchange-rates";
 
 const updateSchema = z.object({
   type: z.enum(["INCOME", "EXPENSE", "TRANSFER"]).optional(),
@@ -31,6 +32,8 @@ const updateSchema = z.object({
   accountId: z.string().optional(),
   transferAccountId: z.string().nullable().optional(),
   subscriptionId: z.string().nullable().optional(),
+  // Moneda del monto; si no es la de la cuenta se convierte
+  currency: z.string().length(3).optional(),
 });
 
 export async function PATCH(
@@ -68,6 +71,7 @@ export async function PATCH(
     const data: typeof parsed.data = wasCardPayment
       ? { amount: parsed.data.amount, date: parsed.data.date }
       : parsed.data;
+    const { currency: inputCurrency, ...fields } = data;
     const type = data.type ?? existing.type;
     const accountId = data.accountId ?? existing.accountId;
     const transferAccountId =
@@ -105,6 +109,14 @@ export async function PATCH(
           { status: 404 }
         );
       }
+      if (transfer.currency !== account.currency) {
+        return NextResponse.json(
+          {
+            error: `No se puede transferir entre cuentas en ${account.currency} y ${transfer.currency}`,
+          },
+          { status: 400 }
+        );
+      }
       transferAccountType = transfer.type;
     }
 
@@ -138,6 +150,40 @@ export async function PATCH(
       }
     }
 
+    // Monto en la moneda de la cuenta. Si el movimiento ya estaba convertido y
+    // no cambian la moneda ni la cuenta, se conserva la tasa con que se guardó
+    const currency =
+      inputCurrency ?? existing.originalCurrency ?? account.currency;
+    if (currency !== account.currency && type === "TRANSFER") {
+      return NextResponse.json(
+        { error: `El monto debe ir en ${account.currency}, la moneda de la cuenta` },
+        { status: 400 }
+      );
+    }
+    const amountChanges =
+      data.amount !== undefined ||
+      inputCurrency !== undefined ||
+      accountId !== existing.accountId;
+    const resolved = amountChanges
+      ? await resolveTransactionAmount(user, {
+          amount:
+            data.amount ??
+            (existing.originalAmount && existing.originalCurrency === currency
+              ? existing.originalAmount
+              : existing.amount),
+          currency,
+          accountCurrency: account.currency,
+          reuseRate:
+            existing.originalCurrency === currency && existing.accountId === accountId
+              ? existing.exchangeRate && Number(existing.exchangeRate)
+              : null,
+        })
+      : null;
+    if (resolved && !resolved.ok) {
+      return NextResponse.json({ error: resolved.error }, { status: 400 });
+    }
+    const amount = resolved?.ok ? resolved.value.amount : existing.amount;
+
     // Revertir el efecto anterior en los balances y aplicar el nuevo
     const deltas = editEffects(
       {
@@ -150,7 +196,7 @@ export async function PATCH(
       },
       {
         type,
-        amount: data.amount ?? existing.amount,
+        amount,
         accountId,
         accountType: account.type,
         transferAccountId,
@@ -168,7 +214,8 @@ export async function PATCH(
       return tx.transaction.update({
         where: { id: params.id },
         data: {
-          ...data,
+          ...fields,
+          ...(resolved?.ok && resolved.value),
           transferAccountId,
           ...(cardPaymentCategory && { categoryId: cardPaymentCategory }),
         },

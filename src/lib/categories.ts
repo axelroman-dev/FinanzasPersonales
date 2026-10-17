@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { defaultCategories } from "../../prisma/default-categories";
 import { excludeInternal } from "@/lib/internal-categories";
+import type { Converter } from "@/lib/exchange-rates";
 
 /**
  * Crea las categorías predeterminadas para un usuario recién registrado.
@@ -238,8 +239,9 @@ export async function getCategoryTotals(params: {
   type: "INCOME" | "EXPENSE";
   from?: Date;
   to?: Date;
+  converter: Converter;
 }): Promise<CategoryTotal[]> {
-  const { userId, type, from, to } = params;
+  const { userId, type, from, to, converter } = params;
 
   // Los ajustes de balance no son ingresos ni gastos reales
   const where: any = { userId, type, ...excludeInternal };
@@ -251,10 +253,19 @@ export async function getCategoryTotals(params: {
 
   const txs = await prisma.transaction.findMany({
     where,
-    select: { amount: true, categoryRef: { include: { parent: true } } },
+    select: {
+      amount: true,
+      account: { select: { currency: true } },
+      categoryRef: { include: { parent: true } },
+    },
   });
 
-  return groupByRootCategory(txs);
+  return groupByRootCategory(
+    txs.map((tx) => ({
+      amount: converter.toBase(Number(tx.amount), tx.account.currency),
+      categoryRef: tx.categoryRef,
+    }))
+  );
 }
 
 /**
@@ -278,8 +289,9 @@ export async function getSubcategoryStats(params: {
   type?: "INCOME" | "EXPENSE";
   from?: Date;
   to?: Date;
+  converter: Converter;
 }): Promise<SubcategoryStat[]> {
-  const { userId, parentId, type, from, to } = params;
+  const { userId, parentId, type, from, to, converter } = params;
 
   const where: any = { userId, categoryRef: { parentId } };
   if (type) where.type = type;
@@ -291,7 +303,7 @@ export async function getSubcategoryStats(params: {
 
   const txs = await prisma.transaction.findMany({
     where,
-    include: { categoryRef: true },
+    include: { categoryRef: true, account: { select: { currency: true } } },
   });
 
   const bySub = new Map<
@@ -309,7 +321,7 @@ export async function getSubcategoryStats(params: {
     const sub = tx.categoryRef;
     if (!sub) continue;
     const txType = tx.type as "INCOME" | "EXPENSE";
-    const amount = Number(tx.amount);
+    const amount = converter.toBase(Number(tx.amount), tx.account.currency);
     const existing = bySub.get(sub.id);
     if (existing) {
       existing.total += amount;
@@ -349,6 +361,7 @@ export async function getMonthlyTotalsByRoot(params: {
   userId: string;
   from?: Date;
   to?: Date;
+  converter: Converter;
 }): Promise<{
   bySubcategory: Map<
     string,
@@ -364,7 +377,7 @@ export async function getMonthlyTotalsByRoot(params: {
   >;
   byParent: Map<string, number>;
 }> {
-  const { userId, from, to } = params;
+  const { userId, from, to, converter } = params;
 
   const dateWhere: any = {};
   if (from) dateWhere.gte = from;
@@ -380,6 +393,7 @@ export async function getMonthlyTotalsByRoot(params: {
     select: {
       type: true,
       amount: true,
+      account: { select: { currency: true } },
       categoryRef: {
         select: {
           id: true,
@@ -410,7 +424,7 @@ export async function getMonthlyTotalsByRoot(params: {
 
     const parent = sub.parent ?? sub;
     const parentId = parent.id;
-    const amount = Number(tx.amount);
+    const amount = converter.toBase(Number(tx.amount), tx.account.currency);
     const txType = tx.type as "INCOME" | "EXPENSE";
 
     // Acumular por subcategoría

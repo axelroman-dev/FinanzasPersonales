@@ -3,12 +3,14 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { recordBalanceChange } from "@/lib/internal-categories";
+import { allowedCurrencies } from "@/lib/currencies";
 
 const createSchema = z.object({
   name: z.string().min(1),
   type: z.enum(["DEBIT", "CREDIT", "SAVINGS", "VOUCHER"]),
   balance: z.number(),
-  currency: z.string().length(3).default("MXN"),
+  // Sin moneda: la principal del usuario
+  currency: z.string().length(3).optional(),
   includeInBalance: z.boolean().default(true),
   creditLimit: z.number().nullable().optional(),
   cutoffDay: z.number().int().min(1).max(31).nullable().optional(),
@@ -41,6 +43,13 @@ export async function POST(req: Request) {
     }
 
     const data = parsed.data;
+    const currency = data.currency ?? user.primaryCurrency;
+    if (!allowedCurrencies(user).includes(currency)) {
+      return NextResponse.json(
+        { error: `Agrega ${currency} a tus monedas en Mi perfil para usarla` },
+        { status: 400 }
+      );
+    }
     const account = await prisma.$transaction(async (tx) => {
       // La cuenta nace en 0 y el balance entra como movimiento de
       // "Balance inicial", para que quede registrado cuándo se capturó
@@ -50,7 +59,7 @@ export async function POST(req: Request) {
           name: data.name,
           type: data.type,
           balance: 0,
-          currency: data.currency,
+          currency,
           includeInBalance: data.type === "VOUCHER" ? false : data.includeInBalance,
           creditLimit: data.type === "CREDIT" ? data.creditLimit ?? null : null,
           cutoffDay: data.type === "CREDIT" ? data.cutoffDay ?? null : null,

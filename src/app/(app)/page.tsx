@@ -6,6 +6,8 @@ import {
   getUnrecordedTotal,
 } from "@/lib/balance";
 import { formatCurrency, formatShortDate } from "@/lib/utils";
+import { getUserConverter } from "@/lib/exchange-rates";
+import { RatesNotice } from "@/components/shared/rates-notice";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MonthlyFlowChart } from "@/components/dashboard/monthly-flow-chart";
@@ -16,16 +18,19 @@ export default async function DashboardPage() {
   // Registra antes los cobros de suscripciones que ya tocan
   await chargeDueSubscriptions(user.id);
   const now = new Date();
+  const converter = await getUserConverter(user);
   const [balance, events, flow, unrecorded] = await Promise.all([
-    calculateBalance(user.id),
+    calculateBalance(user.id, converter),
     getUpcomingCreditEvents(user.id),
-    getMonthlyFlow(user.id),
+    getMonthlyFlow(user.id, converter),
     getUnrecordedTotal(
       user.id,
       new Date(now.getFullYear(), now.getMonth(), 1),
-      new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+      new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59),
+      converter
     ),
   ]);
+  const money = (n: number) => formatCurrency(n, user.primaryCurrency);
 
   const balancePositive = balance.realBalance >= 0;
   const totalIncome = flow.reduce((s, d) => s + d.income, 0);
@@ -52,14 +57,15 @@ export default async function DashboardPage() {
                 balancePositive ? "text-emerald-400" : "text-red-400"
               }`}
             >
-              {formatCurrency(balance.realBalance)}
+              {money(balance.realBalance)}
             </p>
             <p className="text-sm text-muted-foreground pt-2">
-              Dinero disponible {formatCurrency(balance.cashAvailable)} − Deuda{" "}
-              {formatCurrency(balance.creditUsed)} − Suscripciones pendientes{" "}
-              {formatCurrency(balance.subscriptionsPending)} − MSI{" "}
-              {formatCurrency(balance.msiMonthlyTotal)}
+              Dinero disponible {money(balance.cashAvailable)} − Deuda{" "}
+              {money(balance.creditUsed)} − Suscripciones pendientes{" "}
+              {money(balance.subscriptionsPending)} − MSI{" "}
+              {money(balance.msiMonthlyTotal)}
             </p>
+            <RatesNotice converter={converter} />
           </div>
         </CardContent>
       </Card>
@@ -75,7 +81,7 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold tabular-nums break-words">
-              {formatCurrency(balance.cashAvailable)}
+              {money(balance.cashAvailable)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               Dédito + ahorro (vales excluidos)
@@ -91,7 +97,7 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold tabular-nums break-words text-red-400">
-              {formatCurrency(balance.creditUsed)}
+              {money(balance.creditUsed)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               {balance.creditUsagePercent.toFixed(0)}% de uso global
@@ -107,7 +113,7 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold tabular-nums break-words text-amber-400">
-              {formatCurrency(balance.subscriptionsPending + balance.msiMonthlyTotal)}
+              {money(balance.subscriptionsPending + balance.msiMonthlyTotal)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               Suscripciones pendientes + MSI
@@ -123,19 +129,19 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 text-xs text-muted-foreground mb-2">
-              <span>Ingresos: {formatCurrency(totalIncome)}</span>
-              <span>Gastos: {formatCurrency(totalExpense)}</span>
+              <span>Ingresos: {money(totalIncome)}</span>
+              <span>Gastos: {money(totalExpense)}</span>
               {/* Ajustes de cuenta: no son ingreso ni gasto, pero muestran lo que faltó registrar */}
               {unrecorded.count > 0 && (
                 <span
                   className="text-amber-400"
                   title="Neto de los ajustes de cuenta del mes; no se suma a ingresos ni gastos"
                 >
-                  Sin registrar: {formatCurrency(unrecorded.net)}
+                  Sin registrar: {money(unrecorded.net)}
                 </span>
               )}
             </div>
-            <MonthlyFlowChart data={flow} />
+            <MonthlyFlowChart data={flow} currency={user.primaryCurrency} />
           </CardContent>
         </Card>
 
@@ -179,25 +185,25 @@ export default async function DashboardPage() {
             <div>
               <p className="text-xs text-muted-foreground">Débito</p>
               <p className="text-lg font-semibold tabular-nums break-words">
-                {formatCurrency(balance.accountSubtotals.DEBIT)}
+                {money(balance.accountSubtotals.DEBIT)}
               </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Crédito (deuda)</p>
               <p className="text-lg font-semibold tabular-nums break-words text-red-400">
-                {formatCurrency(balance.accountSubtotals.CREDIT)}
+                {money(balance.accountSubtotals.CREDIT)}
               </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Ahorro</p>
               <p className="text-lg font-semibold tabular-nums break-words">
-                {formatCurrency(balance.accountSubtotals.SAVINGS)}
+                {money(balance.accountSubtotals.SAVINGS)}
               </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Vales</p>
               <p className="text-lg font-semibold tabular-nums break-words text-muted-foreground">
-                {formatCurrency(balance.accountSubtotals.VOUCHER)}
+                {money(balance.accountSubtotals.VOUCHER)}
               </p>
             </div>
           </div>

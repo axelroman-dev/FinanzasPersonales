@@ -3,6 +3,7 @@ import {
   getCategoryTree,
   getMonthlyTotalsByRoot,
 } from "@/lib/categories";
+import { getUserConverter } from "@/lib/exchange-rates";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, FolderTree } from "lucide-react";
@@ -22,12 +23,14 @@ export default async function CategoriesPage({
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
+  const converter = await getUserConverter(user);
   const [fullTree, totals] = await Promise.all([
     getCategoryTree(user.id),
     getMonthlyTotalsByRoot({
       userId: user.id,
       from: startOfMonth,
       to: endOfMonth,
+      converter,
     }),
   ]);
 
@@ -125,6 +128,7 @@ export default async function CategoriesPage({
             categories={tree}
             selectedId={selectedId}
             monthlyTotals={monthlyTotals}
+            currency={user.primaryCurrency}
           />
         </aside>
 
@@ -147,6 +151,7 @@ export default async function CategoriesPage({
               usageCount: s.usageCount,
             }))}
             monthlyStats={selectedSubStats}
+            currency={user.primaryCurrency}
           />
         ) : (
           <Card>

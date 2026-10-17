@@ -13,7 +13,15 @@ const FALLBACK_COLOR = "#71717a";
  * Gráfica de dona con la parte de cada categoría en el total. Cada rebanada
  * usa el color de su categoría; el desglose completo va debajo, en la lista.
  */
-export function CategoryPieChart({ items, total }: { items: Slice[]; total: number }) {
+export function CategoryPieChart({
+  items,
+  total,
+  currency,
+}: {
+  items: Slice[];
+  total: number;
+  currency: string;
+}) {
   const slices =
     items.length <= MAX_SLICES
       ? items
@@ -65,7 +73,7 @@ export function CategoryPieChart({ items, total }: { items: Slice[]; total: numb
                       {s.name}
                     </p>
                     <p className="tabular-nums text-muted-foreground">
-                      {formatCurrency(s.total)} · {((s.total / total) * 100).toFixed(1)}%
+                      {formatCurrency(s.total, currency)} · {((s.total / total) * 100).toFixed(1)}%
                     </p>
                   </div>
                 );
@@ -76,7 +84,7 @@ export function CategoryPieChart({ items, total }: { items: Slice[]; total: numb
         {/* Total en el centro de la dona */}
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-xs text-muted-foreground">Total</span>
-          <span className="text-lg font-bold tabular-nums">{formatCurrency(total)}</span>
+          <span className="text-lg font-bold tabular-nums">{formatCurrency(total, currency)}</span>
         </div>
       </div>
       {grouped.length > 0 && (

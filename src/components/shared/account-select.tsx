@@ -14,6 +14,7 @@ export type AccountOption = {
   type: AccountType;
   /** Saldo actual; en crédito es la deuda usada */
   balance: number;
+  currency: string;
 };
 
 /**
@@ -56,7 +57,7 @@ export function AccountSelect({
               a.type === "CREDIT" && a.balance > 0 && "text-red-400"
             )}
           >
-            {formatCurrency(a.balance)}
+            {formatCurrency(a.balance, a.currency)}
           </span>
         ),
       })),

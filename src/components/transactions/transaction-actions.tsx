@@ -58,6 +58,10 @@ export type TransactionFormOptions = {
   descriptions?: string[];
   /** false si falta ATTACHMENTS_KEY: no se muestra la sección de recibos */
   attachmentsEnabled?: boolean;
+  /** Monedas del usuario, para capturar un monto en otra moneda que la cuenta */
+  currencies?: string[];
+  /** Cuánto vale 1 de cada moneda en la principal (vista previa de la conversión) */
+  rates?: Record<string, number>;
 };
 
 /** Datos de un movimiento existente para editarlo */
@@ -72,6 +76,8 @@ export type EditableTransaction = {
   transferAccountId: string | null;
   isMsi: boolean;
   msiInstallments: number | null;
+  /** Capturado en otra moneda: el monto y la moneda originales */
+  original?: { amount: number; currency: string; rate: number | null } | null;
 };
 
 export function TransactionActions({
@@ -81,6 +87,8 @@ export function TransactionActions({
   categories,
   attachmentsEnabled,
   descriptions,
+  currencies,
+  rates,
   transaction,
   defaults,
   children,
@@ -91,6 +99,8 @@ export function TransactionActions({
   categories?: CategoryNode[];
   attachmentsEnabled?: boolean;
   descriptions?: string[];
+  currencies?: string[];
+  rates?: Record<string, number>;
   transaction?: EditableTransaction;
   /** Solo al crear: valores iniciales (p. ej. los filtros de la lista) */
   defaults?: NewTransactionDefaults;
@@ -109,6 +119,8 @@ export function TransactionActions({
         categories={categories}
         attachmentsEnabled={attachmentsEnabled}
         descriptions={descriptions}
+        currencies={currencies}
+        rates={rates}
         transaction={transaction}
         defaults={defaults}
         onClose={() => setOpen(false)}
@@ -125,6 +137,8 @@ function TxFormDialog({
   categories,
   attachmentsEnabled,
   descriptions,
+  currencies = [],
+  rates = {},
   transaction,
   defaults,
   onClose,
@@ -136,6 +150,8 @@ function TxFormDialog({
   categories?: CategoryNode[];
   attachmentsEnabled?: boolean;
   descriptions?: string[];
+  currencies?: string[];
+  rates?: Record<string, number>;
   transaction?: EditableTransaction;
   defaults?: NewTransactionDefaults;
   onClose: () => void;
@@ -165,7 +181,9 @@ function TxFormDialog({
   const payFromAccounts = accounts.filter((a) => a.type !== "CREDIT");
   const cardAccounts = accounts.filter((a) => a.type === "CREDIT");
   const [amount, setAmount] = useState<number | "">(
-    transaction ? Math.abs(Number(transaction.amount)) : ""
+    transaction
+      ? Math.abs(Number(transaction.original?.amount ?? transaction.amount))
+      : ""
   );
   // Fecha y hora en la zona del navegador ("YYYY-MM-DDTHH:mm")
   const [date, setDate] = useState(
@@ -188,6 +206,15 @@ function TxFormDialog({
   const [transferAccountId, setTransferAccountId] = useState(
     transaction?.transferAccountId ?? (defaultIsCard ? defaults!.accountId! : "")
   );
+  // Solo se transfiere entre cuentas de la misma moneda
+  const sourceCurrency = accounts.find((a) => a.id === accountId)?.currency;
+  // Moneda del monto: la de la cuenta, salvo que se elija otra (p. ej. una
+  // compra de 20 USD con tarjeta en pesos: se guarda convertida)
+  const [currencyChoice, setCurrencyChoice] = useState<string | null>(
+    transaction?.original?.currency ?? null
+  );
+  const sameCurrency = (list: AccountOption[]) =>
+    sourceCurrency ? list.filter((a) => a.currency === sourceCurrency) : list;
 
   // MSI
   const [isMsi, setIsMsi] = useState(transaction?.isMsi ?? defaults?.isMsi ?? false);
@@ -197,6 +224,28 @@ function TxFormDialog({
 
   // Solo permitir MSI si es gasto en crédito
   const canMsi = type === "EXPENSE" && creditAccounts.some((c) => c.id === accountId);
+  // Otra moneda solo en gastos e ingresos (no transferencias ni MSI)
+  const canForeign =
+    !isTransferLike && !(mode === "create" && isMsi && canMsi) && !!sourceCurrency;
+  const amountCurrency = (canForeign && currencyChoice) || sourceCurrency;
+  const currencyOptions = sourceCurrency
+    ? [...new Set([sourceCurrency, ...currencies])]
+    : currencies;
+  // Al editar uno ya convertido, sin cambiar moneda ni cuenta, el servidor
+  // conserva la tasa con que se guardó
+  const savedRate =
+    transaction?.original?.currency === amountCurrency &&
+    transaction?.accountId === accountId
+      ? transaction?.original?.rate ?? null
+      : null;
+  // 1 de la moneda del monto = N de la cuenta
+  const previewRate =
+    amountCurrency && sourceCurrency && amountCurrency !== sourceCurrency
+      ? savedRate ??
+        (rates[amountCurrency] && rates[sourceCurrency]
+          ? rates[amountCurrency] / rates[sourceCurrency]
+          : null)
+      : undefined;
 
   // Las categorías dependen del tipo: al cambiarlo, la elegida ya no aplica
   function onTypeChange(next: FormType) {
@@ -248,6 +297,7 @@ function TxFormDialog({
           categoryId: isTransferLike ? null : (categoryId || null),
           accountId,
           transferAccountId: isTransferLike ? transferAccountId : null,
+          ...(amountCurrency && { currency: amountCurrency }),
         };
 
         if (mode === "create" && isMsi && canMsi) {
@@ -344,22 +394,57 @@ function TxFormDialog({
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="amount">Monto</Label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              value={amount}
-              onChange={(e) =>
-                setAmount(e.target.value === "" ? "" : parseFloat(e.target.value))
-              }
-              required
-            />
+            <div className="flex gap-2">
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                value={amount}
+                onChange={(e) =>
+                  setAmount(e.target.value === "" ? "" : parseFloat(e.target.value))
+                }
+                required
+              />
+              {canForeign && currencyOptions.length > 1 && (
+                <Select value={amountCurrency} onValueChange={setCurrencyChoice}>
+                  <SelectTrigger className="w-24 shrink-0" aria-label="Moneda del monto">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {currencyOptions.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="date">Fecha y hora</Label>
             <DateTimePicker id="date" value={date} onChange={setDate} />
           </div>
         </div>
+        {previewRate !== undefined && (
+          <p className="-mt-2 text-xs text-muted-foreground">
+            {previewRate === null ? (
+              <span className="text-amber-400">
+                Sin tipo de cambio {amountCurrency}→{sourceCurrency}: revisa tu proveedor en Mi perfil
+              </span>
+            ) : (
+              <>
+                Se guarda en {sourceCurrency}, la moneda de la cuenta:{" "}
+                <span className="tabular-nums">
+                  ≈ {formatCurrency(Number(amount || 0) * previewRate, sourceCurrency!)}
+                </span>{" "}
+                (1 {amountCurrency} = {previewRate.toFixed(4)} {sourceCurrency}
+                {savedRate ? ", la tasa con que se guardó" : ", tipo de cambio de hoy"}
+                )
+              </>
+            )}
+          </p>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="description">Descripción</Label>
@@ -387,7 +472,11 @@ function TxFormDialog({
             value={accountId}
             onChange={(id) => {
               setAccountId(id);
-              if (id === transferAccountId) setTransferAccountId("");
+              const to = accounts.find((a) => a.id === transferAccountId);
+              const from = accounts.find((a) => a.id === id);
+              if (id === transferAccountId || (to && from && to.currency !== from.currency)) {
+                setTransferAccountId("");
+              }
             }}
             disabled={lockedCardPayment}
           />
@@ -397,7 +486,7 @@ function TxFormDialog({
           <div className="space-y-2">
             <Label>Cuenta destino</Label>
             <AccountSelect
-              accounts={accounts}
+              accounts={sameCurrency(accounts)}
               value={transferAccountId}
               onChange={setTransferAccountId}
               placeholder="Selecciona cuenta destino"
@@ -410,7 +499,7 @@ function TxFormDialog({
           <div className="space-y-2">
             <Label>Tarjeta a pagar</Label>
             <AccountSelect
-              accounts={cardAccounts}
+              accounts={sameCurrency(cardAccounts)}
               value={transferAccountId}
               onChange={setTransferAccountId}
               placeholder="Selecciona la tarjeta"
@@ -420,6 +509,7 @@ function TxFormDialog({
             {!lockedCardPayment && (
               <CardDebtHint
                 debt={cardAccounts.find((a) => a.id === transferAccountId)?.balance}
+                currency={cardAccounts.find((a) => a.id === transferAccountId)?.currency}
                 onPayAll={setAmount}
               />
             )}
@@ -542,9 +632,11 @@ function TxFormDialog({
 /** Deuda de la tarjeta elegida y un atajo para pagarla completa */
 function CardDebtHint({
   debt,
+  currency,
   onPayAll,
 }: {
   debt: number | undefined;
+  currency: string | undefined;
   onPayAll: (amount: number) => void;
 }) {
   if (debt === undefined) return null;
@@ -553,7 +645,7 @@ function CardDebtHint({
   }
   return (
     <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-      Deuda actual: <span className="tabular-nums text-red-400">{formatCurrency(debt)}</span>
+      Deuda actual: <span className="tabular-nums text-red-400">{formatCurrency(debt, currency)}</span>
       <button
         type="button"
         onClick={() => onPayAll(debt)}
