@@ -34,6 +34,8 @@ const updateSchema = z.object({
   subscriptionId: z.string().nullable().optional(),
   // Moneda del monto; si no es la de la cuenta se convierte
   currency: z.string().length(3).optional(),
+  // Lo que se cobró en la moneda de la cuenta, si no coincide con la tasa
+  accountAmount: z.number().positive().optional(),
 });
 
 export async function PATCH(
@@ -71,7 +73,7 @@ export async function PATCH(
     const data: typeof parsed.data = wasCardPayment
       ? { amount: parsed.data.amount, date: parsed.data.date }
       : parsed.data;
-    const { currency: inputCurrency, ...fields } = data;
+    const { currency: inputCurrency, accountAmount, ...fields } = data;
     const type = data.type ?? existing.type;
     const accountId = data.accountId ?? existing.accountId;
     const transferAccountId =
@@ -163,6 +165,7 @@ export async function PATCH(
     const amountChanges =
       data.amount !== undefined ||
       inputCurrency !== undefined ||
+      accountAmount !== undefined ||
       accountId !== existing.accountId;
     const resolved = amountChanges
       ? await resolveTransactionAmount(user, {
@@ -177,6 +180,7 @@ export async function PATCH(
             existing.originalCurrency === currency && existing.accountId === accountId
               ? existing.exchangeRate && Number(existing.exchangeRate)
               : null,
+          accountAmount,
         })
       : null;
     if (resolved && !resolved.ok) {

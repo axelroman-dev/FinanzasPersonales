@@ -246,6 +246,14 @@ function TxFormDialog({
           ? rates[amountCurrency] / rates[sourceCurrency]
           : null)
       : undefined;
+  // Lo cobrado en la moneda de la cuenta. null = lo calcula la tasa; si el
+  // banco cobró otra cosa se escribe a mano y se guarda tal cual
+  const [chargedManual, setChargedManual] = useState<number | "" | null>(null);
+  const chargedAuto =
+    previewRate && amount !== ""
+      ? Math.round(Number(amount) * previewRate * 100) / 100
+      : "";
+  const charged = chargedManual ?? chargedAuto;
 
   // Las categorías dependen del tipo: al cambiarlo, la elegida ya no aplica
   function onTypeChange(next: FormType) {
@@ -298,6 +306,8 @@ function TxFormDialog({
           accountId,
           transferAccountId: isTransferLike ? transferAccountId : null,
           ...(amountCurrency && { currency: amountCurrency }),
+          ...(previewRate !== undefined &&
+            chargedManual && { accountAmount: Number(chargedManual) }),
         };
 
         if (mode === "create" && isMsi && canMsi) {
@@ -427,23 +437,66 @@ function TxFormDialog({
           </div>
         </div>
         {previewRate !== undefined && (
-          <p className="-mt-2 text-xs text-muted-foreground">
-            {previewRate === null ? (
-              <span className="text-amber-400">
-                Sin tipo de cambio {amountCurrency}→{sourceCurrency}: revisa tu proveedor en Mi perfil
-              </span>
+          <div className="-mt-2 space-y-2">
+            {previewRate === null && chargedManual === null ? (
+              <p className="text-xs text-muted-foreground">
+                <span className="text-amber-400">
+                  Sin tipo de cambio {amountCurrency}→{sourceCurrency}: revisa tu proveedor en Mi
+                  perfil
+                </span>{" "}
+                o{" "}
+                <button
+                  type="button"
+                  onClick={() => setChargedManual("")}
+                  className="text-primary hover:underline"
+                >
+                  escribe cuánto se cobró
+                </button>
+              </p>
             ) : (
               <>
-                Se guarda en {sourceCurrency}, la moneda de la cuenta:{" "}
-                <span className="tabular-nums">
-                  ≈ {formatCurrency(Number(amount || 0) * previewRate, sourceCurrency!)}
-                </span>{" "}
-                (1 {amountCurrency} = {previewRate.toFixed(4)} {sourceCurrency}
-                {savedRate ? ", la tasa con que se guardó" : ", tipo de cambio de hoy"}
-                )
+                <Label htmlFor="charged">Se cobró en {sourceCurrency}</Label>
+                <Input
+                  id="charged"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={charged}
+                  onChange={(e) =>
+                    setChargedManual(e.target.value === "" ? "" : parseFloat(e.target.value))
+                  }
+                  required={chargedManual !== null}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {chargedManual !== null ? (
+                    <>
+                      {chargedManual && amount
+                        ? `1 ${amountCurrency} = ${(Number(chargedManual) / Number(amount)).toFixed(4)} ${sourceCurrency}, según lo que escribiste`
+                        : "Escribe lo que aparece en tu estado de cuenta"}
+                      {previewRate && (
+                        <>
+                          {" · "}
+                          <button
+                            type="button"
+                            onClick={() => setChargedManual(null)}
+                            className="text-primary hover:underline"
+                          >
+                            Usar el tipo de cambio
+                          </button>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      1 {amountCurrency} = {previewRate!.toFixed(4)} {sourceCurrency}
+                      {savedRate ? ", la tasa con que se guardó" : ", tipo de cambio de hoy"}. Si
+                      tu banco cobró otra cantidad, corrígela aquí
+                    </>
+                  )}
+                </p>
               </>
             )}
-          </p>
+          </div>
         )}
 
         <div className="space-y-2">

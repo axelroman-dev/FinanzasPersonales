@@ -85,4 +85,20 @@ describe("resolveTransactionAmount", () => {
       exchangeRate: 18,
     });
   });
+
+  it("con lo que se cobró en la cuenta lo guarda tal cual y deduce la tasa", async () => {
+    const r = await resolveTransactionAmount(user, {
+      amount: 20,
+      currency: "USD",
+      accountCurrency: "MXN",
+      reuseRate: 17.5,
+      accountAmount: 371.4,
+    });
+    expect(r.ok && r.value.amount.toNumber()).toBe(371.4);
+    expect(r.ok && r.value).toMatchObject({
+      originalAmount: 20,
+      originalCurrency: "USD",
+      exchangeRate: 18.57,
+    });
+  });
 });
