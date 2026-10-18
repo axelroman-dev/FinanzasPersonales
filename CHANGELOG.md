@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.16.0...v0.17.0) (2026-10-18)
+
+
+### Nuevas funciones
+
+* etiqueta «Suscripción» y corregir lo cobrado en otra moneda ([#74](https://github.com/axelroman-dev/FinanzasPersonales/issues/74)) ([8ac5e98](https://github.com/axelroman-dev/FinanzasPersonales/commit/8ac5e98cb60b53425efdd5e72fccc82ddba08aa9))
+
 ## [0.16.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.15.0...v0.16.0) (2026-10-17)
 
 
