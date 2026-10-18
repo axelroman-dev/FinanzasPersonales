@@ -530,7 +530,9 @@ export type ResolvedAmount = {
 /**
  * Para guardar un movimiento capturado en `currency`: si no es la de la
  * cuenta, lo convierte con el tipo de cambio de hoy del proveedor del usuario
- * (o con `reuseRate`, la tasa con que se guardó, al editarlo).
+ * (o con `reuseRate`, la tasa con que se guardó, al editarlo). Con
+ * `accountAmount` (lo que de verdad se cobró en la cuenta) no se usa ninguna
+ * tasa: se guarda ese monto y la tasa que resulta.
  */
 export async function resolveTransactionAmount(
   user: RateSettings & { id: string },
@@ -539,6 +541,7 @@ export async function resolveTransactionAmount(
     currency: string | null | undefined;
     accountCurrency: string;
     reuseRate?: number | null;
+    accountAmount?: number | null;
   }
 ): Promise<{ ok: true; value: ResolvedAmount } | { ok: false; error: string }> {
   const { amount, accountCurrency } = params;
@@ -556,6 +559,21 @@ export async function resolveTransactionAmount(
   }
   if (!allowedCurrencies(user).includes(currency)) {
     return { ok: false, error: `Agrega ${currency} a tus monedas en Mi perfil para usarla` };
+  }
+  if (params.accountAmount) {
+    const charged = new Prisma.Decimal(params.accountAmount).toDecimalPlaces(
+      2,
+      Prisma.Decimal.ROUND_HALF_UP
+    );
+    return {
+      ok: true,
+      value: {
+        amount: charged,
+        originalAmount: Number(amount),
+        originalCurrency: currency,
+        exchangeRate: charged.div(amount).toDecimalPlaces(8).toNumber(),
+      },
+    };
   }
   const reuse = params.reuseRate;
   const converter = reuse ? null : await getUserConverter(user);

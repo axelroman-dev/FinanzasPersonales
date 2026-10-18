@@ -29,6 +29,8 @@ const baseSchema = {
   msiInstallments: z.number().int().min(2).max(48).optional(),
   // Moneda del monto; si no es la de la cuenta se convierte con la tasa de hoy
   currency: z.string().length(3).optional(),
+  // Lo que se cobró en la moneda de la cuenta, si no coincide con la tasa
+  accountAmount: z.number().positive().optional(),
 };
 
 const schema = z.object(baseSchema);
@@ -179,6 +181,7 @@ export async function POST(req: Request) {
       amount: data.amount,
       currency: data.currency,
       accountCurrency: account.currency,
+      accountAmount: data.accountAmount,
     });
     if (!resolved.ok) {
       return NextResponse.json({ error: resolved.error }, { status: 400 });
