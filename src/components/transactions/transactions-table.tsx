@@ -277,8 +277,11 @@ function TxTags({ tx, className }: { tx: Tx; className?: string }) {
         </Badge>
       )}
       {tx.subscriptionName && (
-        <Badge variant="secondary" className="text-xs">
-          {tx.subscriptionName}
+        <Badge variant="secondary" className="text-xs" title={tx.subscriptionName}>
+          Suscripción
+          {/* El cobro se registra con el nombre como descripción; solo se
+              repite si el usuario la cambió */}
+          {tx.description !== tx.subscriptionName && ` · ${tx.subscriptionName}`}
         </Badge>
       )}
       {tx.attachmentCount > 0 && (
