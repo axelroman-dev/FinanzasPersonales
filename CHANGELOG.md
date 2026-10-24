@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.17.1](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.17.0...v0.17.1) (2026-10-24)
+
+
+### Correcciones
+
+* **deps:** actualizar a Node 24 y aplicar npm audit fix ([#76](https://github.com/axelroman-dev/FinanzasPersonales/issues/76)) ([89ee3e8](https://github.com/axelroman-dev/FinanzasPersonales/commit/89ee3e894db699b5223cd8a2cbf4f4e7440dc5b6))
+* **deps:** actualizar nodemailer a 10.2.1 ([#77](https://github.com/axelroman-dev/FinanzasPersonales/issues/77)) ([497116a](https://github.com/axelroman-dev/FinanzasPersonales/commit/497116a3fcd1fb143e5fb8375d399d74e335a8d5))
+
 ## [0.17.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.16.0...v0.17.0) (2026-10-18)
 
 
