@@ -3,7 +3,7 @@
 # ─────────────────────────────────────────────────────────────
 # Stage 1: deps — instalar dependencias con cache de capas
 # ─────────────────────────────────────────────────────────────
-FROM node:20-alpine AS deps
+FROM node:24-alpine AS deps
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 
@@ -18,7 +18,7 @@ RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 # ─────────────────────────────────────────────────────────────
 # Stage 2: builder — compilar Next.js
 # ─────────────────────────────────────────────────────────────
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 RUN apk add --no-cache openssl
 WORKDIR /app
 
@@ -39,7 +39,7 @@ RUN npm run build
 # ─────────────────────────────────────────────────────────────
 # Stage 3: runner — imagen final ligera (~180 MB)
 # ─────────────────────────────────────────────────────────────
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 RUN apk add --no-cache openssl dumb-init
 WORKDIR /app
 
