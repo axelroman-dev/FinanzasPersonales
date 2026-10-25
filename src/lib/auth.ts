@@ -78,7 +78,7 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
 export async function requireUser(): Promise<SessionUser> {
   const user = await getCurrentUser();
   // Si hay cookie de sesión pero el usuario ya no es válido, redirigir a /login
-  // directo haría un loop (el middleware manda a los logueados de vuelta a "/"),
+  // directo haría un loop (el proxy manda a los logueados de vuelta a "/"),
   // así que primero se cierra la sesión.
   if (!user) redirect(SESSION_EXPIRED_PATH);
   return user;

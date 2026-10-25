@@ -52,7 +52,7 @@ export function ChangePasswordForm({
 
       // El JWT actual todavía trae mustChangePassword: true.
       // Refrescamos la sesión re-autenticando con la nueva contraseña
-      // para que el middleware vea el flag actualizado.
+      // para que el proxy vea el flag actualizado.
       if (!userEmail) {
         // Sin email no podemos re-autenticar; forzar al dashboard
         router.refresh();

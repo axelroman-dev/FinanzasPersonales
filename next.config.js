@@ -9,13 +9,11 @@ const nextConfig = {
     NEXT_PUBLIC_APP_VERSION: version,
   },
   // La app no usa next/image: desactivar el optimizador cierra el endpoint
-  // /_next/image, afectado por CVEs que solo se corrigen en Next 15.5+
+  // /_next/image, que ha tenido varios CVEs
   images: {
     unoptimized: true,
   },
   experimental: {
-    // Habilita src/instrumentation.ts (crea/sincroniza el admin del sistema)
-    instrumentationHook: true,
     serverActions: {
       bodySizeLimit: "2mb",
     },

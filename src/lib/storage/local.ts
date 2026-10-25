@@ -12,7 +12,11 @@ export class LocalStorage implements Storage {
   private readonly root: string;
 
   constructor(dir?: string) {
-    this.root = path.resolve(dir || path.join(process.cwd(), "data", "uploads"));
+    // turbopackIgnore: son datos en runtime; sin él, el build standalone
+    // incluye todo el proyecto
+    this.root = path.resolve(
+      /*turbopackIgnore: true*/ dir || path.join(process.cwd(), "data", "uploads")
+    );
   }
 
   /** Ruta del archivo; rechaza keys mal formadas o que salgan de la carpeta */

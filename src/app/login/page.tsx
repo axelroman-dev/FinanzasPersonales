@@ -7,11 +7,12 @@ import { AuthShell } from "@/components/shared/auth-shell";
 // para saber si el registro está habilitado.
 export const dynamic = "force-dynamic";
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: { callbackUrl?: string; error?: string; reset?: string };
-}) {
+export default async function LoginPage(
+  props: {
+    searchParams: Promise<{ callbackUrl?: string; error?: string; reset?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const allowRegistration = await getRegistrationConfig();
 
   return (
