@@ -81,6 +81,7 @@
     "vitest": "^3.2.7"
   },
   "overrides": {
-    "nodemailer": "$nodemailer"
+    "nodemailer": "$nodemailer",
+    "postcss-selector-parser": "^7.1.7"
   }
 }
