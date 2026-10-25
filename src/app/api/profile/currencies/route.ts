@@ -16,7 +16,7 @@ const schema = z.object({
   // Solo BANXICO: sin el campo se conserva el guardado; null lo borra
   banxicoToken: z.string().trim().max(200).nullable().optional(),
   // Solo MANUAL: 1 unidad de cada secundaria vale N de la principal
-  manualRates: z.record(z.number().positive().finite()).optional(),
+  manualRates: z.record(z.string(), z.number().positive()).optional(),
 });
 
 export async function PATCH(req: Request) {

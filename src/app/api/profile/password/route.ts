@@ -9,7 +9,10 @@ import { notifyPasswordChanged } from "@/lib/mail/notices";
 const schema = z
   .object({
     currentPassword: z.string().min(1),
-    newPassword: z.string().min(8).max(100),
+    newPassword: z
+      .string()
+      .min(8, "La contraseña debe tener al menos 8 caracteres")
+      .max(100, "La contraseña debe tener como máximo 100 caracteres"),
   })
   .refine((data) => data.currentPassword !== data.newPassword, {
     message: "La nueva contraseña debe ser distinta a la actual",
