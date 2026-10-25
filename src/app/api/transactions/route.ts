@@ -8,6 +8,7 @@ import { applyBalanceDeltas, balanceEffects } from "@/lib/transaction-balance";
 import { isCardPayment } from "@/lib/account-types";
 import { ensureInternalCategory } from "@/lib/internal-categories";
 import { resolveTransactionAmount } from "@/lib/exchange-rates";
+import { dateParam, enumParam } from "@/lib/search-params";
 
 const baseSchema = {
   type: z.enum(["INCOME", "EXPENSE", "TRANSFER"]),
@@ -39,18 +40,29 @@ export async function GET(req: Request) {
   try {
     const user = await requireUser();
     const { searchParams } = new URL(req.url);
+    const from = dateParam(searchParams.get("from") ?? undefined);
+    const to = dateParam(searchParams.get("to") ?? undefined);
+    const type = enumParam(searchParams.get("type") ?? undefined, ["INCOME", "EXPENSE", "TRANSFER"] as const);
+    // Filtro presente pero mal formado: 400 en vez de pasarlo a Prisma
+    if (
+      (searchParams.get("from") && !from) ||
+      (searchParams.get("to") && !to) ||
+      (searchParams.get("type") && !type)
+    ) {
+      return NextResponse.json({ error: "Filtros inválidos" }, { status: 400 });
+    }
 
     const where: any = { userId: user.id };
-    if (searchParams.get("from") || searchParams.get("to")) {
+    if (from || to) {
       where.date = {};
-      if (searchParams.get("from")) where.date.gte = new Date(searchParams.get("from")!);
-      if (searchParams.get("to")) {
-        const to = new Date(searchParams.get("to")!);
-        to.setHours(23, 59, 59, 999);
-        where.date.lte = to;
+      if (from) where.date.gte = new Date(from);
+      if (to) {
+        const end = new Date(to);
+        end.setHours(23, 59, 59, 999);
+        where.date.lte = end;
       }
     }
-    if (searchParams.get("type")) where.type = searchParams.get("type");
+    if (type) where.type = type;
     if (searchParams.get("accountId")) {
       where.OR = [
         { accountId: searchParams.get("accountId") },

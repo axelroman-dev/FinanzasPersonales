@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar, ArrowLeftRight, ChevronRight } from "lucide-react";
 import { ReportFilters } from "@/components/reports/report-filters";
 import { CategoryPieChart } from "@/components/reports/category-pie-chart";
+import { dateParam } from "@/lib/search-params";
 
 function formatLocalDate(d: Date): string {
   // Formato YYYY-MM-DD usando componentes locales (no UTC)
@@ -21,7 +22,7 @@ function formatLocalDate(d: Date): string {
 
 export default async function ReportsPage(
   props: {
-    searchParams: Promise<{ from?: string; to?: string }>;
+    searchParams: Promise<{ from?: string | string[]; to?: string | string[] }>;
   }
 ) {
   const searchParams = await props.searchParams;
@@ -32,9 +33,9 @@ export default async function ReportsPage(
   const defaultFromStr = formatLocalDate(new Date(now.getFullYear(), now.getMonth(), 1));
   const defaultToStr = formatLocalDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
 
-  // Parsear fechas desde query params o usar defaults
-  const fromStr = searchParams.from ?? defaultFromStr;
-  const toStr = searchParams.to ?? defaultToStr;
+  // Fechas de la URL, o las default si faltan o no son válidas
+  const fromStr = dateParam(searchParams.from) ?? defaultFromStr;
+  const toStr = dateParam(searchParams.to) ?? defaultToStr;
 
   const from = new Date(fromStr + "T00:00:00");
   const to = new Date(toStr + "T23:59:59.999");
