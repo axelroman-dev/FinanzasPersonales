@@ -3,7 +3,8 @@ import { prisma } from "@/lib/db";
 import { getCategoryTree } from "@/lib/categories";
 import { attachmentsEnabled } from "@/lib/storage/crypto";
 import { INTERNAL_CATEGORIES } from "@/lib/internal-categories";
-import { newTransactionDefaults } from "@/lib/transaction-defaults";
+import { newTransactionDefaults, TX_TYPES } from "@/lib/transaction-defaults";
+import { dateParam, enumParam, firstParam } from "@/lib/search-params";
 import { getKnownDescriptions } from "@/lib/known-descriptions";
 import { isCardPayment } from "@/lib/account-types";
 import { chargeDueSubscriptions } from "@/lib/subscription-charges";
@@ -21,18 +22,19 @@ import {
 
 export default async function TransactionsPage(
   props: {
-    searchParams: Promise<{
-      from?: string;
-      to?: string;
-      type?: string;
-      accountId?: string;
-      category?: string;
-      categoryId?: string;
-      msi?: string;
-    }>;
+    searchParams: Promise<Record<string, string | string[] | undefined>>;
   }
 ) {
-  const searchParams = await props.searchParams;
+  // Lo que no tenga forma válida se ignora (ver lib/search-params)
+  const params = await props.searchParams;
+  const filters = {
+    from: dateParam(params.from),
+    to: dateParam(params.to),
+    type: enumParam(params.type, TX_TYPES),
+    accountId: firstParam(params.accountId),
+    categoryId: firstParam(params.categoryId),
+    msi: firstParam(params.msi),
+  };
   const user = await requireUser();
   // Registra antes los cobros de suscripciones que ya tocan
   await chargeDueSubscriptions(user.id);
@@ -47,33 +49,33 @@ export default async function TransactionsPage(
 
   // Construir filtros
   const where: any = { userId: user.id };
-  if (searchParams.from || searchParams.to) {
+  if (filters.from || filters.to) {
     where.date = {};
-    if (searchParams.from) where.date.gte = new Date(searchParams.from);
-    if (searchParams.to) {
-      const to = new Date(searchParams.to);
+    if (filters.from) where.date.gte = new Date(filters.from);
+    if (filters.to) {
+      const to = new Date(filters.to);
       to.setHours(23, 59, 59, 999);
       where.date.lte = to;
     }
   }
-  if (searchParams.type === "CARD_PAYMENT") {
+  if (filters.type === "CARD_PAYMENT") {
     // Pago de tarjeta: transferencia de una cuenta que no es de crédito a una que sí
     where.type = "TRANSFER";
     where.transferAccount = { type: "CREDIT" };
     where.account = { type: { not: "CREDIT" } };
-  } else if (searchParams.type) {
-    where.type = searchParams.type;
+  } else if (filters.type) {
+    where.type = filters.type;
   }
-  if (searchParams.accountId) {
+  if (filters.accountId) {
     where.OR = [
-      { accountId: searchParams.accountId },
-      { transferAccountId: searchParams.accountId },
+      { accountId: filters.accountId },
+      { transferAccountId: filters.accountId },
     ];
   }
-  if (searchParams.categoryId) {
+  if (filters.categoryId) {
     // Traer la categoría y todas sus subcategorías para filtrar
     const cat = await prisma.category.findFirst({
-      where: { id: searchParams.categoryId, userId: user.id },
+      where: { id: filters.categoryId, userId: user.id },
       include: { children: true },
     });
     if (cat) {
@@ -81,8 +83,8 @@ export default async function TransactionsPage(
       where.categoryId = { in: ids };
     }
   }
-  if (searchParams.msi === "true") where.isMsi = true;
-  if (searchParams.msi === "false") where.isMsi = false;
+  if (filters.msi === "true") where.isMsi = true;
+  if (filters.msi === "false") where.isMsi = false;
 
   const transactions = await prisma.transaction.findMany({
     where,
@@ -131,7 +133,7 @@ export default async function TransactionsPage(
 
   // El movimiento nuevo arranca con los filtros activos (cuenta, tipo, categoría)
   const createDefaults = newTransactionDefaults(
-    searchParams,
+    filters,
     accounts.map((a) => a.id),
     categories
   );

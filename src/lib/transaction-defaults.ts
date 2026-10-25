@@ -15,7 +15,7 @@ export type NewTransactionDefaults = {
   isMsi?: boolean;
 };
 
-const TX_TYPES: TxType[] = ["INCOME", "EXPENSE", "TRANSFER", "CARD_PAYMENT"];
+export const TX_TYPES: readonly TxType[] = ["INCOME", "EXPENSE", "TRANSFER", "CARD_PAYMENT"];
 
 /**
  * Traduce los filtros de la lista de movimientos a valores iniciales del
