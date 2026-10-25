@@ -18,10 +18,8 @@ const updateSchema = z.object({
   paymentDay: z.number().int().min(1).max(31).nullable().optional(),
 });
 
-export async function PATCH(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const user = await requireUser();
     const body = await req.json();
@@ -87,10 +85,8 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const user = await requireUser();
     const existing = await prisma.account.findFirst({

@@ -13,7 +13,7 @@ export default async function AppLayout({
   const user = await requireUser();
   // Cuenta nueva: primero elige sus monedas
   if (!user.onboardedAt) redirect(WELCOME_PATH);
-  const sidebarCollapsed = cookies().get(SIDEBAR_COOKIE)?.value === "1";
+  const sidebarCollapsed = (await cookies()).get(SIDEBAR_COOKIE)?.value === "1";
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       <Sidebar

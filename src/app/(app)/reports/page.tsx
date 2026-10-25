@@ -19,11 +19,12 @@ function formatLocalDate(d: Date): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-export default async function ReportsPage({
-  searchParams,
-}: {
-  searchParams: { from?: string; to?: string };
-}) {
+export default async function ReportsPage(
+  props: {
+    searchParams: Promise<{ from?: string; to?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const user = await requireUser();
 
   // Default: mes actual (como strings YYYY-MM-DD para evitar problemas de timezone)

@@ -198,7 +198,7 @@ src/
 │   ├── export-import.ts      # Exportar / importar datos
 │   └── utils.ts
 ├── auth.ts                   # Configuración de NextAuth
-└── middleware.ts             # Protección de rutas
+└── proxy.ts                  # Protección de rutas
 ```
 
 ## Fórmula del balance real

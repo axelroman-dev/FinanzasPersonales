@@ -7,10 +7,8 @@ import { AttachmentError, deleteAttachment, readAttachment } from "@/lib/attachm
  * navegador lo interprete como otra cosa o que un PDF ejecute código en el
  * origen de la app. ?download=1 lo baja en lugar de mostrarlo.
  */
-export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function GET(req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   // Fuera del try: requireUser() redirige lanzando, y el catch lo taparía
   const user = await requireUser();
   try {
@@ -37,10 +35,8 @@ export async function GET(
   }
 }
 
-export async function DELETE(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(_req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   // Fuera del try: requireUser() redirige lanzando, y el catch lo taparía
   const user = await requireUser();
   try {

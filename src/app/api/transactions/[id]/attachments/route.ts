@@ -5,10 +5,8 @@ import { ATTACHMENT_SELECT, AttachmentError, saveAttachments } from "@/lib/attac
 import { MAX_ATTACHMENT_BYTES } from "@/lib/attachment-rules";
 
 /** Adjuntos de un movimiento del usuario */
-export async function GET(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function GET(_req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await requireUser();
   const attachments = await prisma.attachment.findMany({
     where: { transactionId: params.id, userId: user.id },
@@ -19,10 +17,8 @@ export async function GET(
 }
 
 /** Sube uno o varios archivos (multipart, campo "files") */
-export async function POST(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function POST(req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   // Fuera del try: requireUser() redirige lanzando, y el catch lo taparía
   const user = await requireUser();
   try {

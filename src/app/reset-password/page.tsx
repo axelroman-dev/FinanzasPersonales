@@ -5,11 +5,12 @@ import { ResetPasswordForm } from "./reset-password-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function ResetPasswordPage({
-  searchParams,
-}: {
-  searchParams: { token?: string };
-}) {
+export default async function ResetPasswordPage(
+  props: {
+    searchParams: Promise<{ token?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const token = searchParams.token ?? "";
   const valid = await findValidAuthToken(token, "PASSWORD_RESET");
 

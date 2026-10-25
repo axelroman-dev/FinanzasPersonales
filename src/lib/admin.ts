@@ -25,7 +25,7 @@ export async function setRegistrationConfig(
       updatedById: adminId,
     },
   });
-  // Invalidar cache
+  // Invalidar cache (expire: 0 = ya, no en segundo plano)
   const { revalidateTag } = await import("next/cache");
-  revalidateTag("registration-config");
+  revalidateTag("registration-config", { expire: 0 });
 }

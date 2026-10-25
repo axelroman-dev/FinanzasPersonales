@@ -19,19 +19,20 @@ import {
   type TransactionFormOptions,
 } from "@/components/transactions/transaction-actions";
 
-export default async function TransactionsPage({
-  searchParams,
-}: {
-  searchParams: {
-    from?: string;
-    to?: string;
-    type?: string;
-    accountId?: string;
-    category?: string;
-    categoryId?: string;
-    msi?: string;
-  };
-}) {
+export default async function TransactionsPage(
+  props: {
+    searchParams: Promise<{
+      from?: string;
+      to?: string;
+      type?: string;
+      accountId?: string;
+      category?: string;
+      categoryId?: string;
+      msi?: string;
+    }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const user = await requireUser();
   // Registra antes los cobros de suscripciones que ya tocan
   await chargeDueSubscriptions(user.id);

@@ -4,11 +4,12 @@ import { AcceptInviteForm } from "./accept-invite-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function InvitePage({
-  searchParams,
-}: {
-  searchParams: { token?: string };
-}) {
+export default async function InvitePage(
+  props: {
+    searchParams: Promise<{ token?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const token = searchParams.token ?? "";
   const invite = await findValidAuthToken(token, "INVITE");
 

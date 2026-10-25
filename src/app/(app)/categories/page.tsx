@@ -11,11 +11,12 @@ import { CategoryDialog } from "@/components/categories/category-dialog";
 import { CategorySidebar } from "@/components/categories/category-sidebar";
 import { SubcategoryTable } from "@/components/categories/subcategory-table";
 
-export default async function CategoriesPage({
-  searchParams,
-}: {
-  searchParams: { selected?: string };
-}) {
+export default async function CategoriesPage(
+  props: {
+    searchParams: Promise<{ selected?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const user = await requireUser();
 
   // Una sola query para árbol + totales del mes

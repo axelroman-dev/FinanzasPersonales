@@ -6,10 +6,8 @@ import { deleteUserFiles } from "@/lib/attachments";
 import { mailEnabled } from "@/lib/mail/config";
 import { sendInvite, sendPasswordResetLink } from "@/lib/mail/links";
 
-export async function POST(
-  _req: Request,
-  { params }: { params: { id: string; action: string } }
-) {
+export async function POST(_req: Request, props: { params: Promise<{ id: string; action: string }> }) {
+  const params = await props.params;
   try {
     const admin = await requireAdmin();
     if (params.id === admin.id) {
