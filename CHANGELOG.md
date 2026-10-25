@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.17.2](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.17.1...v0.17.2) (2026-10-25)
+
+
+### Correcciones
+
+* **deps:** actualizar zod a 4.6.7 ([#82](https://github.com/axelroman-dev/FinanzasPersonales/issues/82)) ([bc00a82](https://github.com/axelroman-dev/FinanzasPersonales/commit/bc00a82f2fe584812eca10408eafdf9eb9f81c24))
+* **deps:** forzar postcss-selector-parser 7 para tailwind 3 ([#83](https://github.com/axelroman-dev/FinanzasPersonales/issues/83)) ([323aabd](https://github.com/axelroman-dev/FinanzasPersonales/commit/323aabd9946e59fbc1b7c202c70ba6fbeca4562b))
+* **deps:** migrar a Next 16 y React 19 ([#79](https://github.com/axelroman-dev/FinanzasPersonales/issues/79)) ([5955662](https://github.com/axelroman-dev/FinanzasPersonales/commit/595566242c1c97763f98b3c1acb5dd6d5f599592))
+* ignorar filtros inválidos en la URL en vez de dar 500 ([#80](https://github.com/axelroman-dev/FinanzasPersonales/issues/80)) ([575b1ff](https://github.com/axelroman-dev/FinanzasPersonales/commit/575b1ffc70c2677c2f3c2bb528e64a99c7afe673))
+
 ## [0.17.1](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.17.0...v0.17.1) (2026-10-24)
 
 
