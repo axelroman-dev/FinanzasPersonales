@@ -5,7 +5,7 @@ import { verifyRegistration } from "@/lib/registration";
 import { clientIp, createRateLimiter } from "@/lib/rate-limit";
 
 const schema = z.object({
-  email: z.string().trim().email(),
+  email: z.string().trim().email("Correo no válido"),
   code: z.string().trim().regex(/^\d{6}$/, "El código tiene 6 dígitos"),
 });
 
