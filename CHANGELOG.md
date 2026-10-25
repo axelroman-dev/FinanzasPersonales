@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.3](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.17.2...v0.17.3) (2026-10-25)
+
+
+### Correcciones
+
+* **deps:** restaurar el override de postcss-selector-parser ([#84](https://github.com/axelroman-dev/FinanzasPersonales/issues/84)) ([4434fad](https://github.com/axelroman-dev/FinanzasPersonales/commit/4434faddf4054a9fb3939f6a57ab12d497d81867))
+
 ## [0.17.2](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.17.1...v0.17.2) (2026-10-25)
 
 
