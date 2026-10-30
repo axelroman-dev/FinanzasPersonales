@@ -130,9 +130,30 @@ const dateTimeLabel = new Intl.DateTimeFormat("es-MX", {
   hour12: false,
 });
 
+/** "YYYY-MM-DDTHH:mm" → fecha y hora en hora local (o ahora si no es válido) */
+function parseDateTime(value: string): Date {
+  const day = parseDay(value) ?? new Date();
+  const [, hh = "00", mm = "00"] = /T(\d{2}):(\d{2})/.exec(value) ?? [];
+  return new Date(
+    day.getFullYear(),
+    day.getMonth(),
+    day.getDate(),
+    Number(hh),
+    Number(mm),
+  );
+}
+function formatDateTime(d: Date): string {
+  return `${formatDay(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
+const MINUTES = Array.from({ length: 60 }, (_, i) => i);
+
 /**
- * Selector de fecha y hora: calendario y la hora en 24 h. El valor es
- * "YYYY-MM-DDTHH:mm" en hora local, como el de un <input type="datetime-local">.
+ * Selector de fecha y hora: calendario y, al lado, columnas de horas (24 h) y
+ * minutos. Los cambios quedan en borrador hasta «Aceptar»; cerrar o
+ * «Cancelar» los descarta. El valor es "YYYY-MM-DDTHH:mm" en hora local, como
+ * el de un <input type="datetime-local">.
  */
 export function DateTimePicker({
   value,
@@ -144,21 +165,31 @@ export function DateTimePicker({
   id?: string;
 }) {
   const [open, setOpen] = React.useState(false);
-  const day = parseDay(value) ?? new Date();
-  const [, hh = "00", mm = "00"] = /T(\d{2}):(\d{2})/.exec(value) ?? [];
-  const current = new Date(
-    day.getFullYear(),
-    day.getMonth(),
-    day.getDate(),
-    Number(hh),
-    Number(mm),
-  );
+  const current = parseDateTime(value);
+  const [draft, setDraft] = React.useState(current);
 
-  const emit = (d: Date, hours: number, minutes: number) =>
-    onChange(`${formatDay(d)}T${pad(hours)}:${pad(minutes)}`);
+  const set = (patch: { day?: Date; hours?: number; minutes?: number }) => {
+    const d = patch.day ?? draft;
+    setDraft(
+      new Date(
+        d.getFullYear(),
+        d.getMonth(),
+        d.getDate(),
+        patch.hours ?? draft.getHours(),
+        patch.minutes ?? draft.getMinutes(),
+      ),
+    );
+  };
 
   return (
-    <Popover open={open} onOpenChange={setOpen} modal>
+    <Popover
+      open={open}
+      onOpenChange={(o) => {
+        if (o) setDraft(current);
+        setOpen(o);
+      }}
+      modal
+    >
       <PopoverTrigger asChild>
         <button id={id} type="button" className={triggerClass}>
           <CalendarDays className="h-4 w-4 shrink-0 opacity-50" />
@@ -168,111 +199,125 @@ export function DateTimePicker({
         </button>
       </PopoverTrigger>
       <PopoverContent className="z-[60] w-auto p-0">
-        <Calendar
-          mode="single"
-          required
-          selected={current}
-          defaultMonth={current}
-          onSelect={(d) => d && emit(d, Number(hh), Number(mm))}
-          autoFocus
-        />
-        <div className="flex items-center justify-center gap-2 border-t px-3 py-3">
-          <span className="mr-1 text-sm text-muted-foreground">Hora</span>
-          <TimePart
-            value={Number(hh)}
-            max={23}
-            label="Hora"
-            onChange={(h) => emit(current, h, Number(mm))}
+        <div className="flex flex-col sm:flex-row">
+          <Calendar
+            mode="single"
+            required
+            selected={draft}
+            defaultMonth={draft}
+            onSelect={(d) => d && set({ day: d })}
+            autoFocus
           />
-          <span className="text-lg font-medium">:</span>
-          <TimePart
-            value={Number(mm)}
-            max={59}
-            label="Minutos"
-            onChange={(m) => emit(current, Number(hh), m)}
-          />
+          {/* Las columnas toman la altura del calendario (en móvil, una fija) */}
+          <div className="relative h-44 border-t sm:h-auto sm:w-32 sm:border-l sm:border-t-0">
+            <div className="absolute inset-0 flex">
+              <TimeColumn
+                label="Hora"
+                options={HOURS}
+                value={draft.getHours()}
+                onChange={(hours) => set({ hours })}
+              />
+              <TimeColumn
+                label="Minutos"
+                options={MINUTES}
+                value={draft.getMinutes()}
+                onChange={(minutes) => set({ minutes })}
+                className="border-l"
+              />
+            </div>
+          </div>
         </div>
         <div className="flex items-center justify-between gap-3 border-t px-3 py-2">
           <button
             type="button"
             className="text-sm text-primary hover:underline"
-            onClick={() => {
-              const now = new Date();
-              emit(now, now.getHours(), now.getMinutes());
-            }}
+            onClick={() => setDraft(new Date())}
           >
             Ahora
           </button>
-          <button
-            type="button"
-            className="rounded-md bg-primary px-3 py-1 text-sm text-primary-foreground hover:bg-primary/90"
-            onClick={() => setOpen(false)}
-          >
-            Listo
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground"
+              onClick={() => setOpen(false)}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90"
+              onClick={() => {
+                onChange(formatDateTime(draft));
+                setOpen(false);
+              }}
+            >
+              Aceptar
+            </button>
+          </div>
         </div>
       </PopoverContent>
     </Popover>
   );
 }
 
-/**
- * Horas o minutos: se escriben (2 dígitos) o se cambian con las flechas.
- * Los dígitos se toman del evento y no del texto del campo: el campo siempre
- * está lleno ("00") y al hacer clic el cursor quita la selección, así que con
- * maxLength el navegador no dejaba escribir nada.
- */
-function TimePart({
-  value,
-  max,
+/** Columna desplazable de horas o minutos; la opción elegida sube al inicio */
+function TimeColumn({
   label,
+  options,
+  value,
   onChange,
+  className,
 }: {
-  value: number;
-  max: number;
   label: string;
+  options: number[];
+  value: number;
   onChange: (value: number) => void;
+  className?: string;
 }) {
-  const [draft, setDraft] = React.useState<string | null>(null);
-  const clamp = (n: number) => Math.min(max, Math.max(0, n));
+  const listRef = React.useRef<HTMLDivElement>(null);
+  const mounted = React.useRef(false);
+
+  React.useEffect(() => {
+    const list = listRef.current;
+    const item = list?.querySelector<HTMLElement>('[aria-pressed="true"]');
+    if (!list || !item) return;
+    // scrollTo del contenedor y no scrollIntoView: este movería también el modal
+    list.scrollTo({
+      top: item.offsetTop - 4,
+      behavior: mounted.current ? "smooth" : "auto",
+    });
+    mounted.current = true;
+  }, [value]);
 
   return (
-    <input
+    <div
+      ref={listRef}
+      role="group"
       aria-label={label}
-      inputMode="numeric"
-      value={draft ?? pad(value)}
-      onFocus={(e) => e.target.select()}
-      onChange={(e) => {
-        const native = e.nativeEvent as InputEvent;
-        if (native.inputType?.startsWith("delete")) {
-          setDraft("");
-          return;
-        }
-        const typed = (native.data ?? e.target.value).replace(/\D/g, "");
-        if (!typed) return;
-        // Tras completar 2 dígitos (o al empezar) se escribe desde cero
-        const base = draft && draft.length < 2 ? draft : "";
-        const next = (base + typed).slice(0, 2);
-        setDraft(next);
-        // Completo con 2 dígitos, o con 1 si ya no cabe otro (p. ej. "3" en horas)
-        if (next.length === 2 || Number(next) * 10 > max) {
-          onChange(clamp(Number(next)));
-          setDraft(pad(clamp(Number(next))));
-        }
-      }}
-      onBlur={() => {
-        if (draft) onChange(clamp(Number(draft)));
-        setDraft(null);
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-          e.preventDefault();
-          const step = e.key === "ArrowUp" ? 1 : -1;
-          onChange((value + step + max + 1) % (max + 1));
-          setDraft(null);
-        }
-      }}
-      className="h-11 w-14 rounded-md border border-input bg-background text-center text-lg font-medium tabular-nums focus:outline-none focus:ring-2 focus:ring-ring"
-    />
+      className={cn(
+        "relative flex-1 overflow-y-auto overscroll-contain p-1 [scrollbar-width:thin]",
+        className,
+      )}
+    >
+      {options.map((n) => (
+        <button
+          key={n}
+          type="button"
+          aria-pressed={n === value}
+          aria-label={`${label} ${pad(n)}`}
+          onClick={() => onChange(n)}
+          className={cn(
+            "flex h-9 w-full items-center justify-center rounded-md text-sm tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            n === value
+              ? "bg-primary text-primary-foreground"
+              : "hover:bg-secondary",
+          )}
+        >
+          {pad(n)}
+        </button>
+      ))}
+      {/* Relleno para que hasta la última opción pueda subir al inicio */}
+      <div aria-hidden className="h-[calc(100%-2.75rem)]" />
+    </div>
   );
 }
