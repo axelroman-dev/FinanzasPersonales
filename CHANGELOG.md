@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.4](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.17.3...v0.17.4) (2026-10-30)
+
+
+### Correcciones
+
+* **ui:** poder escribir la hora al agregar un movimiento ([#88](https://github.com/axelroman-dev/FinanzasPersonales/issues/88)) ([e2ccd0a](https://github.com/axelroman-dev/FinanzasPersonales/commit/e2ccd0ad86de74cfd2f91b113986176e3f10fe5f))
+
 ## [0.17.3](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.17.2...v0.17.3) (2026-10-25)
 
 
