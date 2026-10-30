@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.17.4...v0.18.0) (2026-10-30)
+
+
+### Nuevas funciones
+
+* **ui:** elegir la hora en columnas junto al calendario ([#90](https://github.com/axelroman-dev/FinanzasPersonales/issues/90)) ([7eb8eaa](https://github.com/axelroman-dev/FinanzasPersonales/commit/7eb8eaa3e10194bff3d08ccb877741fed1749d36))
+
 ## [0.17.4](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.17.3...v0.17.4) (2026-10-30)
 
 
