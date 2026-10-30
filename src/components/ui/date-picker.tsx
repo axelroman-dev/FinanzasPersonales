@@ -3,7 +3,11 @@
 import * as React from "react";
 import { CalendarDays, X } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -56,7 +60,12 @@ export function DatePicker({
         <PopoverTrigger asChild>
           <button id={id} type="button" className={triggerClass}>
             <CalendarDays className="h-4 w-4 shrink-0 opacity-50" />
-            <span className={cn("flex-1 truncate", !selected && "text-muted-foreground")}>
+            <span
+              className={cn(
+                "flex-1 truncate",
+                !selected && "text-muted-foreground",
+              )}
+            >
               {selected ? dayLabel.format(selected) : placeholder}
             </span>
           </button>
@@ -137,7 +146,13 @@ export function DateTimePicker({
   const [open, setOpen] = React.useState(false);
   const day = parseDay(value) ?? new Date();
   const [, hh = "00", mm = "00"] = /T(\d{2}):(\d{2})/.exec(value) ?? [];
-  const current = new Date(day.getFullYear(), day.getMonth(), day.getDate(), Number(hh), Number(mm));
+  const current = new Date(
+    day.getFullYear(),
+    day.getMonth(),
+    day.getDate(),
+    Number(hh),
+    Number(mm),
+  );
 
   const emit = (d: Date, hours: number, minutes: number) =>
     onChange(`${formatDay(d)}T${pad(hours)}:${pad(minutes)}`);
@@ -147,7 +162,9 @@ export function DateTimePicker({
       <PopoverTrigger asChild>
         <button id={id} type="button" className={triggerClass}>
           <CalendarDays className="h-4 w-4 shrink-0 opacity-50" />
-          <span className="flex-1 truncate tabular-nums">{dateTimeLabel.format(current)}</span>
+          <span className="flex-1 truncate tabular-nums">
+            {dateTimeLabel.format(current)}
+          </span>
         </button>
       </PopoverTrigger>
       <PopoverContent className="z-[60] w-auto p-0">
@@ -159,49 +176,52 @@ export function DateTimePicker({
           onSelect={(d) => d && emit(d, Number(hh), Number(mm))}
           autoFocus
         />
+        <div className="flex items-center justify-center gap-2 border-t px-3 py-3">
+          <span className="mr-1 text-sm text-muted-foreground">Hora</span>
+          <TimePart
+            value={Number(hh)}
+            max={23}
+            label="Hora"
+            onChange={(h) => emit(current, h, Number(mm))}
+          />
+          <span className="text-lg font-medium">:</span>
+          <TimePart
+            value={Number(mm)}
+            max={59}
+            label="Minutos"
+            onChange={(m) => emit(current, Number(hh), m)}
+          />
+        </div>
         <div className="flex items-center justify-between gap-3 border-t px-3 py-2">
-          <div className="flex items-center gap-1 text-sm">
-            <span className="mr-1 text-muted-foreground">Hora</span>
-            <TimePart
-              value={Number(hh)}
-              max={23}
-              label="Hora"
-              onChange={(h) => emit(current, h, Number(mm))}
-            />
-            <span>:</span>
-            <TimePart
-              value={Number(mm)}
-              max={59}
-              label="Minutos"
-              onChange={(m) => emit(current, Number(hh), m)}
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              className="text-sm text-primary hover:underline"
-              onClick={() => {
-                const now = new Date();
-                emit(now, now.getHours(), now.getMinutes());
-              }}
-            >
-              Ahora
-            </button>
-            <button
-              type="button"
-              className="rounded-md bg-primary px-3 py-1 text-sm text-primary-foreground hover:bg-primary/90"
-              onClick={() => setOpen(false)}
-            >
-              Listo
-            </button>
-          </div>
+          <button
+            type="button"
+            className="text-sm text-primary hover:underline"
+            onClick={() => {
+              const now = new Date();
+              emit(now, now.getHours(), now.getMinutes());
+            }}
+          >
+            Ahora
+          </button>
+          <button
+            type="button"
+            className="rounded-md bg-primary px-3 py-1 text-sm text-primary-foreground hover:bg-primary/90"
+            onClick={() => setOpen(false)}
+          >
+            Listo
+          </button>
         </div>
       </PopoverContent>
     </Popover>
   );
 }
 
-/** Horas o minutos: se escriben (2 dígitos) o se cambian con las flechas */
+/**
+ * Horas o minutos: se escriben (2 dígitos) o se cambian con las flechas.
+ * Los dígitos se toman del evento y no del texto del campo: el campo siempre
+ * está lleno ("00") y al hacer clic el cursor quita la selección, así que con
+ * maxLength el navegador no dejaba escribir nada.
+ */
 function TimePart({
   value,
   max,
@@ -220,13 +240,25 @@ function TimePart({
     <input
       aria-label={label}
       inputMode="numeric"
-      maxLength={2}
       value={draft ?? pad(value)}
       onFocus={(e) => e.target.select()}
       onChange={(e) => {
-        const digits = e.target.value.replace(/\D/g, "");
-        setDraft(digits);
-        if (digits.length === 2) onChange(clamp(Number(digits)));
+        const native = e.nativeEvent as InputEvent;
+        if (native.inputType?.startsWith("delete")) {
+          setDraft("");
+          return;
+        }
+        const typed = (native.data ?? e.target.value).replace(/\D/g, "");
+        if (!typed) return;
+        // Tras completar 2 dígitos (o al empezar) se escribe desde cero
+        const base = draft && draft.length < 2 ? draft : "";
+        const next = (base + typed).slice(0, 2);
+        setDraft(next);
+        // Completo con 2 dígitos, o con 1 si ya no cabe otro (p. ej. "3" en horas)
+        if (next.length === 2 || Number(next) * 10 > max) {
+          onChange(clamp(Number(next)));
+          setDraft(pad(clamp(Number(next))));
+        }
       }}
       onBlur={() => {
         if (draft) onChange(clamp(Number(draft)));
@@ -240,7 +272,7 @@ function TimePart({
           setDraft(null);
         }
       }}
-      className="h-8 w-10 rounded-md border border-input bg-background text-center tabular-nums focus:outline-none focus:ring-2 focus:ring-ring"
+      className="h-11 w-14 rounded-md border border-input bg-background text-center text-lg font-medium tabular-nums focus:outline-none focus:ring-2 focus:ring-ring"
     />
   );
 }
