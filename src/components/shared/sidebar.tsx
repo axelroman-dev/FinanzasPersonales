@@ -17,12 +17,14 @@ import {
   X,
   PanelLeftClose,
   PanelLeftOpen,
+  ArrowUpCircle,
   type LucideIcon,
 } from "lucide-react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { cn, SIDEBAR_COOKIE } from "@/lib/utils";
 import { signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
+import type { UpdateInfo } from "@/lib/update-check";
 
 /**
  * Devuelve las iniciales del nombre (máximo 2 letras)
@@ -57,7 +59,43 @@ type SidebarProps = {
     email: string;
     role: "USER" | "ADMIN";
   };
+  update?: UpdateInfo | null;
 };
+
+const RELEASES_URL = "https://github.com/axelroman-dev/FinanzasPersonales/releases";
+
+/**
+ * Aviso de nueva versión publicada en Docker Hub. Se muestra mientras la
+ * versión instalada sea menor que la última.
+ */
+function UpdateNotice({ update, collapsed }: { update: UpdateInfo; collapsed: boolean }) {
+  const label = `Nueva versión disponible: v${update.latest}`;
+  return (
+    <WithTooltip collapsed={collapsed} label={label}>
+      <a
+        href={`${RELEASES_URL}/tag/v${update.latest}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={collapsed ? label : undefined}
+        className={cn(
+          "flex items-start gap-3 rounded-md border border-primary/30 bg-primary/10 p-3 text-sm transition-colors hover:bg-primary/15",
+          collapsed && "justify-center p-2"
+        )}
+      >
+        <ArrowUpCircle className="h-4 w-4 shrink-0 text-primary mt-0.5" />
+        {!collapsed && (
+          <div className="min-w-0">
+            <p className="font-medium">Nueva versión v{update.latest}</p>
+            <p className="text-xs text-muted-foreground">
+              Tienes la v{update.current}. Actualiza con{" "}
+              <code className="font-mono">npm run prod:up</code>.
+            </p>
+          </div>
+        )}
+      </a>
+    </WithTooltip>
+  );
+}
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -145,6 +183,7 @@ function Logo({ collapsed = false }: { collapsed?: boolean }) {
  */
 function SidebarContent({
   user,
+  update,
   pathname,
   onSignOut,
   collapsed = false,
@@ -195,6 +234,8 @@ function SidebarContent({
       </nav>
 
       <div className={cn("border-t p-3 space-y-3", collapsed && "px-2")}>
+        {update && <UpdateNotice update={update} collapsed={collapsed} />}
+
         {/* Bloque del usuario (prominente) */}
         <WithTooltip collapsed={collapsed} label={user.name}>
           <Link
@@ -273,6 +314,7 @@ function SidebarContent({
 
 export function Sidebar({
   user,
+  update,
   defaultCollapsed = false,
 }: SidebarProps & { defaultCollapsed?: boolean }) {
   const pathname = usePathname();
@@ -328,7 +370,7 @@ export function Sidebar({
                 <X className="h-5 w-5" />
               </DialogPrimitive.Close>
             </div>
-            <SidebarContent user={user} pathname={pathname} onSignOut={openSignOut} />
+            <SidebarContent user={user} update={update} pathname={pathname} onSignOut={openSignOut} />
           </DialogPrimitive.Content>
         </DialogPrimitive.Portal>
       </DialogPrimitive.Root>
@@ -350,6 +392,7 @@ export function Sidebar({
         </div>
         <SidebarContent
           user={user}
+          update={update}
           pathname={pathname}
           onSignOut={openSignOut}
           collapsed={collapsed}
