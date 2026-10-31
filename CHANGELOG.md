@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.19.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.18.0...v0.19.0) (2026-10-31)
+
+
+### Nuevas funciones
+
+* **ui:** aviso de nueva versión en el menú lateral ([#95](https://github.com/axelroman-dev/FinanzasPersonales/issues/95)) ([c7ab386](https://github.com/axelroman-dev/FinanzasPersonales/commit/c7ab38675c217c9ac907f953184ee1d2beb8e940))
+* **ui:** campos numéricos sin flechas y solo con números ([#93](https://github.com/axelroman-dev/FinanzasPersonales/issues/93)) ([2705f59](https://github.com/axelroman-dev/FinanzasPersonales/commit/2705f59d00b80965a758bd68ad95a730e2eb171c))
+
+
+### Correcciones
+
+* **ui:** selects y buscadores dentro de los modales ([#92](https://github.com/axelroman-dev/FinanzasPersonales/issues/92)) ([0f1f1bc](https://github.com/axelroman-dev/FinanzasPersonales/commit/0f1f1bc374ae1f851112eb930e80fbf7a62f2e63))
+
 ## [0.18.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.17.4...v0.18.0) (2026-10-30)
 
 
