@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.19.0...v0.20.0) (2026-10-31)
+
+
+### Nuevas funciones
+
+* **wishlist:** lista de productos por comprar con su link ([#96](https://github.com/axelroman-dev/FinanzasPersonales/issues/96)) ([020c531](https://github.com/axelroman-dev/FinanzasPersonales/commit/020c53110ea5e8d9c69b0763680b9836fc483f9f))
+
 ## [0.19.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.18.0...v0.19.0) (2026-10-31)
 
 
