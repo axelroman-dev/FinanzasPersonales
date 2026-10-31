@@ -92,8 +92,10 @@ export function Combobox({
   }
 
   return (
-    // modal: sin él, el modal de fondo bloquea el scroll de la lista
-    <Popover open={open} onOpenChange={onOpenChange} modal>
+    // Sin modal: dentro de un Dialog la lista se monta en él (ver
+    // DialogContent), así que se puede escribir y hacer scroll sin apilar
+    // otra capa modal encima
+    <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild disabled={disabled}>
         <button
           type="button"

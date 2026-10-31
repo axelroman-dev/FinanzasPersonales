@@ -54,8 +54,9 @@ export function DatePicker({
   const selected = parseDay(value);
 
   return (
-    // modal: dentro de un modal, sin él no se puede usar el calendario
-    <Popover open={open} onOpenChange={setOpen} modal>
+    // Sin modal: dentro de un Dialog el calendario se monta en él (ver
+    // DialogContent) y se puede usar sin apilar otra capa modal encima
+    <Popover open={open} onOpenChange={setOpen}>
       <div className={cn("relative", className)}>
         <PopoverTrigger asChild>
           <button id={id} type="button" className={triggerClass}>
@@ -188,7 +189,6 @@ export function DateTimePicker({
         if (o) setDraft(current);
         setOpen(o);
       }}
-      modal
     >
       <PopoverTrigger asChild>
         <button id={id} type="button" className={triggerClass}>
