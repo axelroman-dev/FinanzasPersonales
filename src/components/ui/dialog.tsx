@@ -25,32 +25,62 @@ const DialogOverlay = React.forwardRef<
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
+/**
+ * El nodo del modal abierto. Los popovers y selects de adentro se montan
+ * dentro de él (ver PopoverContent y SelectContent) en lugar de en <body>:
+ * así el foco nunca sale del modal y no hace falta apilar capas modales
+ * (con ellas, a veces no se podía escribir en la búsqueda, no se resaltaba
+ * la opción bajo el mouse o la página quedaba sin responder a los clics).
+ */
+const DialogContainerContext = React.createContext<HTMLElement | null>(null);
+
+/** Dónde montar un popover: dentro del modal si lo hay, si no en <body> */
+function useDialogContainer(): HTMLElement | undefined {
+  return React.useContext(DialogContainerContext) ?? undefined;
+}
+
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
-  <DialogPortal>
-    <DialogOverlay />
-    {/* Anclado arriba, no centrado: si el contenido crece (p. ej. aparece un
-        campo al elegir una opción) se extiende hacia abajo sin mover el resto.
-        La altura usa dvh (viewport visible): en móvil 100vh incluye la zona
-        de las barras del navegador y los botones del final quedaban tapados */}
-    <DialogPrimitive.Content
-      ref={ref}
-      className={cn(
-        "fixed left-[50%] top-3 z-50 grid max-h-[calc(100dvh-1.5rem)] w-[calc(100%-1.5rem)] max-w-lg translate-x-[-50%] gap-4 overflow-y-auto overscroll-contain rounded-lg border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:top-[8dvh] sm:max-h-[84dvh] sm:w-full has-[[data-dialog-actions]]:pb-0",
-        className
-      )}
-      {...props}
-    >
-      {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
-        <X className="h-4 w-4" />
-        <span className="sr-only">Cerrar</span>
-      </DialogPrimitive.Close>
-    </DialogPrimitive.Content>
-  </DialogPortal>
-));
+>(({ className, children, ...props }, ref) => {
+  const [container, setContainer] = React.useState<HTMLDivElement | null>(null);
+  const setRefs = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      setContainer(node);
+      if (typeof ref === "function") ref(node);
+      else if (ref) ref.current = node;
+    },
+    [ref]
+  );
+  return (
+    <DialogPortal>
+      <DialogOverlay />
+      {/* Anclado arriba, no centrado: si el contenido crece (p. ej. aparece un
+          campo al elegir una opción) se extiende hacia abajo sin mover el resto.
+          La altura usa dvh (viewport visible): en móvil 100vh incluye la zona
+          de las barras del navegador y los botones del final quedaban tapados.
+          Centrado con inset-x-0 + mx-auto, sin translate: un transform haría
+          que los popovers de adentro (position: fixed) se ubiquen respecto al
+          modal y queden recortados por su scroll */}
+      <DialogPrimitive.Content
+        ref={setRefs}
+        className={cn(
+          "fixed inset-x-0 top-3 z-50 mx-auto grid max-h-[calc(100dvh-1.5rem)] w-[calc(100%-1.5rem)] max-w-lg gap-4 overflow-y-auto overscroll-contain rounded-lg border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:top-[8dvh] sm:max-h-[84dvh] sm:w-full has-[[data-dialog-actions]]:pb-0",
+          className
+        )}
+        {...props}
+      >
+        <DialogContainerContext.Provider value={container}>
+          {children}
+        </DialogContainerContext.Provider>
+        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
+          <X className="h-4 w-4" />
+          <span className="sr-only">Cerrar</span>
+        </DialogPrimitive.Close>
+      </DialogPrimitive.Content>
+    </DialogPortal>
+  );
+});
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
@@ -144,4 +174,5 @@ export {
   DialogActionGroup,
   DialogTitle,
   DialogDescription,
+  useDialogContainer,
 };

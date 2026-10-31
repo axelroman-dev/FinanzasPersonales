@@ -3,6 +3,7 @@
 import * as React from "react";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { cn } from "@/lib/utils";
+import { useDialogContainer } from "@/components/ui/dialog";
 
 const Popover = PopoverPrimitive.Root;
 const PopoverTrigger = PopoverPrimitive.Trigger;
@@ -12,7 +13,8 @@ const PopoverContent = React.forwardRef<
   React.ElementRef<typeof PopoverPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
 >(({ className, align = "start", sideOffset = 4, ...props }, ref) => (
-  <PopoverPrimitive.Portal>
+  // Dentro de un modal se monta en él, no en <body> (ver DialogContent)
+  <PopoverPrimitive.Portal container={useDialogContainer()}>
     <PopoverPrimitive.Content
       ref={ref}
       align={align}
