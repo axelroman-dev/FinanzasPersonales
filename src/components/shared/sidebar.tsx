@@ -18,6 +18,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ArrowUpCircle,
+  Heart,
   type LucideIcon,
 } from "lucide-react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
@@ -99,9 +100,10 @@ function UpdateNotice({ update, collapsed }: { update: UpdateInfo; collapsed: bo
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/accounts", label: "Cuentas", icon: Wallet },
   { href: "/transactions", label: "Movimientos", icon: ArrowLeftRight },
+  { href: "/accounts", label: "Cuentas", icon: Wallet },
   { href: "/subscriptions", label: "Suscripciones", icon: Receipt },
+  { href: "/wishlist", label: "Wishlist", icon: Heart },
   { href: "/categories", label: "Categorías", icon: FolderTree },
   { href: "/reports", label: "Reportes", icon: PieChart },
 ];

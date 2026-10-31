@@ -25,7 +25,7 @@ export function DangerZone({ canDelete }: { canDelete: boolean }) {
     <div className="divide-y">
       <DangerAction
         title="Limpiar mis datos"
-        description="Borra tus cuentas, movimientos y suscripciones, y deja las categorías predeterminadas. Tu usuario se conserva."
+        description="Borra tus cuentas, movimientos, suscripciones y wishlist, y deja las categorías predeterminadas. Tu usuario se conserva."
         buttonLabel="Limpiar datos"
         icon={<Eraser className="h-4 w-4" />}
         endpoint="/api/profile/clear"
