@@ -297,6 +297,7 @@ function AccountFormDialog({
                 id="creditLimit"
                 type="number"
                 step="0.01"
+                min="0"
                 value={creditLimit}
                 onChange={(e) =>
                   setCreditLimit(e.target.value === "" ? "" : parseFloat(e.target.value))
