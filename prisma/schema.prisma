@@ -71,6 +71,7 @@ model User {
   attachments   Attachment[]
   subscriptions Subscription[]
   categories    Category[]
+  wishlistItems WishlistItem[]
   configUpdates AppConfig[]    @relation("ConfigUpdater")
   authTokens    AuthToken[]
 
@@ -223,6 +224,30 @@ model Subscription {
   @@index([userId])
   @@index([isActive])
   @@index([categoryId])
+}
+
+// Producto que el usuario quiere comprar (ver src/lib/wishlist.ts). El precio
+// se captura a mano; al cambiarlo, el anterior queda en previousPrice
+model WishlistItem {
+  id             String    @id @default(cuid())
+  userId         String
+  name           String
+  // Link a la tienda (Amazon, MercadoLibre, ...); solo http(s)
+  url            String?
+  price          Decimal   @db.Decimal(14, 2)
+  currency       String
+  previousPrice  Decimal?  @db.Decimal(14, 2)
+  // Precio al que se compraría; se marca cuando price llega a él
+  targetPrice    Decimal?  @db.Decimal(14, 2)
+  priceUpdatedAt DateTime  @default(now())
+  // Comprados: se conservan pero no suman al total
+  purchasedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Category {
