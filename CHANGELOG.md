@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.20.0...v0.21.0) (2026-10-31)
+
+
+### Nuevas funciones
+
+* **ui:** columnas de hora y minutos sin fin en el selector de fecha ([#98](https://github.com/axelroman-dev/FinanzasPersonales/issues/98)) ([81101c0](https://github.com/axelroman-dev/FinanzasPersonales/commit/81101c0f6a5e019cf33fd8c2ccf21ce0b5606333))
+
 ## [0.20.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.19.0...v0.20.0) (2026-10-31)
 
 
