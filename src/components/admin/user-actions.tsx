@@ -128,7 +128,7 @@ export function UserActions({ user }: { user: UserActionsData }) {
             const ok = await confirm({
               title: "¿Eliminar este usuario?",
               description:
-                "Se borrarán el usuario y todos sus datos: cuentas, movimientos, suscripciones y categorías. Esta acción no se puede deshacer.",
+                "Se borrarán el usuario y todos sus datos: cuentas, movimientos, suscripciones, wishlist y categorías. Esta acción no se puede deshacer.",
               confirmLabel: "Eliminar usuario",
               destructive: true,
             });

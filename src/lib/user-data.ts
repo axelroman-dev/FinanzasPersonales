@@ -20,7 +20,7 @@ export async function passwordMatches(
 }
 
 /**
- * Borra cuentas, movimientos, suscripciones y categorías del usuario y vuelve
+ * Borra cuentas, movimientos, suscripciones, wishlist y categorías del usuario y vuelve
  * a crear las categorías predeterminadas. La cuenta de usuario se conserva.
  */
 export async function clearUserData(userId: string): Promise<void> {
@@ -30,6 +30,7 @@ export async function clearUserData(userId: string): Promise<void> {
     // Los registros de adjuntos se borran en cascada con los movimientos
     prisma.transaction.deleteMany({ where: { userId } }),
     prisma.subscription.deleteMany({ where: { userId } }),
+    prisma.wishlistItem.deleteMany({ where: { userId } }),
     prisma.account.deleteMany({ where: { userId } }),
     prisma.category.deleteMany({ where: { userId } }),
   ]);
