@@ -260,7 +260,15 @@ export function DateTimePicker({
   );
 }
 
-/** Columna desplazable de horas o minutos; la opción elegida sube al inicio */
+/** Copias de las opciones: el scroll se mantiene en la del medio */
+const COPIES = 3;
+
+/**
+ * Columna de horas o minutos que da la vuelta: después del 59 sigue el 00 y
+ * antes del 00, el 59. Se pintan tres copias y, al salir de la del medio, el
+ * scroll salta una copia hacia atrás o adelante (no se nota: son iguales). La
+ * opción elegida sube al inicio.
+ */
 function TimeColumn({
   label,
   options,
@@ -276,48 +284,106 @@ function TimeColumn({
 }) {
   const listRef = React.useRef<HTMLDivElement>(null);
   const mounted = React.useRef(false);
+  // Mientras se anima hasta la opción elegida no se salta de copia: el salto
+  // cortaría la animación
+  const animating = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** Alto de una copia y scroll que deja arriba cada opción de la primera */
+  const measure = React.useCallback(() => {
+    const items = listRef.current?.querySelectorAll<HTMLElement>("[data-option]");
+    if (!items || items.length < options.length * COPIES) return null;
+    const first = items[0].offsetTop;
+    return {
+      copy: items[options.length].offsetTop - first,
+      // 4 px de aire sobre la opción elegida
+      offset: (i: number) => items[i].offsetTop - first - 4,
+    };
+  }, [options.length]);
+
+  const recenter = React.useCallback(() => {
+    const list = listRef.current;
+    const m = measure();
+    if (!list || !m || animating.current) return;
+    if (list.scrollTop < m.copy / 2) list.scrollTop += m.copy;
+    else if (list.scrollTop >= m.copy * 2) list.scrollTop -= m.copy;
+  }, [measure]);
 
   React.useEffect(() => {
     const list = listRef.current;
-    const item = list?.querySelector<HTMLElement>('[aria-pressed="true"]');
-    if (!list || !item) return;
+    const m = measure();
+    const index = options.indexOf(value);
+    if (!list || !m || index < 0) return;
+
+    if (!mounted.current) {
+      mounted.current = true;
+      list.scrollTop = m.copy + m.offset(index);
+      return;
+    }
+
+    // La copia de la opción más cercana a lo que se ve, para no recorrer
+    // toda la lista (p. ej. del 59 al 00 que está justo abajo)
+    const candidates = Array.from({ length: COPIES }, (_, k) => k * m.copy + m.offset(index));
+    let target = candidates.reduce((a, b) =>
+      Math.abs(b - list.scrollTop) < Math.abs(a - list.scrollTop) ? b : a,
+    );
+    // Pasarla a la copia del medio moviendo también el scroll actual
+    const shift = target >= m.copy * 2 ? -m.copy : target < m.copy ? m.copy : 0;
+    target += shift;
+
+    if (animating.current) clearTimeout(animating.current);
+    animating.current = setTimeout(() => {
+      animating.current = null;
+      recenter();
+    }, 500);
+    if (shift) list.scrollTop += shift;
     // scrollTo del contenedor y no scrollIntoView: este movería también el modal
-    list.scrollTo({
-      top: item.offsetTop - 4,
-      behavior: mounted.current ? "smooth" : "auto",
-    });
-    mounted.current = true;
-  }, [value]);
+    list.scrollTo({ top: target, behavior: "smooth" });
+  }, [value, options, measure, recenter]);
+
+  React.useEffect(
+    () => () => {
+      if (animating.current) clearTimeout(animating.current);
+    },
+    [],
+  );
 
   return (
     <div
       ref={listRef}
       role="group"
       aria-label={label}
+      onScroll={recenter}
       className={cn(
-        "relative flex-1 overflow-y-auto overscroll-contain p-1 [scrollbar-width:thin]",
+        "relative flex-1 overflow-y-auto overscroll-contain px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
         className,
       )}
     >
-      {options.map((n) => (
-        <button
-          key={n}
-          type="button"
-          aria-pressed={n === value}
-          aria-label={`${label} ${pad(n)}`}
-          onClick={() => onChange(n)}
-          className={cn(
-            "flex h-9 w-full items-center justify-center rounded-md text-sm tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            n === value
-              ? "bg-primary text-primary-foreground"
-              : "hover:bg-secondary",
-          )}
-        >
-          {pad(n)}
-        </button>
-      ))}
-      {/* Relleno para que hasta la última opción pueda subir al inicio */}
-      <div aria-hidden className="h-[calc(100%-2.75rem)]" />
+      {Array.from({ length: COPIES }, (_, copy) =>
+        options.map((n) => {
+          // Solo la copia del medio es accesible; las otras son de relleno
+          const main = copy === 1;
+          return (
+            <button
+              key={`${copy}-${n}`}
+              type="button"
+              data-option
+              aria-hidden={main ? undefined : true}
+              tabIndex={main ? undefined : -1}
+              aria-pressed={main ? n === value : undefined}
+              aria-label={main ? `${label} ${pad(n)}` : undefined}
+              onClick={() => onChange(n)}
+              className={cn(
+                "flex h-9 w-full items-center justify-center rounded-md text-sm tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                n === value
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-secondary",
+              )}
+            >
+              {pad(n)}
+            </button>
+          );
+        }),
+      )}
     </div>
   );
 }
