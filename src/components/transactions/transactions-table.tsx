@@ -4,8 +4,8 @@ import {
   Card,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency, formatShortDate, formatTime } from "@/lib/utils";
-import { useTransition } from "react";
+import { formatCurrency, formatTime } from "@/lib/utils";
+import { Fragment, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -67,12 +67,18 @@ export function TransactionsTable({
   transactions: Tx[];
   formOptions: TransactionFormOptions;
 }) {
+  const days = groupByDay(transactions);
   return (
     <>
       {/* Móvil y tablet: tarjetas; la tabla de 6 columnas no cabe sin scroll horizontal */}
-      <Card className="divide-y lg:hidden">
-        {transactions.map((tx) => (
-          <TransactionCard key={tx.id} tx={tx} formOptions={formOptions} />
+      <Card className="divide-y overflow-hidden lg:hidden">
+        {days.map((day) => (
+          <Fragment key={day.key}>
+            <DayDivider date={day.date} />
+            {day.items.map((tx) => (
+              <TransactionCard key={tx.id} tx={tx} formOptions={formOptions} />
+            ))}
+          </Fragment>
         ))}
       </Card>
 
@@ -81,7 +87,7 @@ export function TransactionsTable({
           <table className="w-full">
             <thead>
               <tr className="border-b text-left text-xs font-medium text-muted-foreground">
-                <th className="px-4 py-3">Fecha</th>
+                <th className="px-4 py-3">Hora</th>
                 <th className="px-4 py-3">Descripción</th>
                 <th className="px-4 py-3">Cuenta</th>
                 <th className="px-4 py-3">Tipo</th>
@@ -90,15 +96,19 @@ export function TransactionsTable({
               </tr>
             </thead>
             <tbody>
-              {transactions.map((tx) => {
+              {days.map((day) => (
+                <Fragment key={day.key}>
+                  <tr className="border-b">
+                    <td colSpan={6} className="p-0">
+                      <DayDivider date={day.date} />
+                    </td>
+                  </tr>
+                  {day.items.map((tx) => {
                 const { Icon, color, sign, label } = txVisuals(tx);
                 return (
                   <tr key={tx.id} className="border-b last:border-0 hover:bg-secondary/30">
-                    <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
-                      {formatShortDate(tx.date)}
-                      <span className="block text-xs tabular-nums text-muted-foreground/70">
-                        {formatTime(tx.date)}
-                      </span>
+                    <td className="px-4 py-3 text-sm tabular-nums text-muted-foreground whitespace-nowrap">
+                      {formatTime(tx.date)}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
@@ -128,12 +138,58 @@ export function TransactionsTable({
                     </td>
                   </tr>
                 );
-              })}
+                  })}
+                </Fragment>
+              ))}
             </tbody>
           </table>
         </div>
       </Card>
     </>
+  );
+}
+
+/** Clave del día en hora local, p. ej. "2026-3-5" */
+function dayKey(date: Date): string {
+  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+}
+
+/** Agrupa los movimientos (ya ordenados por fecha) por día */
+function groupByDay(transactions: Tx[]) {
+  const days: { key: string; date: Date; items: Tx[] }[] = [];
+  for (const tx of transactions) {
+    const date = new Date(tx.date);
+    const key = dayKey(date);
+    const last = days[days.length - 1];
+    if (last?.key === key) last.items.push(tx);
+    else days.push({ key, date, items: [tx] });
+  }
+  return days;
+}
+
+/** "Hoy", "Ayer" o "Viernes 13 nov" (con año si no es el actual) */
+function dayLabel(date: Date): string {
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (dayKey(date) === dayKey(now)) return "Hoy";
+  if (dayKey(date) === dayKey(yesterday)) return "Ayer";
+  // Por separado: con año, Intl mete una coma tras el día de la semana
+  const weekday = new Intl.DateTimeFormat("es-MX", { weekday: "long" }).format(date);
+  const rest = new Intl.DateTimeFormat("es-MX", {
+    day: "numeric",
+    month: "short",
+    ...(date.getFullYear() !== now.getFullYear() && { year: "numeric" }),
+  }).format(date);
+  return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} ${rest}`;
+}
+
+function DayDivider({ date }: { date: Date }) {
+  return (
+    <div className="bg-secondary/40 px-3 py-1.5 text-xs font-medium text-muted-foreground lg:px-4">
+      {/* "Hoy"/"Ayer" dependen del reloj; puede diferir del render del servidor */}
+      <span suppressHydrationWarning>{dayLabel(date)}</span>
+    </div>
   );
 }
 
@@ -220,7 +276,7 @@ function TransactionCard({
           </p>
         </div>
         <p className="text-xs text-muted-foreground">
-          {formatShortDate(tx.date)} · {formatTime(tx.date)} · {tx.accountName}
+          {formatTime(tx.date)} · {tx.accountName}
           {tx.transferAccountName && <> → {tx.transferAccountName}</>}
           {(tx.isAdjustment || tx.isCardPayment) && <> · {label}</>}
         </p>
