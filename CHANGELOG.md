@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.21.0...v0.22.0) (2026-11-14)
+
+
+### Nuevas funciones
+
+* **transactions:** separar los movimientos por día ([#100](https://github.com/axelroman-dev/FinanzasPersonales/issues/100)) ([322a1a7](https://github.com/axelroman-dev/FinanzasPersonales/commit/322a1a7b027e36f37706e1aad3fa4727973f0c86))
+
 ## [0.21.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.20.0...v0.21.0) (2026-10-31)
 
 
