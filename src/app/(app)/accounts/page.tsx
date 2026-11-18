@@ -6,7 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { AccountActions, AccountEditButton } from "@/components/accounts/account-actions";
 import { Button } from "@/components/ui/button";
-import { Plus, Wallet } from "lucide-react";
+import { CreditCard, Plus, Wallet } from "lucide-react";
+import { TransactionActions } from "@/components/transactions/transaction-actions";
+import { getTransactionFormOptions } from "@/lib/transaction-form-options";
 import { ACCOUNT_TYPE_LABEL, ACCOUNT_TYPE_ORDER } from "@/lib/account-types";
 import { allowedCurrencies } from "@/lib/currencies";
 import { getUserConverter } from "@/lib/exchange-rates";
@@ -26,7 +28,12 @@ export default async function AccountsPage() {
       },
     },
   });
-  const converter = await getUserConverter(user);
+  const [converter, formOptions] = await Promise.all([
+    getUserConverter(user),
+    getTransactionFormOptions(user, accounts),
+  ]);
+  // Para pagar una tarjeta hace falta una cuenta de la que salga el dinero
+  const canPayCards = accounts.some((a) => a.type !== "CREDIT");
   const currencies = allowedCurrencies(user);
   const primary = user.primaryCurrency;
 
@@ -148,9 +155,10 @@ export default async function AccountsPage() {
                       </div>
 
                       <div>
+                        {/* Tarjeta: rojo solo si se debe algo; en 0 está pagada */}
                         <p
                           className={`text-2xl font-bold ${
-                            acc.type === "CREDIT" ? "text-red-400" : ""
+                            acc.type === "CREDIT" && used > 0 ? "text-red-400" : ""
                           }`}
                         >
                           {formatCurrency(used, acc.currency)}
@@ -192,6 +200,24 @@ export default async function AccountsPage() {
                             </div>
                           )}
                         </div>
+                      )}
+
+                      {acc.type === "CREDIT" && used > 0 && canPayCards && (
+                        <TransactionActions
+                          mode="create"
+                          {...formOptions}
+                          defaults={{
+                            type: "CARD_PAYMENT",
+                            accountId: acc.id,
+                            amount: used,
+                            description: `Pago ${acc.name}`,
+                          }}
+                        >
+                          <Button variant="outline" size="sm" className="w-full">
+                            <CreditCard className="h-4 w-4" />
+                            Pagar tarjeta
+                          </Button>
+                        </TransactionActions>
                       )}
                     </CardContent>
                   </Card>

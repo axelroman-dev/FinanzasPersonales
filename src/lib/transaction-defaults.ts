@@ -13,6 +13,9 @@ export type NewTransactionDefaults = {
   accountId?: string;
   categoryId?: string;
   isMsi?: boolean;
+  /** Monto inicial, p. ej. lo que se debe de una tarjeta al pagarla */
+  amount?: number;
+  description?: string;
 };
 
 export const TX_TYPES: readonly TxType[] = ["INCOME", "EXPENSE", "TRANSFER", "CARD_PAYMENT"];

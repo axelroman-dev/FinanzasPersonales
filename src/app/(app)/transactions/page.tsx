@@ -1,24 +1,18 @@
 import { requireUser } from "@/lib/auth";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { getCategoryTree } from "@/lib/categories";
-import { attachmentsEnabled } from "@/lib/storage/crypto";
 import { INTERNAL_CATEGORIES } from "@/lib/internal-categories";
 import { newTransactionDefaults, TX_TYPES } from "@/lib/transaction-defaults";
 import { dateParam, enumParam, firstParam } from "@/lib/search-params";
-import { getKnownDescriptions } from "@/lib/known-descriptions";
 import { isCardPayment } from "@/lib/account-types";
+import { getTransactionFormOptions } from "@/lib/transaction-form-options";
 import { chargeDueSubscriptions } from "@/lib/subscription-charges";
-import { allowedCurrencies } from "@/lib/currencies";
-import { getUserConverter } from "@/lib/exchange-rates";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, ArrowLeftRight } from "lucide-react";
 import { TransactionsTable } from "@/components/transactions/transactions-table";
 import { TransactionFilters } from "@/components/transactions/transaction-filters";
-import {
-  TransactionActions,
-  type TransactionFormOptions,
-} from "@/components/transactions/transaction-actions";
+import { TransactionActions } from "@/components/transactions/transaction-actions";
 
 export default async function TransactionsPage(
   props: {
@@ -38,25 +32,22 @@ export default async function TransactionsPage(
   const user = await requireUser();
   // Registra antes los cobros de suscripciones que ya tocan
   await chargeDueSubscriptions(user.id);
-  const [accounts, categories, descriptions] = await Promise.all([
-    prisma.account.findMany({
-      where: { userId: user.id },
-      orderBy: { name: "asc" },
-    }),
-    getCategoryTree(user.id),
-    getKnownDescriptions(user.id),
-  ]);
+  const accounts = await prisma.account.findMany({
+    where: { userId: user.id },
+    orderBy: { name: "asc" },
+  });
 
   // Construir filtros
-  const where: any = { userId: user.id };
+  const where: Prisma.TransactionWhereInput = { userId: user.id };
   if (filters.from || filters.to) {
-    where.date = {};
-    if (filters.from) where.date.gte = new Date(filters.from);
+    const date: Prisma.DateTimeFilter = {};
+    if (filters.from) date.gte = new Date(filters.from);
     if (filters.to) {
       const to = new Date(filters.to);
       to.setHours(23, 59, 59, 999);
-      where.date.lte = to;
+      date.lte = to;
     }
+    where.date = date;
   }
   if (filters.type === "CARD_PAYMENT") {
     // Pago de tarjeta: transferencia de una cuenta que no es de crédito a una que sí
@@ -99,37 +90,8 @@ export default async function TransactionsPage(
     take: 500,
   });
 
-  // Para capturar montos en otra moneda que la cuenta: cuánto vale 1 de cada
-  // moneda en la principal, con la tasa de hoy
-  const currencies = allowedCurrencies(user);
-  const converter = await getUserConverter(user);
-  const rates: Record<string, number> = {};
-  for (const c of new Set([...currencies, ...accounts.map((a) => a.currency)])) {
-    const r = converter.rate(c, user.primaryCurrency);
-    if (r) rates[c] = r;
-  }
-
-  const formOptions: TransactionFormOptions = {
-    accounts: accounts.map((a) => ({
-      id: a.id,
-      name: a.name,
-      type: a.type,
-      balance: Number(a.balance),
-      currency: a.currency,
-    })),
-    creditAccounts: accounts
-      .filter((a) => a.type === "CREDIT")
-      .map((a) => ({
-        id: a.id,
-        name: a.name,
-        creditLimit: a.creditLimit ? Number(a.creditLimit) : null,
-      })),
-    categories,
-    attachmentsEnabled: attachmentsEnabled(),
-    descriptions,
-    currencies,
-    rates,
-  };
+  const formOptions = await getTransactionFormOptions(user, accounts);
+  const categories = formOptions.categories;
 
   // El movimiento nuevo arranca con los filtros activos (cuenta, tipo, categoría)
   const createDefaults = newTransactionDefaults(

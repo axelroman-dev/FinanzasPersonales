@@ -49,7 +49,7 @@ type CategoryNode = {
   children: CategoryNode[];
 };
 
-/** Opciones que necesita el formulario (las arma la página de movimientos) */
+/** Opciones que necesita el formulario (ver lib/transaction-form-options) */
 export type TransactionFormOptions = {
   accounts: AccountOption[];
   creditAccounts: CreditAccount[];
@@ -183,13 +183,15 @@ function TxFormDialog({
   const [amount, setAmount] = useState<number | "">(
     transaction
       ? Math.abs(Number(transaction.original?.amount ?? transaction.amount))
-      : ""
+      : defaults?.amount ?? ""
   );
   // Fecha y hora en la zona del navegador ("YYYY-MM-DDTHH:mm")
   const [date, setDate] = useState(
     toDateTimeLocalValue(transaction?.date ?? new Date())
   );
-  const [description, setDescription] = useState(transaction?.description ?? "");
+  const [description, setDescription] = useState(
+    transaction?.description ?? defaults?.description ?? ""
+  );
   const [categoryId, setCategoryId] = useState<string>(
     transaction?.categoryId ?? defaults?.categoryId ?? ""
   );
@@ -296,7 +298,7 @@ function TxFormDialog({
 
     startTransition(async () => {
       try {
-        const body: any = {
+        const body: Record<string, unknown> = {
           type: isTransferLike ? "TRANSFER" : type,
           amount: Number(amount),
           // Instante exacto (con zona): el servidor no sabe la hora local
@@ -383,7 +385,7 @@ function TxFormDialog({
           <Label>Tipo</Label>
           <Select
             value={type}
-            onValueChange={(v) => onTypeChange(v as any)}
+            onValueChange={(v) => onTypeChange(v as FormType)}
             disabled={lockedCardPayment}
           >
             <SelectTrigger>
