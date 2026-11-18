@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/db";
-import { Decimal } from "@prisma/client/runtime/library";
 import { INTERNAL_CATEGORIES, excludeInternal } from "@/lib/internal-categories";
 import { adjustmentsNet } from "@/lib/transaction-balance";
 import { getPaidSubscriptionIds, summarizeSubscriptions } from "@/lib/subscriptions";

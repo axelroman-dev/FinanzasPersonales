@@ -62,14 +62,14 @@ export default auth((req) => {
 
   // 2. Logueado en login/register: redirigir al home (o a change-password si aplica)
   if (isLoggedIn && isPublicPath) {
-    const mustChange = (req.auth?.user as any)?.mustChangePassword ?? false;
+    const mustChange = req.auth?.user?.mustChangePassword ?? false;
     const url = nextUrl.clone();
     url.pathname = mustChange ? CHANGE_PASSWORD_PATH : "/";
     return NextResponse.redirect(url);
   }
 
   // 3. Logueado con mustChangePassword: forzar /change-password
-  const mustChange = (req.auth?.user as any)?.mustChangePassword ?? false;
+  const mustChange = req.auth?.user?.mustChangePassword ?? false;
   if (isLoggedIn && mustChange && !isChangePasswordPath) {
     const url = nextUrl.clone();
     url.pathname = CHANGE_PASSWORD_PATH;

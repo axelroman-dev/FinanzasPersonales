@@ -6,8 +6,7 @@ import { formatCurrency } from "@/lib/utils";
 import { getUserConverter } from "@/lib/exchange-rates";
 import { RatesNotice } from "@/components/shared/rates-notice";
 import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
-import { Calendar, ArrowLeftRight, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { ReportFilters } from "@/components/reports/report-filters";
 import { CategoryPieChart } from "@/components/reports/category-pie-chart";
 import { dateParam } from "@/lib/search-params";
@@ -131,7 +130,6 @@ export default async function ReportsPage(
         <CategoryList
           title="Gastos por categoría"
           items={expenses}
-          total={totalExpense}
           emptyText="No hay gastos en este período"
           negative
           currency={currency}
@@ -153,7 +151,6 @@ export default async function ReportsPage(
         <CategoryList
           title="Ingresos por categoría"
           items={incomes}
-          total={totalIncome}
           emptyText="No hay ingresos en este período"
           negative={false}
           currency={currency}
@@ -180,7 +177,6 @@ export default async function ReportsPage(
 function CategoryList({
   title,
   items,
-  total,
   emptyText,
   negative,
   currency,
@@ -188,7 +184,6 @@ function CategoryList({
 }: {
   title: string;
   items: CategoryTotal[];
-  total: number;
   emptyText: string;
   negative: boolean;
   currency: string;

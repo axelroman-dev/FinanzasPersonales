@@ -1,3 +1,5 @@
+// CommonJS a propósito: el Dockerfile copia este archivo tal cual a la imagen
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { version } = require("./package.json");
 
 /** @type {import('next').NextConfig} */

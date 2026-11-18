@@ -1,3 +1,4 @@
+import type { Transaction } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { Decimal } from "@prisma/client/runtime/library";
 import { splitInstallments } from "@/lib/msi-installments";
@@ -55,7 +56,7 @@ export async function createMsiPurchase(params: {
     });
 
     // 2. N transacciones hijas (una por mes) que se cobrarán al balance
-    const children: any[] = [];
+    const children: Transaction[] = [];
     for (let i = 0; i < installments; i++) {
       const dueDate = new Date(startDate);
       dueDate.setMonth(dueDate.getMonth() + i);

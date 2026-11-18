@@ -43,7 +43,7 @@ export function UserActions({ user }: { user: UserActionsData }) {
   const [isPending, startTransition] = useTransition();
   const locked = user.isSelf || user.isSystem;
 
-  function call(action: string, body: any) {
+  function call(action: string, body: Record<string, unknown>) {
     startTransition(async () => {
       await fetch(`/api/admin/users/${user.id}/${action}`, {
         method: "POST",

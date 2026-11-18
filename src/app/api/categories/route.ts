@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { getCategoryTree } from "@/lib/categories";
@@ -79,8 +80,8 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(category, { status: 201 });
-  } catch (error: any) {
-    if (error.code === "P2002") {
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       return NextResponse.json(
         { error: "Ya existe una categoría con ese nombre" },
         { status: 409 }

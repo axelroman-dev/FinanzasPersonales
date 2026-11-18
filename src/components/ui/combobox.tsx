@@ -66,6 +66,8 @@ export function Combobox({
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const inputRef = React.useRef<HTMLInputElement>(null);
+  // La lista que abre el combobox (aria-controls)
+  const listId = React.useId();
 
   const selectedOption = groups.flatMap((g) => g.options).find((o) => o.value === value);
   const display = selected ?? selectedOption?.label;
@@ -101,6 +103,7 @@ export function Combobox({
           type="button"
           role="combobox"
           aria-expanded={open}
+          aria-controls={listId}
           onKeyDown={onTriggerKeyDown}
           className="flex h-10 w-full items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-left text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -111,6 +114,7 @@ export function Combobox({
         </button>
       </PopoverTrigger>
       <PopoverContent
+        id={listId}
         // Encima de los modales, que también usan z-50
         className="z-[60] w-[var(--radix-popover-trigger-width)] min-w-[14rem] p-0"
         // Directo a la búsqueda para escribir en cuanto se abre

@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { defaultCategories } from "../../prisma/default-categories";
 import { excludeInternal } from "@/lib/internal-categories";
@@ -244,12 +245,8 @@ export async function getCategoryTotals(params: {
   const { userId, type, from, to, converter } = params;
 
   // Los ajustes de balance no son ingresos ni gastos reales
-  const where: any = { userId, type, ...excludeInternal };
-  if (from || to) {
-    where.date = {};
-    if (from) where.date.gte = from;
-    if (to) where.date.lte = to;
-  }
+  const where: Prisma.TransactionWhereInput = { userId, type, ...excludeInternal };
+  if (from || to) where.date = { gte: from, lte: to };
 
   const txs = await prisma.transaction.findMany({
     where,
@@ -293,13 +290,9 @@ export async function getSubcategoryStats(params: {
 }): Promise<SubcategoryStat[]> {
   const { userId, parentId, type, from, to, converter } = params;
 
-  const where: any = { userId, categoryRef: { parentId } };
+  const where: Prisma.TransactionWhereInput = { userId, categoryRef: { parentId } };
   if (type) where.type = type;
-  if (from || to) {
-    where.date = {};
-    if (from) where.date.gte = from;
-    if (to) where.date.lte = to;
-  }
+  if (from || to) where.date = { gte: from, lte: to };
 
   const txs = await prisma.transaction.findMany({
     where,
@@ -379,7 +372,7 @@ export async function getMonthlyTotalsByRoot(params: {
 }> {
   const { userId, from, to, converter } = params;
 
-  const dateWhere: any = {};
+  const dateWhere: Prisma.DateTimeFilter = {};
   if (from) dateWhere.gte = from;
   if (to) dateWhere.lte = to;
 

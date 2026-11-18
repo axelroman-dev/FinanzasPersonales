@@ -24,16 +24,27 @@ export function AttachmentsViewer({
   const [open, setOpen] = useState(false);
   const [attachments, setAttachments] = useState<AttachmentInfo[] | null>(null);
 
+  function onOpenChange(next: boolean) {
+    setOpen(next);
+    // Al abrir, cargando de nuevo: se pudieron agregar o borrar recibos
+    if (next) setAttachments(null);
+  }
+
   useEffect(() => {
     if (!open) return;
-    setAttachments(null);
+    let ignore = false;
     fetch(`/api/transactions/${transactionId}/attachments`)
       .then((res) => (res.ok ? res.json() : []))
-      .then(setAttachments);
+      .then((list: AttachmentInfo[]) => {
+        if (!ignore) setAttachments(list);
+      });
+    return () => {
+      ignore = true;
+    };
   }, [open, transactionId]);
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <button
           type="button"
