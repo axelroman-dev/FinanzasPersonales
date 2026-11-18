@@ -129,8 +129,8 @@ export async function PATCH(req: Request) {
           ? `${provider.label} no devolvió el tipo de cambio de ${test.missing.join(", ")}: no se incluirán en los totales`
           : null,
     });
-  } catch (error: any) {
-    if (error.message === "Unauthorized") {
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
     console.error("Update currencies error:", error);

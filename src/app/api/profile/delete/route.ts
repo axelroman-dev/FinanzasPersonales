@@ -35,8 +35,8 @@ export async function POST(req: Request) {
 
     await deleteUser(user.id);
     return NextResponse.json({ ok: true });
-  } catch (error: any) {
-    if (error.message === "Unauthorized") {
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
     console.error("Delete account error:", error);

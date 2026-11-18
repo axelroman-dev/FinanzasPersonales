@@ -140,7 +140,7 @@ function CatFormDialog({
     setError(null);
     startTransition(async () => {
       try {
-        const body: any = { name, icon };
+        const body: Record<string, unknown> = { name, icon };
         if (!isSubcategory) {
           body.kind = kind;
           body.color = color;

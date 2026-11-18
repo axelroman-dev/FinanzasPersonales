@@ -189,7 +189,7 @@ export async function DELETE(req: Request, props: { params: Promise<{ id: string
       convertedTransfers: result.converted,
       deletedSubs: subCount,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Delete account error:", error);
     return NextResponse.json(
       { error: "Error al eliminar" },

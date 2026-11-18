@@ -36,7 +36,7 @@ export type SessionUser = {
 export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   const session = await auth();
   if (!session?.user) return null;
-  const u = session.user as any;
+  const u = session.user;
 
   const dbUser = await prisma.user.findUnique({
     where: { id: u.id },

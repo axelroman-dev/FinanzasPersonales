@@ -1,5 +1,4 @@
 import { requireAdmin } from "@/lib/auth";
-import { Card } from "@/components/ui/card";
 
 export default async function AdminLayout({
   children,

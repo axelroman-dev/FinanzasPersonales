@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { isCategoryIcon } from "@/lib/category-icons";
@@ -73,8 +74,8 @@ export async function PATCH(req: Request, props: { params: Promise<{ id: string 
       return tx.category.update({ where: { id: params.id }, data });
     });
     return NextResponse.json(category);
-  } catch (error: any) {
-    if (error.code === "P2002") {
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       return NextResponse.json(
         { error: "Ya existe una categoría con ese nombre" },
         { status: 409 }

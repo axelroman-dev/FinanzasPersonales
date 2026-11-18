@@ -24,7 +24,7 @@ import {
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { cn, SIDEBAR_COOKIE } from "@/lib/utils";
 import { signOut } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { UpdateInfo } from "@/lib/update-check";
 
 /**
@@ -330,10 +330,12 @@ export function Sidebar({
     document.cookie = `${SIDEBAR_COOKIE}=${next ? "1" : "0"}; path=/; max-age=31536000; samesite=lax`;
   }
 
-  // Cerrar el drawer móvil al navegar
-  useEffect(() => {
+  // Cerrar el drawer móvil al navegar (durante el render, sin efecto)
+  const [lastPathname, setLastPathname] = useState(pathname);
+  if (pathname !== lastPathname) {
+    setLastPathname(pathname);
     setMobileOpen(false);
-  }, [pathname]);
+  }
 
   function openSignOut() {
     setMobileOpen(false);

@@ -232,7 +232,7 @@ function AccountFormDialog({
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label>Tipo</Label>
-            <Select value={type} onValueChange={(v) => setType(v as any)}>
+            <Select value={type} onValueChange={(v) => setType(v as AccountFormData["type"])}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>

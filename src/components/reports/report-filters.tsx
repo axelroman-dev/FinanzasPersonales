@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "lucide-react";
-import { useState, useEffect, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { cn } from "@/lib/utils";
 
 const PRESETS = [
@@ -32,15 +32,16 @@ export function ReportFilters({
   // Determinar qué preset está activo (comparando rango con el que genera cada preset)
   const activeMonths = getActivePreset(from, to, defaultFrom, defaultTo);
 
-  // Re-sincronizar cuando cambia la URL
-  useEffect(() => {
-    const urlFrom = params.get("from");
-    const urlTo = params.get("to");
-    if (urlFrom !== null && urlFrom !== from) setFrom(urlFrom);
-    if (urlTo !== null && urlTo !== to) setTo(urlTo);
-    if (urlFrom === null && from !== defaultFrom) setFrom(defaultFrom);
-    if (urlTo === null && to !== defaultTo) setTo(defaultTo);
-  }, [params, defaultFrom, defaultTo, from, to]);
+  // Re-sincronizar cuando cambia la URL (durante el render, sin efecto:
+  // https://react.dev/learn/you-might-not-need-an-effect)
+  const urlFrom = params.get("from") ?? defaultFrom;
+  const urlTo = params.get("to") ?? defaultTo;
+  const [synced, setSynced] = useState({ urlFrom, urlTo });
+  if (synced.urlFrom !== urlFrom || synced.urlTo !== urlTo) {
+    setSynced({ urlFrom, urlTo });
+    setFrom(urlFrom);
+    setTo(urlTo);
+  }
 
   function pushRange(newFrom: string, newTo: string) {
     const next = new URLSearchParams();

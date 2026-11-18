@@ -70,7 +70,7 @@ export function GlobalImportExportPanel() {
       }
       const data = await res.json();
       setPreview(data);
-    } catch (err) {
+    } catch {
       setError("Archivo de respaldo inválido");
       setStep("idle");
     }

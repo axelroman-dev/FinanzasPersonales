@@ -102,8 +102,8 @@ export async function POST(req: Request) {
       files,
     });
     return NextResponse.json({ ok: true, ...result });
-  } catch (error: any) {
-    if (error.message === "Unauthorized") {
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
     console.error("Import error:", error);

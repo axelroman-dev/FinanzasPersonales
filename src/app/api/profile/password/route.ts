@@ -73,8 +73,8 @@ export async function POST(req: Request) {
     if (!dbUser.mustChangePassword) notifyPasswordChanged(dbUser, "changed");
 
     return NextResponse.json({ ok: true });
-  } catch (error: any) {
-    if (error.message === "Unauthorized") {
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
     console.error("Change password error:", error);

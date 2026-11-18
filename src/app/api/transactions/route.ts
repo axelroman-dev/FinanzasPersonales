@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import type { AccountType } from "@prisma/client";
+import type { AccountType, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { createMsiPurchase } from "@/lib/msi";
@@ -52,22 +52,21 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Filtros inválidos" }, { status: 400 });
     }
 
-    const where: any = { userId: user.id };
+    const where: Prisma.TransactionWhereInput = { userId: user.id };
     if (from || to) {
-      where.date = {};
-      if (from) where.date.gte = new Date(from);
+      const date: Prisma.DateTimeFilter = {};
+      if (from) date.gte = new Date(from);
       if (to) {
         const end = new Date(to);
         end.setHours(23, 59, 59, 999);
-        where.date.lte = end;
+        date.lte = end;
       }
+      where.date = date;
     }
     if (type) where.type = type;
-    if (searchParams.get("accountId")) {
-      where.OR = [
-        { accountId: searchParams.get("accountId") },
-        { transferAccountId: searchParams.get("accountId") },
-      ];
+    const accountId = searchParams.get("accountId");
+    if (accountId) {
+      where.OR = [{ accountId }, { transferAccountId: accountId }];
     }
     if (searchParams.get("msi") === "true") where.isMsi = true;
     if (searchParams.get("msi") === "false") where.isMsi = false;
@@ -265,10 +264,10 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(tx, { status: 201 });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Create tx error:", error);
     return NextResponse.json(
-      { error: error.message || "Error al crear" },
+      { error: (error instanceof Error && error.message) || "Error al crear" },
       { status: 500 }
     );
   }

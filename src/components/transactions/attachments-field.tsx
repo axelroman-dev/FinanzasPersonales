@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Camera, FileText, Loader2, Paperclip, X } from "lucide-react";
@@ -11,6 +11,14 @@ import {
   type AttachmentInfo,
 } from "@/lib/attachment-rules";
 import { useConfirm } from "@/components/shared/confirm-dialog";
+
+const COARSE_POINTER = "(pointer: coarse)";
+
+function subscribeCoarsePointer(onChange: () => void) {
+  const query = window.matchMedia(COARSE_POINTER);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
 
 /**
  * Sección "Recibos" del formulario de movimiento. Los archivos nuevos quedan
@@ -35,10 +43,12 @@ export function AttachmentsField({
   const cameraRef = useRef<HTMLInputElement>(null);
   // «Tomar foto» solo abre la cámara en celulares y tablets; en la
   // computadora abría el explorador de archivos, igual que «Subir archivo»
-  const [canUseCamera, setCanUseCamera] = useState(false);
-  useEffect(() => {
-    setCanUseCamera(window.matchMedia("(pointer: coarse)").matches);
-  }, []);
+  const canUseCamera = useSyncExternalStore(
+    subscribeCoarsePointer,
+    () => window.matchMedia(COARSE_POINTER).matches,
+    // En el servidor no se sabe: sin cámara, como antes de hidratar
+    () => false
+  );
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -179,6 +189,9 @@ function PendingThumb({ file, onRemove }: { file: File; onRemove: () => void }) 
   useEffect(() => {
     if (!file.type.startsWith("image/")) return;
     const objectUrl = URL.createObjectURL(file);
+    // El efecto crea y libera la URL del archivo (un recurso del navegador);
+    // guardarla en el estado es la forma de mostrarla
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setUrl(objectUrl);
     return () => URL.revokeObjectURL(objectUrl);
   }, [file]);
