@@ -298,7 +298,7 @@ function TxFormDialog({
 
     startTransition(async () => {
       try {
-        const body: any = {
+        const body: Record<string, unknown> = {
           type: isTransferLike ? "TRANSFER" : type,
           amount: Number(amount),
           // Instante exacto (con zona): el servidor no sabe la hora local
@@ -385,7 +385,7 @@ function TxFormDialog({
           <Label>Tipo</Label>
           <Select
             value={type}
-            onValueChange={(v) => onTypeChange(v as any)}
+            onValueChange={(v) => onTypeChange(v as FormType)}
             disabled={lockedCardPayment}
           >
             <SelectTrigger>

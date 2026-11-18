@@ -74,7 +74,7 @@ export function TransactionsTable({
       <Card className="divide-y overflow-hidden lg:hidden">
         {days.map((day) => (
           <Fragment key={day.key}>
-            <DayDivider date={day.date} />
+            <DayDivider date={day.date} items={day.items} />
             {day.items.map((tx) => (
               <TransactionCard key={tx.id} tx={tx} formOptions={formOptions} />
             ))}
@@ -100,7 +100,7 @@ export function TransactionsTable({
                 <Fragment key={day.key}>
                   <tr className="border-b">
                     <td colSpan={6} className="p-0">
-                      <DayDivider date={day.date} />
+                      <DayDivider date={day.date} items={day.items} />
                     </td>
                   </tr>
                   {day.items.map((tx) => {
@@ -184,11 +184,44 @@ function dayLabel(date: Date): string {
   return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} ${rest}`;
 }
 
-function DayDivider({ date }: { date: Date }) {
+/**
+ * Gastos e ingresos del día por moneda. No cuenta transferencias, pagos de
+ * tarjeta ni ajustes; de una compra a MSI cuenta la compra, no sus
+ * mensualidades (si no, se contaría dos veces).
+ */
+function dayTotals(items: Tx[]) {
+  const totals = new Map<string, { expense: number; income: number }>();
+  for (const tx of items) {
+    if (tx.isAdjustment || tx.type === "TRANSFER" || tx.msiParentId) continue;
+    const t = totals.get(tx.currency) ?? { expense: 0, income: 0 };
+    if (tx.type === "EXPENSE") t.expense += tx.amount;
+    else t.income += tx.amount;
+    totals.set(tx.currency, t);
+  }
+  return [...totals].map(([currency, t]) => ({ currency, ...t }));
+}
+
+function DayDivider({ date, items }: { date: Date; items: Tx[] }) {
+  const totals = dayTotals(items);
   return (
-    <div className="bg-secondary/40 px-3 py-1.5 text-xs font-medium text-muted-foreground lg:px-4">
+    // A la derecha, alineado con la columna de montos (deja libre la de acciones)
+    <div className="flex items-center justify-between gap-3 bg-secondary/40 py-1.5 pl-3 pr-[52px] text-xs font-medium text-muted-foreground lg:px-4 lg:pr-16">
       {/* "Hoy"/"Ayer" dependen del reloj; puede diferir del render del servidor */}
       <span suppressHydrationWarning>{dayLabel(date)}</span>
+      {totals.length > 0 && (
+        <span className="flex flex-wrap justify-end gap-x-3 tabular-nums">
+          {totals.map(({ currency, expense, income }) => (
+            <Fragment key={currency}>
+              {expense > 0 && (
+                <span className="text-red-400">−{formatCurrency(expense, currency)}</span>
+              )}
+              {income > 0 && (
+                <span className="text-emerald-400">+{formatCurrency(income, currency)}</span>
+              )}
+            </Fragment>
+          ))}
+        </span>
+      )}
     </div>
   );
 }

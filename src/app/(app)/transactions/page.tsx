@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/auth";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { INTERNAL_CATEGORIES } from "@/lib/internal-categories";
 import { newTransactionDefaults, TX_TYPES } from "@/lib/transaction-defaults";
@@ -37,15 +38,16 @@ export default async function TransactionsPage(
   });
 
   // Construir filtros
-  const where: any = { userId: user.id };
+  const where: Prisma.TransactionWhereInput = { userId: user.id };
   if (filters.from || filters.to) {
-    where.date = {};
-    if (filters.from) where.date.gte = new Date(filters.from);
+    const date: Prisma.DateTimeFilter = {};
+    if (filters.from) date.gte = new Date(filters.from);
     if (filters.to) {
       const to = new Date(filters.to);
       to.setHours(23, 59, 59, 999);
-      where.date.lte = to;
+      date.lte = to;
     }
+    where.date = date;
   }
   if (filters.type === "CARD_PAYMENT") {
     // Pago de tarjeta: transferencia de una cuenta que no es de crédito a una que sí
