@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.22.0...v0.23.0) (2026-11-18)
+
+
+### Nuevas funciones
+
+* **accounts:** pagar la tarjeta desde Cuentas y total por día en Movimientos ([#102](https://github.com/axelroman-dev/FinanzasPersonales/issues/102)) ([66ba02b](https://github.com/axelroman-dev/FinanzasPersonales/commit/66ba02bae5ad9705c764d9ed124642c18536e043))
+
 ## [0.22.0](https://github.com/axelroman-dev/FinanzasPersonales/compare/v0.21.0...v0.22.0) (2026-11-14)
 
 
